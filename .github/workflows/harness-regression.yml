@@ -1,0 +1,44 @@
+name: Harness regression
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+        node:
+          - 20
+          - 22
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Validate harness
+        run: node scripts/harness.mjs validate
+
+      - name: Diagnose harness
+        run: node scripts/harness.mjs doctor
+
+      - name: Run regression tests
+        run: node --test
+
+      - name: Check source manifest
+        run: node scripts/harness.mjs manifest --check

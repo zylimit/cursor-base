@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cursor-harness.local/schemas/install-manifest.schema.json",
+  "title": "Cursor Harness Install Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "harness_version",
+    "hash",
+    "files",
+    "digest"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "harness_version": {
+      "type": "string"
+    },
+    "hash": {
+      "const": "sha256-lf-v1"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256",
+          "bytes"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?![A-Za-z]:[\\\\/])(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "installed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "string"
+    }
+  }
+}

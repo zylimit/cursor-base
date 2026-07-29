@@ -1,0 +1,15 @@
+---
+description: Authoring standards for Cursor governance assets
+globs: "{AGENTS.md,.cursor/rules/**/*.mdc,.cursor/agents/**/*.md,.cursor/skills/**/*.md}"
+alwaysApply: false
+---
+
+# Governance Assets
+
+- Keep root `AGENTS.md` short and limited to stable invariants.
+- Use focused `.mdc` rules with valid `description`, `globs` when path-specific, and `alwaysApply`.
+- Keep agent roles narrow; mark exploration, impact analysis, debugging, and review read-only.
+- Every agent uses the common task envelope and completion receipt.
+- Keep `SKILL.md` concise. Put detailed workflow guidance in directly linked, one-level-deep references.
+- Use repository-relative POSIX paths and technology-neutral language.
+- Do not add executable skill scripts; invoke only `node scripts/harness.mjs ...` when a deterministic harness action is needed.

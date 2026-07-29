@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "permissions": {
+    "allow": [
+      "Shell(git:status*)",
+      "Shell(git:diff*)",
+      "Shell(git:log*)",
+      "Shell(git:show*)",
+      "Shell(node:scripts/harness.mjs*)",
+      "Read(**)",
+      "Write(src/**)",
+      "Write(harness/**)",
+      "Write(scripts/**)"
+    ],
+    "deny": [
+      "Shell(rm:*)",
+      "Shell(del:*)",
+      "Shell(format:*)",
+      "Shell(shutdown:*)",
+      "Shell(git:push*)",
+      "Read(**/.env*)",
+      "Read(**/*.key)",
+      "Read(**/*.pem)",
+      "Write(**/.env*)",
+      "Write(**/*.key)",
+      "Write(**/*.pem)"
+    ]
+  }
+}

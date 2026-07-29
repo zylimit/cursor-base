@@ -1,0 +1,25 @@
+# Exclude generated, vendored, and secret-bearing files from semantic indexing.
+node_modules/
+vendor/
+third_party/
+dist/
+build/
+out/
+coverage/
+.cache/
+.tmp/
+tmp/
+.git/
+.harness/
+*.log
+*.min.js
+*.map
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+**/fixtures/large/**
+**/snapshots/**

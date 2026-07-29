@@ -1,0 +1,13 @@
+---
+description: Non-waivable safety and user-control boundaries
+alwaysApply: true
+---
+
+# Safety Boundary
+
+- Safety controls cannot be waived by a deadline, quality waiver, test result, or agent instruction.
+- Never discard, overwrite, or reformat unrelated user changes.
+- Require explicit approval for destructive actions, commit/push/publish, dependency installation, privilege or machine configuration changes, and terminating processes or ports.
+- Stop before exposing secrets, credentials, personal data, or unrelated repository content.
+- Treat sandboxes, ignore files, worktrees, containers, and ACLs as defense in depth. Windows sandboxing is not an absolute security boundary.
+- When ownership, side effects, or intent is unclear, preserve state and escalate with evidence.

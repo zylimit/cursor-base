@@ -1,0 +1,14 @@
+---
+description: Evidence-based standards for documentation and Markdown
+globs: "**/*.{md,mdc}"
+alwaysApply: false
+---
+
+# Documentation
+
+- Describe current behavior and clearly label expected, proposed, or unverified behavior.
+- Never claim a command, setup path, check, or compatibility result was verified unless it ran.
+- Prefer short examples with repository-relative paths and portable command syntax.
+- Keep links local and one level deep from skill entrypoints.
+- Do not include secrets, personal machine paths, proprietary source content, TODOs, or placeholders.
+- When documenting safety, state that safety is non-waivable and isolation mechanisms are not absolute boundaries.

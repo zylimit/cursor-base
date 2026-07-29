@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cursor-harness.local/schemas/receipt.schema.json",
+  "title": "Cursor Harness Review Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "base_commit",
+    "diff_sha256",
+    "scope",
+    "exclusions",
+    "reviewer",
+    "decision",
+    "findings",
+    "not_reviewed",
+    "created_at",
+    "content_sha256"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "base_commit": {
+      "type": "string",
+      "minLength": 1
+    },
+    "diff_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "scope": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "exclusions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision": {
+      "enum": [
+        "approve",
+        "comment",
+        "request-changes"
+      ]
+    },
+    "findings": {
+      "type": "array"
+    },
+    "not_reviewed": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "content_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

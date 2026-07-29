@@ -1,0 +1,28 @@
+---
+description: Required task envelope, scope discipline, and completion receipt
+alwaysApply: true
+---
+
+# Task Contract
+
+Before delegated work, establish:
+
+- **Goal**
+- **Scope**
+- **Out of Scope**
+- **Existing Pattern**
+- **Verification**
+- **Escalation**
+
+Do not interpret missing scope as permission to widen it.
+
+Return:
+
+- **Status**
+- **Changed**
+- **Verified**
+- **Not verified**
+- **Needs review by**
+- **Evidence**
+
+Only executed checks belong under `Verified`. Use `docs/PROTOCOLS.md` for exact contracts.

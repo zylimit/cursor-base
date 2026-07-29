@@ -1,0 +1,63 @@
+{
+  "$schema": "./schemas/module-catalog.schema.json",
+  "version": 1,
+  "modules": [
+    {
+      "id": "governance",
+      "paths": [
+        "AGENTS.md",
+        ".cursor/rules/**",
+        ".cursor/agents/**",
+        ".cursor/skills/**",
+        "docs/**"
+      ],
+      "dependsOn": [],
+      "verification": [
+        "validate"
+      ],
+      "owners": []
+    },
+    {
+      "id": "runtime",
+      "paths": [
+        "src/**",
+        ".cursor/runtime/**",
+        ".cursor/hooks.json",
+        ".cursor/cli.json",
+        ".cursor/sandbox.json",
+        ".cursor/worktrees.json"
+      ],
+      "dependsOn": [
+        "governance"
+      ],
+      "verification": [
+        "runtime-sync",
+        "validate",
+        "node-test"
+      ],
+      "owners": []
+    },
+    {
+      "id": "distribution",
+      "paths": [
+        "package.json",
+        "tsconfig.json",
+        "scripts/**",
+        "setup.ps1",
+        "setup.sh",
+        "harness/**"
+      ],
+      "dependsOn": [
+        "runtime",
+        "governance"
+      ],
+      "verification": [
+        "runtime-sync",
+        "validate",
+        "doctor",
+        "manifest-check"
+      ],
+      "owners": []
+    }
+  ]
+}

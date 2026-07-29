@@ -1,0 +1,14 @@
+---
+description: Context and verification strategy for large multi-module repositories
+alwaysApply: true
+---
+
+# Large Repository Strategy
+
+- Begin at module, owner, manifest, entrypoint, and public-contract boundaries.
+- Search before reading broad trees; exclude generated and vendored content.
+- Build a compact evidence map of paths, symbols, dependency edges, tests, and open questions.
+- Inspect the complete diff and verify the affected module first.
+- Expand to direct dependents, contract tests, integrations, or repository-wide checks according to evidence and risk.
+- Parallelize independent reads. Serialize writes unless the task assigns explicit disjoint ownership and an integration owner.
+- Treat shared manifests, lockfiles, generated output, and migrations as overlapping write ownership.

@@ -1,0 +1,37 @@
+# Dependencies and package-manager caches
+node_modules/
+.pnpm-store/
+.yarn/
+
+# Build, test, and coverage output
+dist/
+build/
+out/
+coverage/
+.cache/
+.tmp/
+tmp/
+
+# Logs and runtime artifacts
+*.log
+*.pid
+*.seed
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Harness-local state and receipts
+.harness/
+.cursor/harness-state/*
+!.cursor/harness-state/.gitignore
+*.receipt.json

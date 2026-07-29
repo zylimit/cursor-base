@@ -1,0 +1,15 @@
+---
+description: Affected-first verification and honest evidence reporting
+globs: "**/{test,tests,spec,specs,__tests__}/**/*"
+alwaysApply: false
+---
+
+# Tests and Verification
+
+- Tie each check to a changed behavior, contract, regression, or risk.
+- Prefer the nearest deterministic test, then direct dependents and integration boundaries.
+- Do not weaken assertions, delete coverage, or classify a failure as flaky without evidence.
+- Distinguish product failures from environment or prerequisite failures.
+- Avoid broad snapshots when focused behavioral assertions are practical.
+- Record exact commands and outcomes. Put skipped or unavailable checks under `Not verified`.
+- A quality waiver requires owner, reason, exact scope, and expiry; it never waives safety.

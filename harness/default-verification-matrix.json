@@ -1,0 +1,31 @@
+{
+  "$schema": "./schemas/verification-matrix.schema.json",
+  "version": 1,
+  "checks": {
+    "runtime-sync": {
+      "class": "static",
+      "command": "node scripts/harness.mjs validate --sync-only",
+      "required": true
+    },
+    "validate": {
+      "class": "static",
+      "command": "node scripts/harness.mjs validate",
+      "required": true
+    },
+    "doctor": {
+      "class": "diagnostic",
+      "command": "node scripts/harness.mjs doctor",
+      "required": true
+    },
+    "node-test": {
+      "class": "test",
+      "command": "node --test",
+      "required": true
+    },
+    "manifest-check": {
+      "class": "integrity",
+      "command": "node scripts/harness.mjs manifest --check",
+      "required": true
+    }
+  }
+}

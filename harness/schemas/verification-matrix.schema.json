@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cursor-harness.local/schemas/verification-matrix.schema.json",
+  "title": "Cursor Harness Verification Matrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "checks"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "class",
+          "command",
+          "required"
+        ],
+        "properties": {
+          "class": {
+            "enum": [
+              "format",
+              "static",
+              "test",
+              "integration",
+              "build",
+              "diagnostic",
+              "integrity"
+            ]
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
