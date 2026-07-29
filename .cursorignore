@@ -1,0 +1,25 @@
+# Keep generated, vendored, runtime-state, and secret-bearing content out of Agent context.
+node_modules/
+vendor/
+third_party/
+dist/
+build/
+out/
+coverage/
+.cache/
+.tmp/
+tmp/
+.git/
+.cursor/harness-state/
+*.log
+*.min.js
+*.map
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+**/fixtures/large/**
+**/snapshots/**
