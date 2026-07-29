@@ -164,6 +164,11 @@
       "bytes": 68
     },
     {
+      "path": ".cursorignore",
+      "sha256": "cf433f40fb4f9e85167a55a1ccf8f74b5139fb83afbfc383b918bfe130d5c275",
+      "bytes": 310
+    },
+    {
       "path": ".cursorindexingignore",
       "sha256": "bf9569cc23058913ddbb89be03d7074a0520603bf0f1c92f6cab5eaa48561a62",
       "bytes": 286
@@ -224,5 +229,5 @@
       "bytes": 185
     }
   ],
-  "digest": "27b65c4beff46a24e8408a6d804ee0d324300bc74ad199dde2629331dd4449ef"
+  "digest": "f5af775041b81c912a2a5328c891e320b7a11cf899948666260dd0c55a5a835e"
 }
