@@ -1441,7 +1441,7 @@ function executeCheck(root: string, check: SelectedCheck, plan: VerifyPlan): Ver
       maxBuffer: 32 * 1024 * 1024,
     });
   } else {
-    const [program, ...args] = parsed.segments[0].tokens;
+    const [program, ...args] = parsed.segments[0].rawTokens;
     if (!whichCommand(program)) {
       receipt.duration_ms = Date.now() - started;
       receipt.reason = `Command not found on PATH: ${program}.`;
@@ -1688,7 +1688,7 @@ function gate(positional: string[], options: CliOptions): void {
         command: check.command ?? "",
         executable_available:
           parseShellCommand(String(check.command || "")).segments.length === 1
-            ? whichCommand(parseShellCommand(String(check.command || "")).segments[0].tokens[0]) !== null
+            ? whichCommand(parseShellCommand(String(check.command || "")).segments[0].rawTokens[0]) !== null
             : null,
       })),
     });
@@ -1968,7 +1968,26 @@ function archCheck(options: CliOptions): void {
     }
   }
   const cycles = detectCycles(actual);
+  const resolvedEdges = [...actual.values()].reduce((total, targets) => total + targets.size, 0);
   const ok = violations.size === 0 && forbidden.size === 0 && cycles.length === 0;
+
+  // Passing with no resolved edges means nothing was actually checked. That is a legitimate
+  // result for a single-module repository and a silent blind spot for any other, so it is
+  // reported rather than left to look like a clean bill of health.
+  const notes: string[] = [];
+  if (scanned > 0 && resolvedEdges === 0) {
+    notes.push(
+      `No cross-module import edge was resolved across ${scanned} scanned files, so the declared graph was not exercised. ` +
+        (unresolved > 0
+          ? `${unresolved} import specifiers could not be attributed to a module; add \`provides\` prefixes for languages that import by package name rather than by relative path.`
+          : "This is expected only when every module is genuinely self-contained."),
+    );
+  } else if (unresolved > resolvedEdges * 10 && unresolved > 100) {
+    notes.push(
+      `${unresolved} import specifiers were unattributed against ${resolvedEdges} resolved edges, so coverage of the declared graph is partial.`,
+    );
+  }
+  if (truncated) notes.push(`Scanning stopped at ${maxFiles} files; coverage is incomplete.`);
 
   printJson({
     command: "arch-check",
@@ -1977,6 +1996,8 @@ function archCheck(options: CliOptions): void {
     scanned_files: scanned,
     truncated,
     unresolved_imports: unresolved,
+    resolved_edges: resolvedEdges,
+    notes,
     edges: [...actual].map(([id, targets]) => ({ module: id, dependsOn: [...targets].sort() })),
     // Kept separate from undeclared edges: one means the map is out of date, the other means a
     // boundary the repository deliberately drew has been crossed.
@@ -2856,8 +2877,14 @@ interface ShellSegment {
   /** Executable name with any directory prefix and `.exe` suffix removed. */
   name: string;
   args: string[];
-  /** Raw tokens starting at the program, suitable for spawning without a shell. */
+  /** Tokens starting at the resolved program, used for classification. */
   tokens: string[];
+  /**
+   * Every token of the segment exactly as written, including wrappers and environment
+   * assignments. Execution must use these: stripping them changes what runs while the receipt
+   * still records the original command, which makes the evidence false.
+   */
+  rawTokens: string[];
   /** True when this segment receives stdin from the previous one, so data flows between them. */
   pipedFrom: boolean;
 }
@@ -2940,7 +2967,7 @@ function parseShellCommand(value: string): ShellParse {
   const pushSegment = (nextIsPiped: boolean) => {
     pushToken();
     if (tokens.length > 0) {
-      segments.push({ ...toSegment(tokens), pipedFrom: pendingPipe });
+      segments.push({ ...toSegment(tokens), rawTokens: [...tokens], pipedFrom: pendingPipe });
       pendingPipe = nextIsPiped;
     }
     tokens = [];
@@ -3015,7 +3042,7 @@ function parseShellCommand(value: string): ShellParse {
   return { segments, dynamic };
 }
 
-function toSegment(tokens: string[]): Omit<ShellSegment, "pipedFrom"> {
+function toSegment(tokens: string[]): Omit<ShellSegment, "pipedFrom" | "rawTokens"> {
   let index = 0;
   // Leading `NAME=value` pairs are environment assignments, not the program being run.
   while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[index])) index += 1;

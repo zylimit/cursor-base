@@ -2154,6 +2154,36 @@ test("a check that exceeds its timeout fails rather than passing or hanging", (t
   assert.match(result.results[0].reason, /terminated after 500ms/);
 });
 
+test("a check runs exactly the command its receipt records", (t) => {
+  const root = gateFixture(t);
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+  writeFileSync(
+    resolve(root, "probe.mjs"),
+    'process.exit(process.env.HARNESS_PROBE === "expected" ? 0 : 9);\n',
+    "utf8",
+  );
+
+  // Environment assignments and wrappers are stripped for classification. Stripping them for
+  // execution too would run a different command than the receipt names, so a check could pass
+  // or fail for reasons the evidence does not describe.
+  const command = `env HARNESS_PROBE=expected ${process.execPath} probe.mjs`;
+  setMatrix(root, { unit: { class: "test", command, required: true } });
+
+  const passing = jsonResult(runHarness(["gate", "--target", root]));
+  assert.equal(passing.status, "PASS", "the environment assignment must reach the process");
+
+  const ledger = JSON.parse(readFileSync(resolve(root, ".cursor/harness-state/quality-ledger.json"), "utf8"));
+  assert.equal(ledger.receipts.at(-1).command, command, "the receipt must name what ran");
+
+  // The same command without the assignment must fail, proving the variable was load-bearing.
+  setMatrix(root, {
+    unit: { class: "test", command: `${process.execPath} probe.mjs`, required: true },
+  });
+  const failing = jsonResult(runHarness(["gate", "--target", root]), 2);
+  assert.equal(failing.results[0].exit_code, 9);
+});
+
 test("a check composed with shell operators still runs and records that it used a shell", (t) => {
   const root = gateFixture(t);
   mkdirSync(resolve(root, "src"), { recursive: true });

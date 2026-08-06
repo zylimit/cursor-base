@@ -1165,7 +1165,7 @@ function executeCheck(root, check, plan) {
         });
     }
     else {
-        const [program, ...args] = parsed.segments[0].tokens;
+        const [program, ...args] = parsed.segments[0].rawTokens;
         if (!whichCommand(program)) {
             receipt.duration_ms = Date.now() - started;
             receipt.reason = `Command not found on PATH: ${program}.`;
@@ -1362,7 +1362,7 @@ function gate(positional, options) {
                 attributes: check.attributes ?? [],
                 command: check.command ?? "",
                 executable_available: parseShellCommand(String(check.command || "")).segments.length === 1
-                    ? whichCommand(parseShellCommand(String(check.command || "")).segments[0].tokens[0]) !== null
+                    ? whichCommand(parseShellCommand(String(check.command || "")).segments[0].rawTokens[0]) !== null
                     : null,
             })),
         });
@@ -1634,7 +1634,23 @@ function archCheck(options) {
         }
     }
     const cycles = detectCycles(actual);
+    const resolvedEdges = [...actual.values()].reduce((total, targets) => total + targets.size, 0);
     const ok = violations.size === 0 && forbidden.size === 0 && cycles.length === 0;
+    // Passing with no resolved edges means nothing was actually checked. That is a legitimate
+    // result for a single-module repository and a silent blind spot for any other, so it is
+    // reported rather than left to look like a clean bill of health.
+    const notes = [];
+    if (scanned > 0 && resolvedEdges === 0) {
+        notes.push(`No cross-module import edge was resolved across ${scanned} scanned files, so the declared graph was not exercised. ` +
+            (unresolved > 0
+                ? `${unresolved} import specifiers could not be attributed to a module; add \`provides\` prefixes for languages that import by package name rather than by relative path.`
+                : "This is expected only when every module is genuinely self-contained."));
+    }
+    else if (unresolved > resolvedEdges * 10 && unresolved > 100) {
+        notes.push(`${unresolved} import specifiers were unattributed against ${resolvedEdges} resolved edges, so coverage of the declared graph is partial.`);
+    }
+    if (truncated)
+        notes.push(`Scanning stopped at ${maxFiles} files; coverage is incomplete.`);
     printJson({
         command: "arch-check",
         target: root,
@@ -1642,6 +1658,8 @@ function archCheck(options) {
         scanned_files: scanned,
         truncated,
         unresolved_imports: unresolved,
+        resolved_edges: resolvedEdges,
+        notes,
         edges: [...actual].map(([id, targets]) => ({ module: id, dependsOn: [...targets].sort() })),
         // Kept separate from undeclared edges: one means the map is out of date, the other means a
         // boundary the repository deliberately drew has been crossed.
@@ -2456,7 +2474,7 @@ function parseShellCommand(value) {
     const pushSegment = (nextIsPiped) => {
         pushToken();
         if (tokens.length > 0) {
-            segments.push({ ...toSegment(tokens), pipedFrom: pendingPipe });
+            segments.push({ ...toSegment(tokens), rawTokens: [...tokens], pipedFrom: pendingPipe });
             pendingPipe = nextIsPiped;
         }
         tokens = [];
