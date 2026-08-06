@@ -2820,8 +2820,10 @@ function quality(positional: string[], options: CliOptions): void {
 }
 
 function sensitivePath(filePath: string): boolean {
-  const normalized = posix(resolve(filePath)).toLowerCase();
-  const name = basename(normalized);
+  // Backslashes are folded first so the verdict is identical on every host. A security check
+  // whose answer depends on the platform running it is not a check.
+  const normalized = posix(resolve(filePath.replace(/\\/g, "/"))).toLowerCase().replace(/\\/g, "/");
+  const name = normalized.slice(normalized.lastIndexOf("/") + 1);
   if (/^\.env($|\.)/.test(name) && !/\.(example|sample|template)$/.test(name)) return true;
   if (/\.(pem|key|p12|pfx|jks|keystore)$/.test(name)) return true;
   if (
@@ -2893,6 +2895,11 @@ const EGRESS_COMMANDS = new Set([
   "start-bitstransfer",
 ]);
 
+const SHELL_ESCAPABLE = new Set([
+  "\\", '"', "'", " ", "\t", "\n", "$", "`", "!", "&", "|", ";",
+  "<", ">", "(", ")", "*", "?", "[", "]", "{", "}", "~", "#",
+]);
+
 function stripExecutableName(token: string): string {
   const normalized = posix(token).replace(/^.*\//, "");
   return normalized.replace(/\.(exe|cmd|bat|ps1)$/i, "").toLowerCase();
@@ -2937,10 +2944,16 @@ function parseShellCommand(value: string): ShellParse {
     }
     if (char === "\\") {
       const next = value[index + 1];
-      if (next !== undefined) {
+      // On Windows a backslash is the path separator, so consuming it as an escape turned
+      // `C:\Users\me\.ssh\id_rsa` into an unrecognizable name and let credential reads through.
+      // Only characters that genuinely need escaping in a shell are treated as escaped.
+      if (next !== undefined && SHELL_ESCAPABLE.has(next)) {
         current += next;
         hasCurrent = true;
         index += 1;
+      } else {
+        current += char;
+        hasCurrent = true;
       }
       continue;
     }
