@@ -5,27 +5,85 @@
     "runtime-sync": {
       "class": "static",
       "command": "node scripts/harness.mjs validate --sync-only",
-      "required": true
+      "required": true,
+      "attributes": [
+        "security",
+        "reliability"
+      ]
     },
     "validate": {
       "class": "static",
       "command": "node scripts/harness.mjs validate",
-      "required": true
+      "required": true,
+      "attributes": [
+        "maintainability"
+      ]
     },
     "doctor": {
       "class": "diagnostic",
       "command": "node scripts/harness.mjs doctor",
-      "required": true
+      "required": true,
+      "attributes": [
+        "reliability"
+      ]
     },
     "node-test": {
       "class": "test",
       "command": "node --test",
-      "required": true
+      "required": true,
+      "attributes": [
+        "reliability",
+        "security"
+      ]
     },
     "manifest-check": {
       "class": "integrity",
       "command": "node scripts/harness.mjs manifest --check",
-      "required": true
+      "required": true,
+      "attributes": [
+        "security",
+        "safety"
+      ]
+    },
+    "catalog-lint": {
+      "class": "static",
+      "command": "node scripts/harness.mjs catalog lint",
+      "required": true,
+      "attributes": [
+        "maintainability",
+        "safety"
+      ]
+    },
+    "arch-check": {
+      "class": "static",
+      "command": "node scripts/harness.mjs arch-check",
+      "required": true,
+      "attributes": [
+        "maintainability",
+        "security",
+        "privacy"
+      ]
+    },
+    "fitness": {
+      "class": "static",
+      "command": "node scripts/harness.mjs fitness --all",
+      "required": true,
+      "attributes": [
+        "security",
+        "privacy",
+        "reliability",
+        "resilience",
+        "safety"
+      ]
+    },
+    "adr-check": {
+      "class": "static",
+      "command": "node scripts/harness.mjs adr-check",
+      "required": true,
+      "attributes": [
+        "maintainability",
+        "safety"
+      ]
     }
   }
 }

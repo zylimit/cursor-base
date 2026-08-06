@@ -1,21 +1,65 @@
 {
   "$schema": "./schemas/module-catalog.schema.json",
   "version": 1,
+  "globalPaths": [
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    ".gitattributes",
+    ".gitignore",
+    ".github/workflows/**",
+    "FRAMEWORK-MANIFEST.json"
+  ],
+  "ignored": [
+    {
+      "paths": [
+        "LICENSE",
+        "SECURITY.md",
+        "CHANGELOG.md",
+        ".env.example"
+      ],
+      "reason": "Legal, disclosure, and example files carry no executable behavior."
+    }
+  ],
+  "contextPack": {
+    "totalChars": 120000,
+    "fileChars": 20000,
+    "diffChars": 40000,
+    "maxFiles": 40
+  },
   "modules": [
     {
       "id": "governance",
       "paths": [
         "AGENTS.md",
+        "README.md",
+        "CONTRIBUTING.md",
         ".cursor/rules/**",
         ".cursor/agents/**",
         ".cursor/skills/**",
-        "docs/**"
+        "docs/**",
+        "progress.md"
       ],
       "dependsOn": [],
       "verification": [
-        "validate"
+        "validate",
+        "fitness",
+        "adr-check"
       ],
-      "owners": []
+      "owners": [],
+      "attributes": {
+        "maintainability": "high",
+        "security": {
+          "tier": "minimal",
+          "reason": "Documentation and policy assets execute nothing."
+        }
+      },
+      "layer": "governance",
+      "forbiddenDependencies": [
+        "runtime",
+        "distribution",
+        "tests"
+      ]
     },
     {
       "id": "runtime",
@@ -25,23 +69,64 @@
         ".cursor/hooks.json",
         ".cursor/cli.json",
         ".cursor/sandbox.json",
-        ".cursor/worktrees.json"
+        ".cursor/worktrees.json",
+        ".cursor/harness-state/**",
+        ".cursorignore",
+        ".cursorindexingignore"
       ],
       "dependsOn": [
         "governance"
       ],
+      "shared": true,
       "verification": [
         "runtime-sync",
         "validate",
-        "node-test"
+        "node-test",
+        "fitness"
       ],
-      "owners": []
+      "owners": [],
+      "attributes": {
+        "security": "critical",
+        "reliability": "critical",
+        "privacy": "high",
+        "resilience": "high",
+        "safety": "high",
+        "availability": {
+          "tier": "none",
+          "reason": "A local CLI has no service to keep available."
+        }
+      },
+      "layer": "runtime",
+      "forbiddenDependencies": [
+        "distribution",
+        "tests"
+      ]
+    },
+    {
+      "id": "tests",
+      "paths": [
+        "tests/**"
+      ],
+      "dependsOn": [
+        "runtime"
+      ],
+      "verification": [
+        "node-test",
+        "fitness"
+      ],
+      "owners": [],
+      "attributes": {
+        "reliability": "high",
+        "security": {
+          "tier": "low",
+          "reason": "Test fixtures are synthetic and never reach production."
+        }
+      },
+      "layer": "tests"
     },
     {
       "id": "distribution",
       "paths": [
-        "package.json",
-        "tsconfig.json",
         "scripts/**",
         "setup.ps1",
         "setup.sh",
@@ -55,9 +140,24 @@
         "runtime-sync",
         "validate",
         "doctor",
-        "manifest-check"
+        "manifest-check",
+        "catalog-lint",
+        "arch-check",
+        "fitness"
       ],
-      "owners": []
+      "owners": [],
+      "attributes": {
+        "security": "critical",
+        "safety": "high",
+        "reliability": "high"
+      },
+      "layer": "distribution"
     }
+  ],
+  "layers": [
+    "distribution",
+    "tests",
+    "runtime",
+    "governance"
   ]
 }

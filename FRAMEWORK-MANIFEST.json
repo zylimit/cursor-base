@@ -45,8 +45,8 @@
     },
     {
       "path": ".cursor/hooks.json",
-      "sha256": "93854f58eb2c6f4f4c67abc8fb094a91e63707b4569ef67e326c2e5716e9f473",
-      "bytes": 1332
+      "sha256": "1ed151a5f6661ae1fb1cc4005a38eb29aa7f37110bf01a3c2ae3536fad655aad",
+      "bytes": 1764
     },
     {
       "path": ".cursor/rules/00-safety.mdc",
@@ -62,6 +62,11 @@
       "path": ".cursor/rules/20-large-repository.mdc",
       "sha256": "28535cfc0655829eef66dd146c006525bdd394571854c0ec73d958e353cb481e",
       "bytes": 806
+    },
+    {
+      "path": ".cursor/rules/30-approval-tiers.mdc",
+      "sha256": "79c48a4cfd44de07b70cbb53fcfb224e41c34fd2bb2772b5b6f3e11c9802c037",
+      "bytes": 846
     },
     {
       "path": ".cursor/rules/documentation.mdc",
@@ -80,8 +85,8 @@
     },
     {
       "path": ".cursor/runtime/harness.mjs",
-      "sha256": "5ea8feb9a629d0fde9c93f5f828bfa8ede2aeb3cd59ddf93d0c869f823011b1c",
-      "bytes": 51132
+      "sha256": "e3d23e38456dc54315b3b6d3ce948bc0829dff2a243a4025198f2630526039e1",
+      "bytes": 157610
     },
     {
       "path": ".cursor/sandbox.json",
@@ -95,8 +100,8 @@
     },
     {
       "path": ".cursor/skills/affected-verification/SKILL.md",
-      "sha256": "caa6898a9602cee029b3f460ac7160ee1ff75b82565408022ec3274cb43ff556",
-      "bytes": 891
+      "sha256": "37829bb5b041acb5fc9eed34029248ed050e343089f650a6ff9c4d83311d1fcf",
+      "bytes": 1016
     },
     {
       "path": ".cursor/skills/code-review/REFERENCE.md",
@@ -139,6 +144,16 @@
       "bytes": 827
     },
     {
+      "path": ".cursor/skills/project-memory/REFERENCE.md",
+      "sha256": "df79d1a6b315f74c2b085835a1f42e077f02d8c55d419f9e8c4d96d019077975",
+      "bytes": 1729
+    },
+    {
+      "path": ".cursor/skills/project-memory/SKILL.md",
+      "sha256": "ae7ac7d9ced8b5bf190503990a68ff5f83df3491019776bd71c3d4fc25d2325b",
+      "bytes": 992
+    },
+    {
       "path": ".cursor/skills/root-cause-debugging/REFERENCE.md",
       "sha256": "024bddd0a657cdd195883d30f719fa9dbcbacb837dfff8ab4cee73cc617db186",
       "bytes": 1166
@@ -179,19 +194,24 @@
       "bytes": 873
     },
     {
+      "path": "harness/adapters.json",
+      "sha256": "1af86bc0f2178c08b361737083e60f4b7c7dfb0767fa8adaef6a1595cf7b9506",
+      "bytes": 4985
+    },
+    {
       "path": "harness/default-module-catalog.json",
-      "sha256": "b5a5dc59293df999b38bb43c299025f477a31fcada08e8ae52efabcfd0b880fd",
-      "bytes": 1184
+      "sha256": "ac4008f47b31b93c9ca66348bde7c201379d0afbaa39b1b3e75a02cf2c5fd778",
+      "bytes": 3403
     },
     {
       "path": "harness/default-verification-matrix.json",
-      "sha256": "5f42caaa4a2c332bccbe2821bc05fc50023fffd719363313811c451f2c983336",
-      "bytes": 740
+      "sha256": "7d600bc3e1e3cf431e2c84d9f7a3723ca1846055d724fc78ecb92111900b5bdc",
+      "bytes": 1968
     },
     {
       "path": "harness/module-catalog.json",
-      "sha256": "b5a5dc59293df999b38bb43c299025f477a31fcada08e8ae52efabcfd0b880fd",
-      "bytes": 1184
+      "sha256": "ac4008f47b31b93c9ca66348bde7c201379d0afbaa39b1b3e75a02cf2c5fd778",
+      "bytes": 3403
     },
     {
       "path": "harness/schemas/install-manifest.schema.json",
@@ -200,8 +220,8 @@
     },
     {
       "path": "harness/schemas/module-catalog.schema.json",
-      "sha256": "b0039c55ebe2b8c44027924799cd635fe5c098593795b61a93df12b6bb210c0e",
-      "bytes": 1449
+      "sha256": "458a9edd11f63bf51061f89d11d04159e202507b0916f135760d17478df8fd1d",
+      "bytes": 12040
     },
     {
       "path": "harness/schemas/receipt.schema.json",
@@ -210,8 +230,8 @@
     },
     {
       "path": "harness/schemas/verification-matrix.schema.json",
-      "sha256": "0f6d0ab56a4ddecf961439490564ea47cb7fcf9f3c9f9297d2c03a4f8123b9ba",
-      "bytes": 1091
+      "sha256": "36fc7ebaf0b4fdc6d71bf216ba4bf1dba12414c698f6643bb0fc051314f6778c",
+      "bytes": 1645
     },
     {
       "path": "harness/schemas/waiver.schema.json",
@@ -220,8 +240,8 @@
     },
     {
       "path": "harness/verification-matrix.json",
-      "sha256": "5f42caaa4a2c332bccbe2821bc05fc50023fffd719363313811c451f2c983336",
-      "bytes": 740
+      "sha256": "7d600bc3e1e3cf431e2c84d9f7a3723ca1846055d724fc78ecb92111900b5bdc",
+      "bytes": 1968
     },
     {
       "path": "scripts/harness.mjs",
@@ -229,5 +249,5 @@
       "bytes": 185
     }
   ],
-  "digest": "26b364d87d9e6877f7783d3af0d8f1dbd4a9de3b71f3ab4b0724b76965aafeac"
+  "digest": "f0e22818f06f42a3a1dbdec5a28500f5a6a98cfcfec5b3b1147d81d7152b4008"
 }

@@ -11,12 +11,24 @@ Keep contributions technology-neutral and useful in repositories ranging from sm
 5. Run the narrowest affected checks, then the expected repository checks when available:
 
    ```sh
+   npm run typecheck
+   npm run build
    node scripts/harness.mjs doctor
    node scripts/harness.mjs validate
    node scripts/harness.mjs test
    ```
 
 6. Record a completion receipt. Do not report unexecuted checks as passing.
+
+## Runtime source of truth
+
+`src/harness.mts` is the only place to edit harness behavior. `.cursor/runtime/harness.mjs` is
+compiler output that is checked in so hooks and installed repositories can run without a build
+step. Never hand-edit the runtime: `npm run runtime-sync` recompiles the source into a scratch
+directory and fails if the checked-in file differs by a single byte.
+
+Run `npm install` once before contributing; the type checker and the parity check both require
+the local TypeScript toolchain. The runtime itself has no dependencies.
 
 ## Content standards
 

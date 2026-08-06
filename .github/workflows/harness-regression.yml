@@ -30,6 +30,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install toolchain
+        run: npm ci
+
+      - name: Type-check source
+        run: npm run typecheck
+
+      - name: Verify checked-in runtime matches its source
+        run: npm run runtime-sync
 
       - name: Validate harness
         run: node scripts/harness.mjs validate

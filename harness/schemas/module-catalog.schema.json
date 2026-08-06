@@ -15,6 +15,64 @@
     "version": {
       "const": 1
     },
+    "globalPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "ignored": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "paths",
+          "reason"
+        ],
+        "properties": {
+          "paths": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "contextPack": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "totalChars": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fileChars": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "diffChars": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxFiles": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "maxTrackedPaths": {
+      "type": "integer",
+      "minimum": 1
+    },
     "modules": {
       "type": "array",
       "items": {
@@ -58,9 +116,335 @@
             "items": {
               "type": "string"
             }
+          },
+          "provides": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "root": {
+            "type": "string"
+          },
+          "shared": {
+            "type": "boolean"
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "security": {
+                "oneOf": [
+                  {
+                    "enum": [
+                      "critical",
+                      "high",
+                      "medium",
+                      "low",
+                      "minimal",
+                      "none"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tier"
+                    ],
+                    "properties": {
+                      "tier": {
+                        "enum": [
+                          "critical",
+                          "high",
+                          "medium",
+                          "low",
+                          "minimal",
+                          "none"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              },
+              "resilience": {
+                "oneOf": [
+                  {
+                    "enum": [
+                      "critical",
+                      "high",
+                      "medium",
+                      "low",
+                      "minimal",
+                      "none"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tier"
+                    ],
+                    "properties": {
+                      "tier": {
+                        "enum": [
+                          "critical",
+                          "high",
+                          "medium",
+                          "low",
+                          "minimal",
+                          "none"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              },
+              "privacy": {
+                "oneOf": [
+                  {
+                    "enum": [
+                      "critical",
+                      "high",
+                      "medium",
+                      "low",
+                      "minimal",
+                      "none"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tier"
+                    ],
+                    "properties": {
+                      "tier": {
+                        "enum": [
+                          "critical",
+                          "high",
+                          "medium",
+                          "low",
+                          "minimal",
+                          "none"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              },
+              "safety": {
+                "oneOf": [
+                  {
+                    "enum": [
+                      "critical",
+                      "high",
+                      "medium",
+                      "low",
+                      "minimal",
+                      "none"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tier"
+                    ],
+                    "properties": {
+                      "tier": {
+                        "enum": [
+                          "critical",
+                          "high",
+                          "medium",
+                          "low",
+                          "minimal",
+                          "none"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              },
+              "reliability": {
+                "oneOf": [
+                  {
+                    "enum": [
+                      "critical",
+                      "high",
+                      "medium",
+                      "low",
+                      "minimal",
+                      "none"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tier"
+                    ],
+                    "properties": {
+                      "tier": {
+                        "enum": [
+                          "critical",
+                          "high",
+                          "medium",
+                          "low",
+                          "minimal",
+                          "none"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              },
+              "availability": {
+                "oneOf": [
+                  {
+                    "enum": [
+                      "critical",
+                      "high",
+                      "medium",
+                      "low",
+                      "minimal",
+                      "none"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tier"
+                    ],
+                    "properties": {
+                      "tier": {
+                        "enum": [
+                          "critical",
+                          "high",
+                          "medium",
+                          "low",
+                          "minimal",
+                          "none"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              },
+              "performance": {
+                "oneOf": [
+                  {
+                    "enum": [
+                      "critical",
+                      "high",
+                      "medium",
+                      "low",
+                      "minimal",
+                      "none"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tier"
+                    ],
+                    "properties": {
+                      "tier": {
+                        "enum": [
+                          "critical",
+                          "high",
+                          "medium",
+                          "low",
+                          "minimal",
+                          "none"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              },
+              "maintainability": {
+                "oneOf": [
+                  {
+                    "enum": [
+                      "critical",
+                      "high",
+                      "medium",
+                      "low",
+                      "minimal",
+                      "none"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tier"
+                    ],
+                    "properties": {
+                      "tier": {
+                        "enum": [
+                          "critical",
+                          "high",
+                          "medium",
+                          "low",
+                          "minimal",
+                          "none"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "forbiddenDependencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "layer": {
+            "type": "string"
           }
         }
       }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "runtimeValidityHours": {
+      "type": "integer",
+      "minimum": 1
     }
   }
 }

@@ -34,7 +34,10 @@
               "integration",
               "build",
               "diagnostic",
-              "integrity"
+              "integrity",
+              "security",
+              "privacy",
+              "runtime"
             ]
           },
           "command": {
@@ -43,6 +46,25 @@
           },
           "required": {
             "type": "boolean"
+          },
+          "attributes": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "security",
+                "resilience",
+                "privacy",
+                "safety",
+                "reliability",
+                "availability",
+                "performance",
+                "maintainability"
+              ]
+            }
+          },
+          "timeoutMs": {
+            "type": "integer",
+            "minimum": 1
           }
         }
       }

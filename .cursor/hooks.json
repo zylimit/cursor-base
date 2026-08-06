@@ -35,6 +35,24 @@
         "timeout": 10
       }
     ],
+    "afterShellExecution": [
+      {
+        "command": "node .cursor/runtime/harness.mjs hook afterShellExecution",
+        "timeout": 10
+      }
+    ],
+    "subagentStart": [
+      {
+        "command": "node .cursor/runtime/harness.mjs hook subagentStart",
+        "timeout": 10
+      }
+    ],
+    "preCompact": [
+      {
+        "command": "node .cursor/runtime/harness.mjs hook preCompact",
+        "timeout": 15
+      }
+    ],
     "subagentStop": [
       {
         "command": "node .cursor/runtime/harness.mjs hook subagentStop",

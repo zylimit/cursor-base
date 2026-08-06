@@ -1,15 +1,21 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["node"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
-    "checkJs": false,
-    "allowJs": true,
-    "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "rootDir": "src",
+    "outDir": ".cursor/runtime",
+    "newLine": "lf",
+    "declaration": false,
+    "sourceMap": false,
+    "removeComments": false,
+    "verbatimModuleSyntax": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.mts"
   ]
 }

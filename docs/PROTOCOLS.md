@@ -30,6 +30,26 @@ Evidence: Commands, focused output, paths, commits, hashes, or reproduced behavi
 
 Do not infer success from silence. `Verified` contains only executed checks.
 
+## Verification receipt
+
+`node scripts/harness.mjs gate` executes the affected verification plan and records one receipt
+per check:
+
+```text
+Check: id and class from the verification matrix
+Binding: base commit, canonical diff hash, and plan hash
+Status: PASS | FAIL | BLOCKED | SKIPPED
+Exit code: process result, or null when the command never ran
+Evidence: path, byte count, and hash of the captured output
+```
+
+`BLOCKED` means the check could not run — no command configured, or the executable is absent.
+A blocked check is never a pass. Structural validation of the harness itself proves nothing about
+project behavior and never produces a verification receipt.
+
+A receipt is valid only for the diff it was bound to. Any edit invalidates every receipt, and the
+completion gate reports the affected checks as missing until the gate runs again.
+
 ## Review receipt
 
 A review receipt is valid only for one immutable review target:

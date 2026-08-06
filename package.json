@@ -11,8 +11,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "node scripts/harness.mjs validate --sync-only",
-    "typecheck": "node scripts/harness.mjs validate --sync-only",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "runtime-sync": "node scripts/harness.mjs validate --sync-only",
     "test": "node scripts/harness.mjs test",
     "doctor": "node scripts/harness.mjs doctor",
     "validate": "node scripts/harness.mjs validate",
@@ -20,6 +21,7 @@
     "manifest:check": "node scripts/harness.mjs manifest --check"
   },
   "devDependencies": {
+    "@types/node": "^22.20.1",
     "typescript": "^5.9.0"
   }
 }

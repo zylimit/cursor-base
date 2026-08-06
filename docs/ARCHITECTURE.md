@@ -10,7 +10,7 @@ This harness is a technology-neutral governance layer for repositories up to rou
 2. **Contextual policy** — `.cursor/rules/*.mdc` activates focused policy by topic or path.
 3. **Role isolation** — `.cursor/agents` separates read-only analysis from scoped writers and testers.
 4. **Workflow guidance** — `.cursor/skills` provides short entrypoints with progressively loaded references.
-5. **Executable checks** — the expected `scripts/harness.mjs` entrypoint owns deterministic doctor, validate, and test behavior.
+5. **Executable checks** — the `scripts/harness.mjs` entrypoint owns deterministic doctor, validate, and test behavior. Its behavior is written once in `src/harness.mts` and compiled to the checked-in `.cursor/runtime/harness.mjs`, so hooks and installed repositories need no build step while parity stays machine-verifiable.
 6. **Evidence contracts** — task envelopes, completion receipts, review bindings, and waivers make handoffs auditable.
 
 ## Scaling model

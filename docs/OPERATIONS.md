@@ -26,6 +26,12 @@ For large repositories, partition by module or ownership boundary. Maintain a sm
 4. Test direct dependents and relevant integration boundaries.
 5. Run broader build or repository checks when policy or risk requires.
 
+`node scripts/harness.mjs gate` performs steps 2–5 for the affected modules and records a
+diff-bound receipt for each check. Passing checks print nothing beyond their status; only
+failures carry output, and full output always goes to an evidence file rather than the
+transcript. `node scripts/harness.mjs quality status` reports which checks still lack a passing
+receipt for the current diff.
+
 Stop expanding when evidence covers the stated risk, unless a required gate remains. Record skipped levels under `Not verified`.
 
 ## Failure handling

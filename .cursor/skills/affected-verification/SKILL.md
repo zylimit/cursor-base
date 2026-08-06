@@ -11,7 +11,9 @@ description: Selects and executes diff- and module-focused checks, then expands 
 4. Expand to contracts, direct dependents, integrations, or repository checks according to risk.
 5. Classify failures and report unrun checks honestly.
 
-Use `node scripts/harness.mjs validate` or `node scripts/harness.mjs test` only when the repository harness is available and the check is in scope.
+Run `node scripts/harness.mjs gate` to execute the affected plan and record diff-bound receipts,
+then `node scripts/harness.mjs quality status` to confirm nothing is still missing. `validate`
+checks harness structure only and is never evidence that project behavior works.
 
 Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**.
 
