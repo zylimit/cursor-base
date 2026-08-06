@@ -239,6 +239,134 @@ test("a check invoked by absolute path runs on any platform", (t) => {
   assert.equal(result.results[0].exit_code, 3);
 });
 
+test("the task write guard covers tool names it was never told about", (t) => {
+  const root = gateFixture(t);
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  const owned = resolve(root, "src", "app.js");
+  writeFileSync(owned, "export const one = 1;\n", "utf8");
+  jsonResult(runHarness(["task", "start", "--goal", "Edit app", "--owned", "src/**", "--target", root]));
+
+  // Someone edits the owned file outside the task.
+  writeFileSync(owned, "export const one = 99; // hand edit\n", "utf8");
+
+  // Enumerating writer tool names meant an unrecognized one skipped the guard entirely.
+  for (const tool of ["write", "edit", "search_replace", "multi_edit", "apply_patch", "notebook_edit"]) {
+    const verdict = hook(root, "preToolUse", { tool_name: tool, tool_input: { file_path: owned } });
+    assert.equal(verdict.permission, "deny", `${tool} must be guarded`);
+  }
+
+  // Paths arrive under several key names and inside nested edit payloads.
+  assert.equal(
+    hook(root, "preToolUse", { tool_name: "edit_file", tool_input: { target_file: owned } }).permission,
+    "deny",
+  );
+  assert.equal(
+    hook(root, "preToolUse", {
+      tool_name: "batch_edit",
+      tool_input: { edits: [{ path: "src/other.js" }, { path: owned }] },
+    }).permission,
+    "deny",
+  );
+
+  // A genuinely read-only tool is not treated as a write.
+  assert.equal(
+    hook(root, "preToolUse", { tool_name: "read", tool_input: { file_path: owned } }).permission,
+    "allow",
+  );
+});
+
+test("a credential path is refused whatever the tool is called", async (t) => {
+  const root = tempRepository(t);
+  const secret = resolve(root, ".env");
+  writeFileSync(secret, "TOKEN=abc\n", "utf8");
+  for (const tool of ["read", "write", "edit", "search_replace", "cat_file", "some_new_tool"]) {
+    await t.test(tool, () => {
+      assert.equal(
+        hook(root, "preToolUse", { tool_name: tool, tool_input: { file_path: secret } }).permission,
+        "deny",
+      );
+    });
+  }
+});
+
+test("evidence redaction covers the shapes credentials actually take", (t) => {
+  const root = gateFixture(t);
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+  writeFileSync(
+    resolve(root, "leak.mjs"),
+    [
+      'console.log("AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMIK7MDENGbPxRfiCY");',
+      'console.log("DATABASE_URL=postgres://admin:s3cr3tpw@db.internal/app");',
+      'console.log("authorization: Bearer abcdef1234567890");',
+      'console.log("https://api.example/v1?access_token=tok_9f2ba31cc0de");',
+      "process.exit(1);",
+    ].join("\n"),
+    "utf8",
+  );
+  setMatrix(root, {
+    unit: { class: "test", command: `${process.execPath} leak.mjs`, required: true },
+  });
+
+  const result = jsonResult(runHarness(["gate", "--target", root]), 2);
+  const evidence = readFileSync(resolve(root, result.results[0].evidence_path), "utf8");
+  for (const leaked of ["wJalrXUtnFEMIK7MDENGbPxRfiCY", "s3cr3tpw", "abcdef1234567890", "tok_9f2ba31cc0de"]) {
+    assert.equal(evidence.includes(leaked), false, `${leaked} must not reach disk`);
+    assert.equal(result.results[0].summary.includes(leaked), false, `${leaked} must not reach the model`);
+  }
+  // The surrounding key is kept so the record stays diagnosable.
+  assert.match(evidence, /AWS_SECRET_ACCESS_KEY=\[REDACTED\]/);
+});
+
+test("evidence and context directories stay bounded", (t) => {
+  const root = gateFixture(t);
+  const evidence = resolve(root, ".cursor/harness-state/evidence");
+  mkdirSync(evidence, { recursive: true });
+  for (let index = 0; index < 260; index += 1) {
+    writeFileSync(resolve(evidence, `old-${index}.log`), "x", "utf8");
+  }
+  writeFileSync(resolve(evidence, "orphan.tmp"), "half-written", "utf8");
+
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+  setMatrix(root, {
+    unit: {
+      class: "test",
+      command: `${process.execPath} -e "console.log('output'); process.exit(1)"`,
+      required: true,
+    },
+  });
+  jsonResult(runHarness(["gate", "--target", root]), 2);
+
+  const remaining = readdirSync(evidence);
+  assert.ok(remaining.length <= 201, `expected pruning, saw ${remaining.length} files`);
+  assert.equal(remaining.includes("orphan.tmp"), false, "an interrupted write leaves no residue");
+});
+
+test("adding a check invalidates evidence gathered under the previous plan", (t) => {
+  const root = gateFixture(t);
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+  setMatrix(root, {
+    unit: { class: "test", command: `${process.execPath} -e "process.exit(0)"`, required: true },
+  });
+  jsonResult(runHarness(["gate", "--target", root]));
+  assert.equal(jsonResult(runHarness(["quality", "status", "--target", root])).complete, true);
+
+  // The module now selects a second check, so the earlier receipt describes a different plan.
+  setMatrix(root, {
+    unit: { class: "test", command: `${process.execPath} -e "process.exit(0)"`, required: true },
+    extra: { class: "test", command: `${process.execPath} -e "process.exit(0)"`, required: true },
+  });
+  writeJson(resolve(root, "harness", "module-catalog.json"), {
+    version: 1,
+    modules: [{ id: "app", paths: ["src/**"], dependsOn: [], verification: ["unit", "extra"], owners: [] }],
+  });
+  const stale = jsonResult(runHarness(["quality", "status", "--target", root]), 2);
+  assert.equal(stale.complete, false);
+  assert.ok(stale.checks.every((check) => check.status === "MISSING"));
+});
+
 test("sensitive reads and preToolUse deletes are fail-closed", (t) => {
   const root = tempRepository(t);
 
@@ -302,6 +430,13 @@ test("MCP hooks distinguish reads, writes, destructive calls, and production mut
       "ask",
     ],
     [{ tool_name: "delete_database", tool_input: { id: "sandbox" } }, "deny"],
+    // A read-only search whose text merely mentions production and an update verb is not a
+    // production mutation, and `deny` would leave the caller no way to proceed.
+    [
+      { tool_name: "search_documents", tool_input: { query: "how do we update the production cluster" } },
+      "allow",
+    ],
+    [{ tool_name: "reset_view", tool_input: { pane: "map" } }, "allow"],
     // A read-shaped MCP tool must not become the third way to reach a credential file.
     [{ tool_name: "read_file", tool_input: { path: "/repo/.env" } }, "deny"],
     [{ tool_name: "fetch_resource", tool_input: { uri: "file:///home/me/.ssh/id_rsa" } }, "deny"],

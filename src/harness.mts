@@ -787,12 +787,21 @@ function canonicalDiffText(cwd: string, base: string, limit: number): string {
   }
 }
 
+// Computing a binding costs a full `git diff` over the repository. A single hook invocation used
+// to pay that two or three times, which is the dominant cost of every interactive hook.
+const bindingCache = new Map<string, DiffBinding>();
+
 function binding(cwd: string, requestedBase?: OptionValue): DiffBinding {
+  const key = `${resolve(cwd)}\0${String(requestedBase ?? "")}`;
+  const cached = bindingCache.get(key);
+  if (cached) return cached;
   const base_commit = gitBase(cwd, requestedBase);
-  return {
+  const value: DiffBinding = {
     base_commit,
     diff_sha256: canonicalDiffDigest(cwd, base_commit),
   };
+  bindingCache.set(key, value);
+  return value;
 }
 
 function globRegex(pattern: string): RegExp {
@@ -1353,11 +1362,18 @@ const SECRET_PATTERNS: Array<[RegExp, string]> = [
   [/\b(sk|pk|rk)-[A-Za-z0-9]{16,}\b/g, "[REDACTED]"],
   [/\bAKIA[0-9A-Z]{16}\b/g, "[REDACTED]"],
   // The value can carry an auth scheme, so the credential sits after the scheme keyword.
+  // Whitespace is restricted to spaces and tabs so a trailing `password =` cannot swallow the
+  // first token of the following line.
   [
-    /((?:authorization|api[-_]?key|token|password|passwd|secret)["']?\s*[:=]\s*)(?:bearer|basic|token|digest)?\s*\S+/gi,
+    /((?:authorization|api[-_]?key|token|password|passwd|secret)["']?[ \t]*[:=][ \t]*)(?:bearer|basic|token|digest)?[ \t]*\S+/gi,
     "$1[REDACTED]",
   ],
-  [/([?&](?:access_token|api_key|token|key)=)[^&\s]+/gi, "$1[REDACTED]"],
+  // Environment-variable form, which is how credentials actually appear in shell output:
+  // AWS_SECRET_ACCESS_KEY=..., DATABASE_PASSWORD=..., FOO_TOKEN=...
+  [/\b([A-Z][A-Z0-9_]*(?:SECRET|TOKEN|KEY|PASSWORD|PASSWD|CREDENTIAL)[A-Z0-9_]*=)\S+/g, "$1[REDACTED]"],
+  // Credentials embedded in a URL's userinfo component.
+  [/\b([a-z][a-z0-9+.-]*:\/\/[^\s:/@]+:)[^\s@]+@/gi, "$1[REDACTED]@"],
+  [/([?&](?:access_token|api_key|token|key|password|secret)=)[^&\s]+/gi, "$1[REDACTED]"],
 ];
 
 function redactSecrets(text: string): string {
@@ -1366,9 +1382,42 @@ function redactSecrets(text: string): string {
   return value;
 }
 
+/** Keeps the tail, which is where a failing command puts its error. */
 function boundedText(text: string, limit: number): string {
   if (text.length <= limit) return text;
-  return `[... ${text.length - limit} characters omitted ...]\n${text.slice(-limit)}`;
+  const notice = `[... ${text.length - limit} characters omitted ...]\n`;
+  return `${notice}${text.slice(-(Math.max(limit - notice.length, 0)))}`;
+}
+
+// Keeps the head, for a command or path where the leading tokens identify the subject. Truncating
+// a command from the front discards the program name, which is what an audit needs most.
+function boundedHead(text: string, limit: number): string {
+  if (text.length <= limit) return text;
+  const notice = ` [... ${text.length - limit} characters omitted ...]`;
+  return `${text.slice(0, Math.max(limit - notice.length, 0))}${notice}`;
+}
+
+// Evidence and context packs accumulate one file per check run. Keeping the newest N bounds the
+// directory without discarding anything a current receipt still points at.
+function pruneDirectory(directory: string, keep: number): void {
+  try {
+    const entries = readdirSync(directory)
+      .map((name) => {
+        const path = resolve(directory, name);
+        try {
+          return { path, mtime: statSync(path).mtimeMs, temporary: name.endsWith(".tmp") };
+        } catch {
+          return null;
+        }
+      })
+      .filter((entry): entry is { path: string; mtime: number; temporary: boolean } => entry !== null);
+    // A `.tmp` file is the residue of a write that was killed mid-flight and is never referenced.
+    for (const entry of entries.filter((item) => item.temporary)) rmSync(entry.path, { force: true });
+    const live = entries.filter((item) => !item.temporary).sort((a, b) => b.mtime - a.mtime);
+    for (const entry of live.slice(keep)) rmSync(entry.path, { force: true });
+  } catch {
+    // Pruning is housekeeping; failing to prune must never fail the check that triggered it.
+  }
 }
 
 function whichCommand(name: string): string | null {
@@ -1461,6 +1510,7 @@ function executeCheck(root: string, check: SelectedCheck, plan: VerifyPlan): Ver
   if (output.trim()) {
     const directory = resolve(root, STATE_REL, "evidence");
     mkdirSync(directory, { recursive: true });
+    pruneDirectory(directory, 200);
     const file = resolve(directory, `${check.id}-${started}-${sha256(output).slice(0, 12)}.log`);
     writeFileSync(file, output, "utf8");
     receipt.evidence_path = posix(relative(root, file));
@@ -1558,9 +1608,12 @@ function assessQuality(root: string, plan: VerifyPlan): QualityAssessment {
     const timeBound = check.class === "runtime";
     const matching = ledger.filter((receipt) =>
       receipt.check_id === check.id &&
+      // The plan hash is enforced, not merely recorded: adding a module or a check changes which
+      // checks were selected, and evidence gathered under a different selection does not carry
+      // over. A runtime result is exempt because it describes a deployment, not a plan.
       (timeBound
         ? Date.now() - Date.parse(receipt.created_at) <= validityHours * 3600_000
-        : receipt.diff_sha256 === plan.diff_sha256),
+        : receipt.diff_sha256 === plan.diff_sha256 && receipt.plan_sha256 === plan.plan_sha256),
     );
     const latest = matching[matching.length - 1];
     const binding = timeBound ? (`time-window-${validityHours}h` as const) : ("diff" as const);
@@ -2177,6 +2230,7 @@ function contextPack(positional: string[], options: CliOptions): void {
     .join("\n\n");
   const directory = resolve(root, STATE_REL, "context");
   mkdirSync(directory, { recursive: true });
+  pruneDirectory(directory, 50);
   const file = resolve(directory, `pack-${packHash.slice(0, 12)}.txt`);
   if (!boolOption(options, "dry-run")) writeFileSync(file, body, "utf8");
 
@@ -2334,14 +2388,19 @@ function taskCommand(positional: string[], options: CliOptions): void {
   }
 
   if (subcommand === "cancel" || subcommand === "complete") {
+    // Plan building runs a repository-wide git diff. Doing it inside the lock could exceed the
+    // stale-takeover window, at which point a concurrent writer takes the lock and both writes
+    // are based on stale state.
+    const completionAssessment =
+      subcommand === "complete" ? assessQuality(root, buildVerifyPlan(root, [], options)) : null;
     return withStateLock(root, "tasks", () => {
       const state = readTasks(root);
       const task = state.tasks.find((entry) => entry.status === "active");
       if (!task) throw new Error("No task is active.");
       if (subcommand === "complete") {
-        const plan = buildVerifyPlan(root, [], options);
-        const assessment = assessQuality(root, plan);
-        if (!assessment.complete) {
+        // Assessed before the lock is taken in the caller below; kept here only to read state.
+        const assessment = completionAssessment;
+        if (assessment && !assessment.complete) {
           printJson({
             command: "task complete",
             target: root,
@@ -3335,11 +3394,22 @@ function mcpDecision(payload: HookPayload): HookOutput {
       return decision("deny", `Blocked an MCP call that references a likely credential file: ${fragment}.`, name);
     }
   }
-  if (
-    /(^|[_-])(delete|destroy|drop|purge|revoke|rotate[_-]secret|reset)([_-]|$)/.test(name) ||
-    (/\b(prod|production)\b/.test(combined) && /\b(write|create|update|deploy|apply|delete)\b/.test(combined))
-  ) {
-    return decision("deny", "Blocked a destructive or production MCP operation.", name);
+  // `deny` has no approval path, so it is reserved for the tool name itself declaring a
+  // destructive operation. A production hint that only appears in the arguments becomes `ask`,
+  // because a read-only query whose text happens to contain "prod" and "update" is not a threat.
+  if (/(^|[_-])(delete|destroy|drop|purge|revoke|rotate[_-]secret)([_-]|$)/.test(name)) {
+    return decision("deny", "Blocked a destructive MCP operation.", name);
+  }
+  // Matching a structured field rather than the whole payload: a read-only search whose query
+  // text happens to contain "production" and "update" is not a production mutation, and `deny`
+  // has no approval path for the caller to recover through.
+  const declaredEnvironment = /"(?:environment|env|stage|target)"\s*:\s*"[^"]*\b(?:prod|production)\b[^"]*"/.test(input);
+  const declaredMutation = /"(?:operation|action|method|mode|verb)"\s*:\s*"(?:write|create|update|edit|upsert|patch|put|post|delete|drop|deploy|apply|migrate)"/.test(input);
+  if (declaredEnvironment && declaredMutation) {
+    return decision("deny", "Blocked a declared mutation against a production environment.", name);
+  }
+  if (declaredEnvironment || (/\b(prod|production)\b/.test(combined) && declaredMutation)) {
+    return decision("ask", "This MCP call may reach a production system.", name);
   }
   if (
     /(^|[_-])(write|create|update|edit|send|post|put|patch|merge|publish|deploy|apply|upload|invite|comment|message|issue|pull-request|release)([_-]|$)/.test(
@@ -3362,6 +3432,53 @@ function decision(permission: Permission, message: string, subject: string): Hoo
   };
 }
 
+/** Tools known to only read. Everything else is treated as capable of writing. */
+const READ_ONLY_TOOLS = new Set([
+  "read",
+  "readfile",
+  "glob",
+  "grep",
+  "list",
+  "listdir",
+  "ls",
+  "search",
+  "codebase_search",
+  "websearch",
+  "webfetch",
+]);
+
+const TOOL_PATH_KEYS = [
+  "file_path",
+  "path",
+  "target_file",
+  "notebook_path",
+  "filename",
+  "file",
+  "destination",
+  "source",
+];
+
+/** Collects every path a tool input names, including list-valued and nested edit payloads. */
+function toolPaths(input: Record<string, unknown>): string[] {
+  const found: string[] = [];
+  const consider = (value: unknown): void => {
+    if (typeof value === "string" && value.trim()) found.push(value);
+    else if (Array.isArray(value)) for (const entry of value) consider(entry);
+  };
+  for (const key of TOOL_PATH_KEYS) consider(input[key]);
+  for (const key of ["paths", "file_paths", "files", "targets"]) consider(input[key]);
+  for (const key of ["edits", "operations", "changes"]) {
+    const nested = input[key];
+    if (!Array.isArray(nested)) continue;
+    for (const entry of nested) {
+      if (entry && typeof entry === "object") {
+        for (const key2 of TOOL_PATH_KEYS) consider((entry as Record<string, unknown>)[key2]);
+      }
+    }
+  }
+  return [...new Set(found)];
+}
+
 async function stdinJson(): Promise<HookPayload> {
   let input = "";
   process.stdin.setEncoding("utf8");
@@ -3374,6 +3491,19 @@ async function stdinJson(): Promise<HookPayload> {
   }
 }
 
+const LEDGER_MAX_BYTES = 4 * 1024 * 1024;
+
+// An append-only log that nothing rotates eventually dominates both disk and the cost of every
+// audit that reads it. One generation is retained so recent history survives the roll.
+function rotateLedgerIfLarge(path: string): void {
+  try {
+    if (!existsSync(path) || statSync(path).size < LEDGER_MAX_BYTES) return;
+    renameSync(path, `${path}.1`);
+  } catch {
+    // A failed rotation must not prevent the current record from being written.
+  }
+}
+
 function appendLedger(
   root: string,
   event: string,
@@ -3383,6 +3513,7 @@ function appendLedger(
 ): void {
   const state = resolve(root, STATE_REL);
   mkdirSync(state, { recursive: true });
+  rotateLedgerIfLarge(resolve(state, "ledger.jsonl"));
   const subject =
     payload.command ||
     payload.tool_name ||
@@ -3392,10 +3523,10 @@ function appendLedger(
     event,
     conversation_id: payload.conversation_id || null,
     generation_id: payload.generation_id || null,
-    subject: subject ? boundedText(redactSecrets(String(subject)), 300) : null,
+    subject: subject ? boundedHead(redactSecrets(String(subject)), 300) : null,
     outcome,
     // The reason is what makes an audit able to say what a gate actually caught.
-    reason: reason ? boundedText(redactSecrets(reason), 300) : null,
+    reason: reason ? boundedHead(redactSecrets(reason), 300) : null,
   };
   appendFileSync(resolve(state, "ledger.jsonl"), `${JSON.stringify(record)}\n`, "utf8");
 }
@@ -3408,8 +3539,16 @@ async function hook(event: string, options: CliOptions): Promise<void> {
   try {
     output = await handleHookEvent(event, payload, root);
   } catch (error) {
-    // Security events stay fail-closed: an unhandled error must never become permission to run.
-    if (SECURITY_EVENTS.includes(event)) throw error;
+    // Security events stay fail-closed. The failure is recorded first, because a crashing
+    // security hook previously left no trace at all and read as `unexercised` in an audit.
+    if (SECURITY_EVENTS.includes(event)) {
+      try {
+        appendLedger(root, event, payload, `error:${errorMessage(error)}`);
+      } catch {
+        // A ledger that cannot be written must not convert a fail-closed hook into a pass.
+      }
+      throw error;
+    }
     // Observational events degrade, but the degraded output must not be byte-identical to
     // "everything is verified". A silent `{}` here turned a broken gate into a silent pass.
     appendLedger(root, event, payload, `error:${errorMessage(error)}`);
@@ -3451,14 +3590,20 @@ function quarantineCorruptState(root: string): string[] {
   }
   return moved;
 }
-  appendLedger(
-    root,
-    event,
-    payload,
-    output.permission || (output.followup_message ? "followup" : "observe"),
-    output.user_message || output.followup_message,
-  );
+  // The decision reaches the host before the audit record is written. An unwritable state
+  // directory must not discard the hook's output, which carries the permission verdict.
   printJson(output);
+  try {
+    appendLedger(
+      root,
+      event,
+      payload,
+      output.permission || (output.followup_message ? "followup" : "observe"),
+      output.user_message || output.followup_message,
+    );
+  } catch (error) {
+    process.stderr.write(`harness: could not record the hook ledger: ${errorMessage(error)}\n`);
+  }
 }
 
 async function handleHookEvent(
@@ -3481,22 +3626,31 @@ async function handleHookEvent(
   } else if (event === "preToolUse") {
     const tool = String(payload.tool_name || "").toLowerCase();
     const input = (payload.tool_input || {}) as Record<string, unknown>;
-    const path = String(input.file_path || input.path || "");
-    const concurrent =
-      (tool === "write" || tool === "edit") && path
-        ? preflightTaskWrite(root, posix(relative(root, resolve(root, path))))
-        : null;
-    if ((tool === "read" || tool === "write") && path && sensitivePath(path)) {
-      output = decision("deny", "Blocked access to a likely credential or secret file.", path);
-    } else if (concurrent) {
-      output = concurrent;
+    const paths = toolPaths(input);
+    const exposed = paths.find((candidate) => sensitivePath(candidate));
+    // Any tool that names a credential file is exposure, whether it reads or writes, and
+    // whichever of the host's tool names it happens to use.
+    if (exposed) {
+      output = decision("deny", "Blocked access to a likely credential or secret file.", exposed);
     } else if (
       tool === "delete" &&
-      (!path || sensitivePath(path) || /(^|[\\/])\.git([\\/]|$)|\.\.[\\/]|[*?]/.test(path))
+      (paths.length === 0 ||
+        paths.some((candidate) => /(^|[\\/])\.git([\\/]|$)|\.\.[\\/]|[*?]/.test(candidate)))
     ) {
-      output = decision("deny", "Blocked a broad or sensitive delete operation.", path || "<unspecified>");
+      output = decision(
+        "deny",
+        "Blocked a broad or sensitive delete operation.",
+        paths[0] || "<unspecified>",
+      );
     } else {
-      output = { permission: "allow" };
+      // Anything not on the read-only list is treated as a write. Enumerating writer tool names
+      // meant an unrecognized one skipped the concurrency guard entirely.
+      const conflict = READ_ONLY_TOOLS.has(tool)
+        ? null
+        : paths
+            .map((candidate) => preflightTaskWrite(root, posix(relative(root, resolve(root, candidate)))))
+            .find(Boolean) ?? null;
+      output = conflict ?? { permission: "allow" };
     }
   } else if (event === "sessionStart") {
     const current = binding(root);
@@ -3551,19 +3705,19 @@ async function handleHookEvent(
     // harness can check independently.
     const command = String(payload.command || "");
     const exitCode = (payload as Record<string, unknown>).exit_code;
+    // The binding is computed before taking the lock. Holding a lock across a repository-wide
+    // git diff can outlast the stale-takeover window and lose another writer's update.
+    const entry = {
+      command: boundedHead(redactSecrets(command), 500),
+      exit_code: typeof exitCode === "number" ? exitCode : null,
+      diff_sha256: binding(root).diff_sha256,
+      at: new Date().toISOString(),
+    };
     withStateLock(root, "shell-log", () => {
       const path = resolve(root, STATE_REL, "shell-log.json");
       const existing = existsSync(path) ? readJson(path) : { version: 1, entries: [] };
-      existing.entries = [
-        ...(Array.isArray(existing.entries) ? existing.entries : []),
-        {
-          command: boundedText(redactSecrets(command), 500),
-          exit_code: typeof exitCode === "number" ? exitCode : null,
-          diff_sha256: binding(root).diff_sha256,
-          at: new Date().toISOString(),
-        },
-      ].slice(-300);
-      writeJson(path, { version: 1, entries: existing.entries });
+      const entries = [...(Array.isArray(existing.entries) ? existing.entries : []), entry].slice(-300);
+      writeJson(path, { version: 1, entries });
     });
   } else if (event === "subagentStart") {
     const task = activeTask(root);
