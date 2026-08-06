@@ -54,10 +54,10 @@ function classifyPath(definition, path) {
 function trackedPaths(root) {
     if (!gitAvailable(root))
         return { paths: [], truncated: false, isGit: false };
-    const result = git(root, ["ls-files"], true);
+    const result = git(root, ["ls-files", "-z"], true);
     if (!result.ok)
         return { paths: [], truncated: false, isGit: false };
-    const all = result.stdout.split("\n").filter(Boolean).map(posix);
+    const all = splitNulPaths(result.stdout);
     const limit = Number(catalog(root).maxTrackedPaths) > 0 ? Number(catalog(root).maxTrackedPaths) : 100_000;
     return { paths: all.slice(0, limit), truncated: all.length > limit, isGit: true };
 }
@@ -442,8 +442,8 @@ function changedPaths(cwd, base) {
     if (!gitAvailable(cwd))
         return [];
     const args = base && base !== "NO_COMMIT" && base !== "NO_GIT"
-        ? ["diff", "--name-only", "--relative", base, "--", "."]
-        : ["status", "--porcelain=v1", "--untracked-files=all"];
+        ? ["diff", "--name-only", "-z", "--relative", base, "--", "."]
+        : ["status", "--porcelain=v1", "-z", "--untracked-files=all"];
     const result = git(cwd, args, true);
     // Failing to list changes is not the same as there being none. Returning an empty set here
     // would report an unverified change set as fully verified.
@@ -452,14 +452,24 @@ function changedPaths(cwd, base) {
     }
     const excludeState = (path) => path !== STATE_REL && !path.startsWith(`${STATE_REL}/`);
     if (args[0] === "status") {
-        return result.stdout
-            .split("\n")
-            .filter(Boolean)
-            .map((line) => line.slice(3).replace(/^"|"$/g, ""))
-            .map(posix)
-            .filter(excludeState);
+        // With `-z`, porcelain v1 emits `XY <path>` NUL, and a rename adds the old path as its own
+        // NUL-terminated record, so the record after an R or C status is consumed rather than parsed.
+        const records = result.stdout.split("\0").filter(Boolean);
+        const paths = [];
+        for (let index = 0; index < records.length; index += 1) {
+            const record = records[index];
+            if (record.length < 4)
+                continue;
+            const status = record.slice(0, 2);
+            paths.push(posix(record.slice(3)));
+            if (/[RC]/.test(status) && index + 1 < records.length) {
+                paths.push(posix(records[index + 1]));
+                index += 1;
+            }
+        }
+        return paths.filter(excludeState);
     }
-    const tracked = result.stdout.split("\n").filter(Boolean).map(posix).filter(excludeState);
+    const tracked = splitNulPaths(result.stdout).filter(excludeState);
     return [...new Set([...tracked, ...untrackedPaths(cwd)])].sort();
 }
 const DIFF_EXCLUDE = `:(exclude)${STATE_REL}/**`;
@@ -545,15 +555,19 @@ function canonicalDiffDigest(cwd, base) {
     }
     return hash.digest("hex");
 }
+// `git` escapes and quotes any path containing a non-ASCII byte unless the output is
+// NUL-separated. Splitting on NUL keeps a CJK filename usable instead of turning it into an
+// octal string that no pattern can ever match.
+function splitNulPaths(value) {
+    return value.split("\0").filter(Boolean).map(posix);
+}
 function untrackedPaths(cwd) {
-    const result = git(cwd, ["ls-files", "--others", "--exclude-standard", "--", "."], true);
+    const result = git(cwd, ["ls-files", "-z", "--others", "--exclude-standard", "--", "."], true);
     if (!result.ok) {
         throw new Error("Unable to enumerate untracked files; the diff binding cannot be trusted.");
     }
-    return result.stdout
-        .split("\n")
-        .filter(Boolean)
-        .filter((path) => path !== STATE_REL && !posix(path).startsWith(`${STATE_REL}/`))
+    return splitNulPaths(result.stdout)
+        .filter((path) => path !== STATE_REL && !path.startsWith(`${STATE_REL}/`))
         .sort();
 }
 /** Bounded diff text, for callers that display it rather than bind to it. */

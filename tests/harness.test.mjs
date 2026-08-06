@@ -1991,6 +1991,49 @@ test("a failing optional check keeps gate and quality status in agreement", (t) 
   assert.equal(quality.complete, false, "a check that ran and failed is never acceptable");
 });
 
+test("non-ASCII paths are usable rather than octal-escaped", (t) => {
+  const root = gateFixture(t);
+  const write = (relativePath, contents) => {
+    const path = resolve(root, relativePath);
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, contents, "utf8");
+  };
+  // `git` escapes and quotes any non-ASCII path unless the output is NUL-separated, which made
+  // these files permanently unmappable and therefore permanently unverified.
+  write("src/启动.ts", "export const start = 1;\n");
+  write("docs/说明.md", "# 说明\n");
+  write("src/naïve.ts", "export const n = 1;\n");
+  writeJson(resolve(root, "harness", "module-catalog.json"), {
+    version: 1,
+    globalPaths: ["package.json"],
+    ignored: [
+      { paths: ["harness/**", ".cursor/**", "AGENTS.md", ".cursorignore", ".cursorindexingignore", "scripts/**", "seed.txt"], reason: "Harness assets." },
+    ],
+    modules: [
+      { id: "app", paths: ["src/**"], dependsOn: [], verification: [], owners: [] },
+      { id: "docs", paths: ["docs/**"], dependsOn: [], verification: [], owners: [] },
+    ],
+  });
+  runProgram("git", ["add", "-A"], root);
+
+  const lint = jsonResult(runHarness(["catalog", "lint", "--target", root]));
+  assert.equal(lint.ok, true, `unmapped: ${JSON.stringify(lint.unmapped_paths)}`);
+  assert.equal(lint.counts.unmapped, 0);
+
+  // The path reaches impact analysis in its real form, so it maps to the module that owns it.
+  const affected = jsonResult(runHarness(["affected", "src/启动.ts", "--target", root]));
+  assert.deepEqual(affected.classifications, [
+    { path: "src/启动.ts", classification: "mapped", module: "app" },
+  ]);
+
+  // Discovered from Git rather than supplied, which is the path that was escaping.
+  runProgram("git", ["commit", "--quiet", "-m", "add unicode files"], root);
+  writeFileSync(resolve(root, "src", "启动.ts"), "export const start = 2;\n", "utf8");
+  const discovered = jsonResult(runHarness(["affected", "--target", root]));
+  assert.ok(discovered.paths.includes("src/启动.ts"), `saw ${JSON.stringify(discovered.paths)}`);
+  assert.deepEqual(discovered.affected, ["app"]);
+});
+
 test("a module pattern does not claim a sibling directory that merely shares its prefix", (t) => {
   const root = tempRepository(t);
   jsonResult(runHarness(["install", "--target", root]));

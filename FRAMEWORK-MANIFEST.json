@@ -85,8 +85,8 @@
     },
     {
       "path": ".cursor/runtime/harness.mjs",
-      "sha256": "fe1386b69af9d3e14a5c2e1f661fc83ce2ac51f47c7b0a6ee484601b6406d485",
-      "bytes": 158440
+      "sha256": "1d6cec754ddbe757eec4d30d787943c17c543df6d626b4113b9ee5918854bdc9",
+      "bytes": 159270
     },
     {
       "path": ".cursor/sandbox.json",
@@ -249,5 +249,5 @@
       "bytes": 185
     }
   ],
-  "digest": "3a8d577621fed25f2f5e8011b9cfa766d57ec5044b05c37f2889de4cdd5b2433"
+  "digest": "aac857c6ce1e81d3e4bb7f46fae7dc088fc987f531a046612e75d6d35662a0d8"
 }
