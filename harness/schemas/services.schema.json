@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cursor-harness.local/schemas/services.schema.json",
+  "title": "Cursor Harness Supervised Services",
+  "description": "Development-time services the harness may supervise: crash restart with exponential backoff, a restart-storm breaker, and an optional health probe. The supervisor only ever terminates processes it started itself, and it is not a production init system.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "services"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "services": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command"
+        ],
+        "properties": {
+          "command": {
+            "description": "Shell command that starts the service in the foreground.",
+            "type": "string",
+            "minLength": 1
+          },
+          "cwd": {
+            "description": "Repository-relative working directory. Must stay inside the repository.",
+            "type": "string"
+          },
+          "env": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "health": {
+            "description": "Optional liveness probe. A process that is alive but not serving is treated as an outage and restarted.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "pattern": "^https?://"
+              },
+              "intervalSec": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "timeoutMs": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "failureThreshold": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          },
+          "restart": {
+            "description": "Backoff and breaker policy. A restart storm inside the window trips the breaker: the fault is not transient, so fail visibly and keep the evidence.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "backoffMs": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxBackoffMs": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "maxRestarts": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "windowSec": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

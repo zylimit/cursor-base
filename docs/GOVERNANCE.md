@@ -21,14 +21,21 @@ Ignore files, sandboxes, containers, worktrees, and ACLs reduce accidental acces
 A quality waiver may defer a non-safety check only when all fields are present:
 
 ```text
+Check: the verification-matrix check being deferred
 Owner: accountable person
 Reason: why the check cannot run or must be deferred
 Scope: exact check, module, and risk accepted
 Expiry: timestamp or release/event after which the waiver is invalid
 Compensation: narrower evidence or follow-up action
+Approval: where the approval happened — message, review, or ticket
+Binding: base commit and canonical diff hash, recorded at creation
 ```
 
-Waivers must be visible in the completion receipt. Expired, unowned, broad, or safety-related waivers are invalid. A waiver does not convert an unrun check into a passing check.
+Waivers must be visible in the completion receipt. Expired, unowned, broad, or safety-related
+waivers are invalid. A waiver defers evidence that could not be produced (`MISSING`, `BLOCKED`,
+`SKIPPED`); it never excuses an executed failure, never covers a security-class check or a
+critical-tier attribute, and dies with the diff it was bound to. A waiver does not convert an
+unrun check into a passing check.
 
 ## Concurrency and ownership
 

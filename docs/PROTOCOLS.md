@@ -50,6 +50,33 @@ project behavior and never produces a verification receipt.
 A receipt is valid only for the diff it was bound to. Any edit invalidates every receipt, and the
 completion gate reports the affected checks as missing until the gate runs again.
 
+## Ledger chain
+
+Receipts are stored in a hash-chained ledger: each entry carries
+`chain_sha256 = sha256(previous_chain + content_sha256)`, rotation carries the last dropped
+chain value as an anchor, and the file records the expected head. Deleting a FAIL to resurrect
+an old PASS, editing a signed receipt, or rewriting the tail all break verification. A broken
+chain fails closed: `quality status` treats every check as unverified until the gate rebuilds
+trusted receipts. `quality verify` additionally re-hashes referenced evidence files and reports
+`TAMPERED` or `MISSING` for the current diff. This is local tamper evidence, not a
+cryptographic identity claim.
+
+## Waiver binding
+
+A waiver defers one named check on one exact diff: it records `check`, `diff_sha256`,
+`base_commit`, `owner`, `reason`, `scope`, `expiry`, `compensation`, and `approval` (where the
+approval happened — an audit record, not an identity proof). A waiver applies only to a check
+that could not run (`MISSING`, `BLOCKED`, `SKIPPED`); an executed `FAIL` is evidence of a
+defect and is never waivable. Security-class checks and checks evidencing a critical-tier
+attribute refuse waivers at creation. Any edit moves the diff and silently expires the waiver.
+
+## Service state
+
+Supervised services record `state.json` under `.cursor/harness-state/services/<name>/`.
+Liveness is always synthesized from pids at read time; recorded status is trusted only for the
+deliberate terminal states `stopped` and `crashed`. A state file claiming supervision whose
+supervisor pid is dead reports `dead`, which is a high-severity risk finding.
+
 ## Review receipt
 
 A review receipt is valid only for one immutable review target:

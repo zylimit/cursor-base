@@ -47,6 +47,25 @@
         }
       }
     },
+    "retention": {
+      "description": "Destruction schedule for collected evidence. Evidence referenced by a current-diff receipt or the newest receipt per check is never deleted, so fresh receipts stay verifiable.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidenceMaxAgeDays": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "evidenceMaxCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "contextMaxCount": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
     "contextPack": {
       "type": "object",
       "additionalProperties": false,

@@ -4,7 +4,9 @@ import { appendFileSync, closeSync, cpSync, existsSync, openSync, readSync, lsta
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { get as httpGet } from "node:http";
+import { get as httpsGet } from "node:https";
 const CATCH_ALL_PATTERNS = new Set(["", ".", "*", "**", "**/*", "./**"]);
 function moduleSpecificity(pattern) {
     return pattern.replace(/[*?]/g, "").length;
@@ -213,7 +215,8 @@ function normalizeRequirement(value) {
 function tierIsWaivable(tier) {
     return tier !== "critical";
 }
-const VERSION = "1.0.0";
+const RISK_LEVELS = ["low", "medium", "high"];
+const VERSION = "1.1.0";
 const STATE_REL = ".cursor/harness-state";
 const INSTALL_MANIFEST_REL = `${STATE_REL}/install-manifest.json`;
 const SOURCE_MANIFEST_REL = "FRAMEWORK-MANIFEST.json";
@@ -618,7 +621,14 @@ function binding(cwd, requestedBase) {
     bindingCache.set(key, value);
     return value;
 }
+// Compiled patterns are cached because classification is pattern-count times path-count. On a
+// repository large enough to matter, recompiling the same regex per path dominated the cost of
+// `catalog lint` long before file I/O did.
+const GLOB_REGEX_CACHE = new Map();
 function globRegex(pattern) {
+    const cached = GLOB_REGEX_CACHE.get(pattern);
+    if (cached)
+        return cached;
     let source = "";
     for (let index = 0; index < pattern.length; index += 1) {
         const char = pattern[index];
@@ -636,7 +646,11 @@ function globRegex(pattern) {
             source += char.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
         }
     }
-    return new RegExp(`^${source}$`);
+    const compiled = new RegExp(`^${source}$`);
+    // The cache is bounded so a pathological catalog cannot grow it without limit.
+    if (GLOB_REGEX_CACHE.size < 10_000)
+        GLOB_REGEX_CACHE.set(pattern, compiled);
+    return compiled;
 }
 function matchesPath(path, patterns) {
     const candidate = posix(path).replace(/^\.\//, "");
@@ -1029,7 +1043,8 @@ function affected(positional, options) {
 function buildVerifyPlan(root, positional, options) {
     const request = requestedPaths(root, positional, options);
     const impact = affectedModules(root, request.paths, !request.explicit);
-    const checks = matrix(root).checks || {};
+    const fullMatrix = matrix(root);
+    const checks = fullMatrix.checks || {};
     const selected = [];
     const seen = new Set();
     for (const module of impact.affected) {
@@ -1040,6 +1055,28 @@ function buildVerifyPlan(root, positional, options) {
                 throw new Error(`Module ${module.id} references unknown check ${checkId}.`);
             seen.add(checkId);
             selected.push({ id: checkId, ...checks[checkId] });
+        }
+    }
+    // The declared risk of the work widens the plan. The levels are cumulative, so a high-risk
+    // task cannot select less evidence than a medium one, and an unknown ID fails loudly instead
+    // of silently verifying nothing.
+    const explicitRisk = options.risk === undefined ? null : String(options.risk);
+    if (explicitRisk !== null && !RISK_LEVELS.includes(explicitRisk)) {
+        throw new Error("--risk must be low, medium, or high.");
+    }
+    const taskRisk = explicitRisk ?? activeTask(root)?.risk ?? null;
+    if (taskRisk) {
+        const cumulative = RISK_LEVELS.slice(0, RISK_LEVELS.indexOf(taskRisk) + 1);
+        for (const level of cumulative) {
+            for (const checkId of fullMatrix.riskChecks?.[level] || []) {
+                if (!checks[checkId]) {
+                    throw new Error(`riskChecks.${level} references unknown check ${checkId}.`);
+                }
+                if (seen.has(checkId))
+                    continue;
+                seen.add(checkId);
+                selected.push({ id: checkId, ...checks[checkId], riskSelected: level });
+            }
         }
     }
     if (impact.unmatched.length > 0) {
@@ -1068,11 +1105,13 @@ function buildVerifyPlan(root, positional, options) {
         expanded_to_all: impact.expanded_to_all,
         expansion_reasons: impact.expansion_reasons,
         modules,
+        task_risk: taskRisk,
         checks: selected,
         ...bound,
         // The plan hash lets a receipt prove which selection of checks it came from, so adding a
-        // module or a check invalidates evidence gathered under the previous plan.
-        plan_sha256: sha256(canonicalJson({ modules, checks: selected.map((check) => check.id), ...bound })),
+        // module or a check invalidates evidence gathered under the previous plan. The risk level
+        // is part of the selection, so changing it invalidates receipts the same way.
+        plan_sha256: sha256(canonicalJson({ modules, risk: taskRisk, checks: selected.map((check) => check.id), ...bound })),
     };
 }
 function verifyPlan(positional, options) {
@@ -1081,6 +1120,65 @@ function verifyPlan(positional, options) {
 const DEFAULT_CHECK_TIMEOUT_MS = 120_000;
 const SUMMARY_LIMIT = 2000;
 const QUALITY_LEDGER_REL = `${STATE_REL}/quality-ledger.json`;
+const LEDGER_GENESIS = "genesis";
+function chainValue(previous, receipt) {
+    return sha256(`${previous}\0${receipt.content_sha256 || ""}`);
+}
+/** The receipt as it was signed, before the chain field was layered on top. */
+function withoutChain(receipt) {
+    const { chain_sha256: _chain, ...rest } = receipt;
+    return rest;
+}
+// A plain receipt list lets one deleted FAIL resurrect an old PASS without a trace. The chain
+// makes removal, edits, and truncation detectable; it is local tamper evidence, not a signature.
+function verifyLedgerChain(root) {
+    const path = resolve(root, QUALITY_LEDGER_REL);
+    if (!existsSync(path))
+        return { ok: true, legacy: false, entries: 0, reason: "No ledger exists yet." };
+    const value = readJson(path);
+    const receipts = Array.isArray(value?.receipts) ? value.receipts : [];
+    if (receipts.length === 0)
+        return { ok: true, legacy: false, entries: 0, reason: "The ledger is empty." };
+    if (!value.head || receipts.some((receipt) => !receipt.chain_sha256)) {
+        return {
+            ok: true,
+            legacy: true,
+            entries: receipts.length,
+            reason: "The ledger predates hash chaining; the next gate run upgrades it.",
+        };
+    }
+    let previous = String(value.anchor || LEDGER_GENESIS);
+    for (const [index, receipt] of receipts.entries()) {
+        const expectedContent = contentHash(withoutChain(receipt), "content_sha256");
+        if (receipt.content_sha256 !== expectedContent) {
+            return {
+                ok: false,
+                legacy: false,
+                entries: receipts.length,
+                reason: `Receipt ${index} (${receipt.check_id}) does not match its own content hash; it was edited after signing.`,
+            };
+        }
+        const expectedChain = chainValue(previous, receipt);
+        if (receipt.chain_sha256 !== expectedChain) {
+            return {
+                ok: false,
+                legacy: false,
+                entries: receipts.length,
+                reason: `The chain breaks at receipt ${index} (${receipt.check_id}); an entry was removed, edited, or reordered.`,
+            };
+        }
+        previous = receipt.chain_sha256;
+    }
+    if (value.head !== previous) {
+        return {
+            ok: false,
+            legacy: false,
+            entries: receipts.length,
+            reason: "The recorded head does not match the recomputed chain; the tail was rewritten.",
+        };
+    }
+    return { ok: true, legacy: false, entries: receipts.length, reason: "Chain verified." };
+}
 const SECRET_PATTERNS = [
     [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, "[REDACTED PRIVATE KEY]"],
     [/\b(gh[pousr]_)[A-Za-z0-9]{16,}\b/g, "$1[REDACTED]"],
@@ -1279,17 +1377,114 @@ function readQualityLedger(root) {
 }
 function appendQualityLedger(root, receipts) {
     withStateLock(root, "quality-ledger", () => {
-        const existing = readQualityLedger(root);
-        writeJson(resolve(root, QUALITY_LEDGER_REL), {
+        const path = resolve(root, QUALITY_LEDGER_REL);
+        const existing = existsSync(path) ? readJson(path) : {};
+        const current = Array.isArray(existing?.receipts) ? existing.receipts : [];
+        let anchor = String(existing?.anchor || LEDGER_GENESIS);
+        // A ledger written before chaining has no chain fields. Rebuilding from the anchor keeps the
+        // old evidence instead of discarding it, and every entry from here on is tamper-evident.
+        const needsRebuild = current.some((receipt) => !receipt.chain_sha256) || !existing?.head;
+        const combined = [...current, ...receipts];
+        let previous = needsRebuild ? anchor : String(existing.head || anchor);
+        const chained = needsRebuild
+            ? (() => {
+                let running = anchor;
+                return combined.map((receipt) => {
+                    const entry = { ...receipt, chain_sha256: chainValue(running, receipt) };
+                    running = entry.chain_sha256;
+                    return entry;
+                });
+            })()
+            : [
+                ...current,
+                ...receipts.map((receipt) => {
+                    const entry = { ...receipt, chain_sha256: chainValue(previous, receipt) };
+                    previous = entry.chain_sha256;
+                    return entry;
+                }),
+            ];
+        // Rotation drops the oldest entries; the anchor carries the last dropped chain value so the
+        // retained tail still verifies end to end.
+        const trimmed = chained.slice(-500);
+        const dropped = chained.length - trimmed.length;
+        if (dropped > 0)
+            anchor = String(chained[dropped - 1].chain_sha256);
+        const file = {
             version: 1,
-            receipts: [...existing, ...receipts].slice(-500),
-        });
+            anchor,
+            head: trimmed.length > 0 ? String(trimmed[trimmed.length - 1].chain_sha256) : anchor,
+            receipts: trimmed,
+        };
+        writeJson(path, file);
     });
 }
+function readWaivers(root) {
+    const dir = resolve(root, STATE_REL, "waivers");
+    if (!existsSync(dir))
+        return [];
+    return readdirSync(dir)
+        .filter((name) => name.endsWith(".json"))
+        .map((name) => {
+        let value = {};
+        let errors = [];
+        try {
+            value = readJson(resolve(dir, name));
+            errors = validateWaiver(value);
+        }
+        catch (error) {
+            errors = [errorMessage(error)];
+        }
+        return { id: name.replace(/\.json$/, ""), path: posix(relative(root, resolve(dir, name))), value, errors };
+    });
+}
+// A waiver defers a check that could not run. It never excuses a FAIL: an executed failing
+// check is evidence of a defect, and deferring evidence is how completion claims go false.
+const WAIVABLE_STATUSES = new Set(["MISSING", "BLOCKED", "SKIPPED"]);
+function waiverFor(waivers, checkId, diffSha256) {
+    return (waivers.find((entry) => entry.errors.length === 0 &&
+        String(entry.value.check || "") === checkId &&
+        String(entry.value.diff_sha256 || "") === diffSha256) ?? null);
+}
+/** True when any affected module holds this check's claimed attributes at critical strength. */
+function checkClaimsCritical(definition, moduleIds, check) {
+    const claimed = new Set(check.attributes || []);
+    if (claimed.size === 0)
+        return false;
+    for (const moduleId of moduleIds) {
+        const module = definition.modules.find((entry) => entry.id === moduleId);
+        if (!module || !(module.verification || []).includes(check.id))
+            continue;
+        for (const [attribute, requirement] of Object.entries(module.attributes || {})) {
+            if (!claimed.has(attribute))
+                continue;
+            if (normalizeRequirement(requirement).tier === "critical")
+                return true;
+        }
+    }
+    return false;
+}
+/** How many times the newest run of this check has failed in a row, across diffs. */
+function consecutiveFailures(ledger, checkId) {
+    let streak = 0;
+    for (let index = ledger.length - 1; index >= 0; index -= 1) {
+        if (ledger[index].check_id !== checkId)
+            continue;
+        if (ledger[index].status !== "FAIL")
+            break;
+        streak += 1;
+    }
+    return streak;
+}
+const FAIL_STREAK_THRESHOLD = 3;
 // Completion is decided by receipts bound to the current diff. A structural check that never
 // executed the project's own verification can never satisfy this.
 function assessQuality(root, plan) {
-    const ledger = readQualityLedger(root);
+    // A broken chain means the ledger was edited outside the harness. Every receipt in it is
+    // then unusable, because the missing entry could be the FAIL that outweighs them all.
+    const integrity = verifyLedgerChain(root);
+    const ledger = integrity.ok ? readQualityLedger(root) : [];
+    const waivers = readWaivers(root);
+    const definitionForWaivers = catalog(root);
     const validityHours = Number(catalog(root).runtimeValidityHours) > 0
         ? Number(catalog(root).runtimeValidityHours)
         : 24;
@@ -1308,29 +1503,57 @@ function assessQuality(root, plan) {
                 : receipt.diff_sha256 === plan.diff_sha256 && receipt.plan_sha256 === plan.plan_sha256));
         const latest = matching[matching.length - 1];
         const binding = timeBound ? `time-window-${validityHours}h` : "diff";
-        if (!latest) {
-            return {
+        const entry = !latest
+            ? {
                 id: check.id,
                 required,
                 acceptable: !required,
                 status: "MISSING",
                 binding,
-                reason: timeBound
-                    ? `No runtime result recorded in the last ${validityHours} hours.`
-                    : "No verification receipt exists for the current diff.",
+                reason: !integrity.ok
+                    ? `The quality ledger failed integrity verification (${integrity.reason}) Re-run the gate to rebuild trusted receipts.`
+                    : timeBound
+                        ? `No runtime result recorded in the last ${validityHours} hours.`
+                        : "No verification receipt exists for the current diff.",
+            }
+            : {
+                id: check.id,
+                required,
+                // A check that ran and failed is never acceptable, whether or not it was required.
+                // Treating an optional failure as acceptable made `gate` and `quality status` disagree
+                // about the same evidence.
+                acceptable: latest.status === "PASS" || (!required && latest.status === "SKIPPED"),
+                status: latest.status,
+                binding,
+                reason: timeBound ? `${latest.reason} Recorded at ${latest.created_at}; not bound to the current diff.` : latest.reason,
             };
+        // Repeating a failing check without new information is motion, not verification. After the
+        // threshold the reason redirects to diagnosis, which is what the receipts say is missing.
+        if (entry.status === "FAIL") {
+            const streak = consecutiveFailures(ledger, check.id);
+            if (streak >= FAIL_STREAK_THRESHOLD) {
+                entry.reason +=
+                    ` This check has failed ${streak} consecutive runs. Stop re-running it and follow` +
+                        " root-cause-debugging: reproduce, isolate the first bad state, then fix.";
+            }
         }
-        return {
-            id: check.id,
-            required,
-            // A check that ran and failed is never acceptable, whether or not it was required.
-            // Treating an optional failure as acceptable made `gate` and `quality status` disagree
-            // about the same evidence.
-            acceptable: latest.status === "PASS" || (!required && latest.status === "SKIPPED"),
-            status: latest.status,
-            binding,
-            reason: timeBound ? `${latest.reason} Recorded at ${latest.created_at}; not bound to the current diff.` : latest.reason,
-        };
+        // A deferral applies only to evidence that could not be produced. It is visible in the
+        // receipt, bound to this exact diff, and structurally unable to cover a critical tier.
+        if (!entry.acceptable && WAIVABLE_STATUSES.has(entry.status)) {
+            const waiver = waiverFor(waivers, check.id, plan.diff_sha256);
+            if (waiver &&
+                check.class !== "security" &&
+                !checkClaimsCritical(definitionForWaivers, plan.modules, check)) {
+                return {
+                    ...entry,
+                    acceptable: true,
+                    waived: waiver.id,
+                    reason: `${entry.reason} Deferred by waiver ${waiver.id} (owner ${String(waiver.value.owner)},` +
+                        ` expires ${String(waiver.value.expiry)}); compensation: ${String(waiver.value.compensation)}.`,
+                };
+            }
+        }
+        return entry;
     });
     const definition = catalog(root);
     const statusOf = new Map(checks.map((check) => [check.id, check.status]));
@@ -1381,13 +1604,28 @@ function assessQuality(root, plan) {
             });
         }
     }
+    // A `high` gap may be deferred when every check that could evidence it holds a valid waiver.
+    // `critical` never defers, and a gap with no claiming checks is a wiring defect that a waiver
+    // must not paper over — the catalog or the matrix needs fixing, not an exemption.
+    const waivedChecks = new Set(checks.filter((check) => check.waived).map((check) => check.id));
+    for (const entry of attributes) {
+        if (entry.covered || entry.enforcement !== "block" || entry.tier !== "high")
+            continue;
+        if (entry.evidence.length === 0)
+            continue;
+        if (entry.evidence.every((evidence) => waivedChecks.has(evidence.check))) {
+            entry.deferred = true;
+            entry.reason += " Deferred: every claiming check carries a valid waiver for this diff.";
+        }
+    }
     // Only the two strongest tiers close the gate. The rest stay visible without forcing a
     // prototype to meet the same bar as a payments module.
-    const blockingGaps = attributes.filter((entry) => entry.enforcement === "block" && !entry.covered);
+    const blockingGaps = attributes.filter((entry) => entry.enforcement === "block" && !entry.covered && !entry.deferred);
     return {
-        complete: checks.every((check) => check.acceptable) && blockingGaps.length === 0,
+        complete: integrity.ok && checks.every((check) => check.acceptable) && blockingGaps.length === 0,
         base_commit: plan.base_commit,
         diff_sha256: plan.diff_sha256,
+        integrity,
         checks,
         attributes,
     };
@@ -2023,6 +2261,808 @@ function taskCommand(positional, options) {
     }
     throw new Error("task supports start, status, complete, or cancel.");
 }
+// ============================== Service supervision ==============================
+// A development-time guardian for long-running services: crash restart with exponential
+// backoff, a restart-storm breaker that fails visibly instead of hammering the machine, and an
+// optional health probe because a process that is alive but not serving is still an outage.
+// It supervises only processes it started itself, and it is not a production init system.
+const SERVICES_CONFIG_REL = "harness/services.json";
+const SERVICES_STATE_REL = `${STATE_REL}/services`;
+const SERVICE_RESTART_DEFAULTS = {
+    backoffMs: 500,
+    maxBackoffMs: 30_000,
+    maxRestarts: 10,
+    windowSec: 600,
+};
+const SERVICE_LOG_MAX_BYTES = 5 * 1024 * 1024;
+const SERVICE_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+function positiveNumber(value, fallback, label) {
+    if (value === undefined)
+        return fallback;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0)
+        throw new Error(`${label} must be a positive number.`);
+    return parsed;
+}
+// Config errors fail at load, not at restart number seven. A supervisor that starts under a
+// misread config enforces a policy nobody wrote.
+function servicesConfig(root) {
+    const path = resolve(root, SERVICES_CONFIG_REL);
+    if (!existsSync(path))
+        return {};
+    const value = readJson(path);
+    if (value?.version !== 1 || typeof value.services !== "object" || value.services === null) {
+        throw new Error(`${SERVICES_CONFIG_REL} must declare version 1 and a services object.`);
+    }
+    const services = {};
+    for (const [name, raw] of Object.entries(value.services)) {
+        if (!SERVICE_NAME_PATTERN.test(name)) {
+            throw new Error(`Service name ${JSON.stringify(name)} must match ${SERVICE_NAME_PATTERN}.`);
+        }
+        if (!raw || typeof raw.command !== "string" || !raw.command.trim()) {
+            throw new Error(`Service ${name} needs a non-empty command string.`);
+        }
+        const cwd = resolve(root, String(raw.cwd || "."));
+        if (!isWithin(root, cwd)) {
+            throw new Error(`Service ${name} cwd escapes the repository.`);
+        }
+        let health = null;
+        if (raw.health) {
+            const url = String(raw.health.url || "");
+            if (!/^https?:\/\//.test(url)) {
+                throw new Error(`Service ${name} health.url must be an http(s) URL.`);
+            }
+            health = {
+                url,
+                intervalSec: positiveNumber(raw.health.intervalSec, 15, `${name} health.intervalSec`),
+                timeoutMs: positiveNumber(raw.health.timeoutMs, 4_000, `${name} health.timeoutMs`),
+                failureThreshold: positiveNumber(raw.health.failureThreshold, 3, `${name} health.failureThreshold`),
+            };
+        }
+        services[name] = {
+            command: raw.command.trim(),
+            cwd,
+            env: typeof raw.env === "object" && raw.env !== null ? raw.env : {},
+            health,
+            restart: {
+                backoffMs: positiveNumber(raw.restart?.backoffMs, SERVICE_RESTART_DEFAULTS.backoffMs, `${name} restart.backoffMs`),
+                maxBackoffMs: positiveNumber(raw.restart?.maxBackoffMs, SERVICE_RESTART_DEFAULTS.maxBackoffMs, `${name} restart.maxBackoffMs`),
+                maxRestarts: positiveNumber(raw.restart?.maxRestarts, SERVICE_RESTART_DEFAULTS.maxRestarts, `${name} restart.maxRestarts`),
+                windowSec: positiveNumber(raw.restart?.windowSec, SERVICE_RESTART_DEFAULTS.windowSec, `${name} restart.windowSec`),
+            },
+        };
+    }
+    return services;
+}
+function serviceDir(root, name) {
+    return resolve(root, SERVICES_STATE_REL, name);
+}
+function readServiceState(root, name) {
+    const path = resolve(serviceDir(root, name), "state.json");
+    if (!existsSync(path))
+        return null;
+    try {
+        return readJson(path);
+    }
+    catch {
+        return null;
+    }
+}
+function pidAlive(pid) {
+    if (!pid || !Number.isInteger(pid) || pid <= 0)
+        return false;
+    try {
+        process.kill(pid, 0);
+        return true;
+    }
+    catch (error) {
+        // EPERM means the process exists but belongs to someone else, which still counts as alive.
+        return error.code === "EPERM";
+    }
+}
+// Kills the process group so `npm run dev` does not leave its node grandchildren orphaned.
+// Only pids recorded in the supervisor's own state ever reach this function.
+function killTree(pid, force = false) {
+    if (!pidAlive(pid))
+        return;
+    if (process.platform === "win32") {
+        spawnSync("taskkill", ["/PID", String(pid), "/T", force ? "/F" : "/T"], { windowsHide: true });
+        if (force)
+            return;
+        spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
+        return;
+    }
+    const signal = force ? "SIGKILL" : "SIGTERM";
+    try {
+        process.kill(-pid, signal);
+    }
+    catch {
+        try {
+            process.kill(pid, signal);
+        }
+        catch {
+            // Already gone.
+        }
+    }
+}
+// Recorded state can outlive the processes (power loss, kill -9). Liveness is therefore
+// reported from the pids, never from the last written status field.
+function synthesizeServiceStatus(state) {
+    if (!state)
+        return { status: "not-started", supervisor_alive: false, child_alive: false };
+    const supervisorAlive = pidAlive(state.supervisor_pid);
+    const childAlive = pidAlive(state.child_pid);
+    if (state.status === "stopped" || state.status === "crashed") {
+        return { status: state.status, supervisor_alive: supervisorAlive, child_alive: childAlive };
+    }
+    if (!supervisorAlive)
+        return { status: "dead", supervisor_alive: false, child_alive: childAlive };
+    return {
+        status: childAlive ? "running" : "backoff",
+        supervisor_alive: true,
+        child_alive: childAlive,
+    };
+}
+function appendServiceLog(root, name, text) {
+    const dir = serviceDir(root, name);
+    mkdirSync(dir, { recursive: true });
+    const path = resolve(dir, "service.log");
+    try {
+        if (existsSync(path) && statSync(path).size >= SERVICE_LOG_MAX_BYTES) {
+            renameSync(path, `${path}.1`);
+        }
+    }
+    catch {
+        // A failed rotation must never kill the service or lose the current line.
+    }
+    appendFileSync(path, text, "utf8");
+}
+function supervisorLog(root, name, message) {
+    appendServiceLog(root, name, `[supervisor ${new Date().toISOString()}] ${message}\n`);
+}
+function probeHealth(url, timeoutMs) {
+    return new Promise((resolvePromise) => {
+        const get = url.startsWith("https:") ? httpsGet : httpGet;
+        let settled = false;
+        const finish = (value) => {
+            if (!settled) {
+                settled = true;
+                resolvePromise(value);
+            }
+        };
+        try {
+            const request = get(url, { timeout: timeoutMs }, (response) => {
+                response.resume();
+                finish((response.statusCode ?? 0) >= 200 && (response.statusCode ?? 0) < 400);
+            });
+            request.on("timeout", () => {
+                request.destroy();
+                finish(false);
+            });
+            request.on("error", () => finish(false));
+        }
+        catch {
+            finish(false);
+        }
+    });
+}
+async function serviceSupervise(root, name) {
+    const definition = servicesConfig(root)[name];
+    if (!definition)
+        throw new Error(`Service ${name} is not defined in ${SERVICES_CONFIG_REL}.`);
+    const dir = serviceDir(root, name);
+    mkdirSync(dir, { recursive: true });
+    const statePath = resolve(dir, "state.json");
+    const stopFlag = resolve(dir, "stop.flag");
+    const existing = readServiceState(root, name);
+    if (existing && pidAlive(existing.supervisor_pid) && existing.supervisor_pid !== process.pid) {
+        throw new Error(`Another supervisor (pid ${existing.supervisor_pid}) already owns ${name}.`);
+    }
+    const state = {
+        version: 1,
+        name,
+        status: "running",
+        supervisor_pid: process.pid,
+        child_pid: null,
+        restarts: 0,
+        restart_times: [],
+        last_exit: null,
+        health_failures: 0,
+        started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+    };
+    const save = () => {
+        state.updated_at = new Date().toISOString();
+        writeJson(statePath, state);
+    };
+    let child = null;
+    let stopping = false;
+    let restartTimer = null;
+    const startChild = () => {
+        const spawned = spawn(definition.command, {
+            cwd: definition.cwd,
+            shell: true,
+            // Its own process group on POSIX, so the whole tree can be terminated together.
+            detached: process.platform !== "win32",
+            env: { ...process.env, ...definition.env },
+            stdio: ["ignore", "pipe", "pipe"],
+            windowsHide: true,
+        });
+        child = spawned;
+        state.child_pid = spawned.pid ?? null;
+        state.status = "running";
+        state.health_failures = 0;
+        save();
+        supervisorLog(root, name, `started child pid ${spawned.pid}: ${definition.command}`);
+        spawned.stdout?.on("data", (chunk) => appendServiceLog(root, name, chunk.toString("utf8")));
+        spawned.stderr?.on("data", (chunk) => appendServiceLog(root, name, chunk.toString("utf8")));
+        spawned.on("exit", (code, signal) => {
+            if (child !== spawned)
+                return;
+            child = null;
+            state.child_pid = null;
+            state.last_exit = { code, signal: signal ?? null, at: new Date().toISOString() };
+            if (stopping)
+                return;
+            supervisorLog(root, name, `child exited (code ${code}, signal ${signal ?? "none"})`);
+            scheduleRestart();
+        });
+    };
+    const scheduleRestart = () => {
+        const now = Date.now();
+        const windowStart = now - definition.restart.windowSec * 1000;
+        state.restart_times = [...state.restart_times.filter((at) => at >= windowStart), now];
+        state.restarts += 1;
+        // A restart storm means the fault is not transient. Failing visibly and keeping the
+        // evidence beats hammering the machine forever while the log rotates the cause away.
+        if (state.restart_times.length > definition.restart.maxRestarts) {
+            state.status = "crashed";
+            save();
+            supervisorLog(root, name, `breaker tripped: ${state.restart_times.length} restarts inside ${definition.restart.windowSec}s; giving up.`);
+            process.exit(1);
+        }
+        const attempt = state.restart_times.length;
+        const delay = Math.min(definition.restart.backoffMs * 2 ** Math.max(attempt - 1, 0), definition.restart.maxBackoffMs);
+        state.status = "backoff";
+        save();
+        supervisorLog(root, name, `restarting in ${delay}ms (attempt ${attempt} in window)`);
+        restartTimer = setTimeout(() => {
+            restartTimer = null;
+            if (!stopping)
+                startChild();
+        }, delay);
+    };
+    const shutdown = (reason) => {
+        stopping = true;
+        if (restartTimer)
+            clearTimeout(restartTimer);
+        supervisorLog(root, name, `stopping: ${reason}`);
+        const pid = child?.pid;
+        if (pid) {
+            killTree(pid);
+            setTimeout(() => killTree(pid, true), 3_000).unref();
+        }
+        state.status = "stopped";
+        state.child_pid = null;
+        save();
+        rmSync(stopFlag, { force: true });
+        // Give the tree the grace period before the supervisor itself exits.
+        setTimeout(() => process.exit(0), pid ? 3_500 : 0);
+    };
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("SIGINT", () => shutdown("SIGINT"));
+    let lastProbe = 0;
+    // The tick is deliberately not unref'd: it is also what keeps the supervisor alive between a
+    // child crash and the delayed restart.
+    setInterval(() => {
+        if (stopping)
+            return;
+        if (existsSync(stopFlag)) {
+            shutdown("stop flag");
+            return;
+        }
+        const health = definition.health;
+        if (!health || !child || state.status !== "running")
+            return;
+        const now = Date.now();
+        if (now - lastProbe < health.intervalSec * 1000)
+            return;
+        lastProbe = now;
+        void probeHealth(health.url, health.timeoutMs).then((healthy) => {
+            if (stopping || !child)
+                return;
+            if (healthy) {
+                if (state.health_failures > 0) {
+                    state.health_failures = 0;
+                    save();
+                }
+                return;
+            }
+            state.health_failures += 1;
+            save();
+            supervisorLog(root, name, `health probe failed (${state.health_failures}/${health.failureThreshold}): ${health.url}`);
+            // Alive but not serving is an outage the exit handler never sees. Kill the tree and go
+            // through the same backoff-and-breaker path as a crash.
+            if (state.health_failures >= health.failureThreshold) {
+                const failing = child;
+                child = null;
+                state.child_pid = null;
+                state.last_exit = { code: null, signal: "health-probe", at: new Date().toISOString() };
+                supervisorLog(root, name, "health probe threshold reached; restarting the child.");
+                if (failing?.pid) {
+                    failing.removeAllListeners("exit");
+                    killTree(failing.pid);
+                    setTimeout(() => failing.pid && killTree(failing.pid, true), 3_000).unref();
+                }
+                scheduleRestart();
+            }
+        });
+    }, 1_000);
+    rmSync(stopFlag, { force: true });
+    startChild();
+    // The returned promise never settles; the supervisor leaves through process.exit only.
+    return new Promise(() => { });
+}
+async function serviceStart(root, name) {
+    const definition = servicesConfig(root)[name];
+    if (!definition)
+        throw new Error(`Service ${name} is not defined in ${SERVICES_CONFIG_REL}.`);
+    const current = readServiceState(root, name);
+    if (current && pidAlive(current.supervisor_pid)) {
+        throw new Error(`Service ${name} is already supervised (pid ${current.supervisor_pid}). Stop it first.`);
+    }
+    const dir = serviceDir(root, name);
+    mkdirSync(dir, { recursive: true });
+    rmSync(resolve(dir, "stop.flag"), { force: true });
+    const entry = process.argv[1];
+    const supervisor = spawn(process.execPath, [entry, "service", "supervise", name, "--target", root], {
+        cwd: root,
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+    });
+    supervisor.unref();
+    // "Started" with a dead pid is a false green. Success is reported only after the supervisor
+    // has written a state file and its pid answers a liveness check.
+    const deadline = Date.now() + 5_000;
+    let observed = null;
+    while (Date.now() < deadline) {
+        observed = readServiceState(root, name);
+        if (observed && observed.supervisor_pid && pidAlive(observed.supervisor_pid))
+            break;
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, 150));
+    }
+    if (!observed || !pidAlive(observed.supervisor_pid)) {
+        throw new Error(`Service ${name} did not confirm liftoff within 5s. Inspect ${posix(relative(root, resolve(dir, "service.log")))}.`);
+    }
+    printJson({
+        command: "service start",
+        name,
+        ok: true,
+        supervisor_pid: observed.supervisor_pid,
+        child_pid: observed.child_pid,
+        status: observed.status,
+        log: posix(relative(root, resolve(dir, "service.log"))),
+    });
+}
+async function serviceStop(root, name) {
+    const state = readServiceState(root, name);
+    if (!state)
+        throw new Error(`Service ${name} has no recorded state.`);
+    const dir = serviceDir(root, name);
+    writeFileSync(resolve(dir, "stop.flag"), new Date().toISOString(), "utf8");
+    if (pidAlive(state.supervisor_pid)) {
+        try {
+            process.kill(state.supervisor_pid, "SIGTERM");
+        }
+        catch {
+            // The stop flag remains the fallback channel.
+        }
+    }
+    if (state.child_pid)
+        killTree(state.child_pid);
+    // Both processes must be confirmed dead; reporting "stopped" while something survives is the
+    // supervisor's own version of a false green.
+    const deadline = Date.now() + 6_000;
+    for (;;) {
+        const supervisorAlive = pidAlive(state.supervisor_pid);
+        const childAlive = pidAlive(state.child_pid);
+        if (!supervisorAlive && !childAlive)
+            break;
+        if (Date.now() > deadline) {
+            if (state.child_pid)
+                killTree(state.child_pid, true);
+            throw new Error(`Service ${name} did not stop within 6s (supervisor alive: ${supervisorAlive}, child alive: ${childAlive}).`);
+        }
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, 150));
+    }
+    const final = readServiceState(root, name);
+    if (final && final.status !== "stopped") {
+        writeJson(resolve(dir, "state.json"), { ...final, status: "stopped", child_pid: null, updated_at: new Date().toISOString() });
+    }
+    printJson({ command: "service stop", name, ok: true });
+}
+function serviceStatus(root, name) {
+    const config = servicesConfig(root);
+    const names = name ? [name] : [...new Set([...Object.keys(config), ...listServiceStateDirs(root)])];
+    const services = names.map((serviceName) => {
+        const state = readServiceState(root, serviceName);
+        const synthesized = synthesizeServiceStatus(state);
+        return {
+            name: serviceName,
+            configured: Boolean(config[serviceName]),
+            ...synthesized,
+            restarts: state?.restarts ?? 0,
+            last_exit: state?.last_exit ?? null,
+            updated_at: state?.updated_at ?? null,
+        };
+    });
+    printJson({ command: "service status", target: root, services });
+    if (services.some((entry) => entry.status === "crashed" || entry.status === "dead")) {
+        process.exitCode = 2;
+    }
+}
+function listServiceStateDirs(root) {
+    const dir = resolve(root, SERVICES_STATE_REL);
+    if (!existsSync(dir))
+        return [];
+    return readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name);
+}
+function serviceLogs(root, name, options) {
+    const path = resolve(serviceDir(root, name), "service.log");
+    if (!existsSync(path))
+        throw new Error(`Service ${name} has no log yet.`);
+    const lines = Number(options.lines) > 0 ? Number(options.lines) : 100;
+    const contents = readFileSync(path, "utf8");
+    const tail = contents.split("\n").slice(-(lines + 1)).join("\n");
+    process.stdout.write(`${tail}\n`);
+}
+async function serviceCommand(positional, options) {
+    const root = targetFrom(options);
+    const subcommand = positional[0] || "status";
+    const name = positional[1];
+    if (subcommand === "status") {
+        serviceStatus(root, name);
+        return;
+    }
+    if (subcommand === "list") {
+        const config = servicesConfig(root);
+        printJson({
+            command: "service list",
+            services: Object.entries(config).map(([serviceName, definition]) => ({
+                name: serviceName,
+                command: definition.command,
+                health: definition.health?.url ?? null,
+                status: synthesizeServiceStatus(readServiceState(root, serviceName)).status,
+            })),
+        });
+        return;
+    }
+    if (!name || !SERVICE_NAME_PATTERN.test(name)) {
+        throw new Error("service requires a valid service name.");
+    }
+    if (subcommand === "start")
+        return serviceStart(root, name);
+    if (subcommand === "supervise")
+        return serviceSupervise(root, name);
+    if (subcommand === "stop")
+        return serviceStop(root, name);
+    if (subcommand === "logs") {
+        serviceLogs(root, name, options);
+        return;
+    }
+    throw new Error("service supports start, stop, status, list, logs, or supervise.");
+}
+const STALE_TASK_HOURS = 72;
+function riskScan(root) {
+    const findings = [];
+    const integrity = verifyLedgerChain(root);
+    if (!integrity.ok) {
+        findings.push({
+            severity: "high",
+            id: "ledger-chain-broken",
+            message: `Quality ledger failed integrity verification: ${integrity.reason}`,
+        });
+    }
+    const task = activeTask(root);
+    if (task) {
+        const ageHours = (Date.now() - Date.parse(task.created_at)) / 3_600_000;
+        if (Number.isFinite(ageHours) && ageHours > STALE_TASK_HOURS) {
+            findings.push({
+                severity: "medium",
+                id: "stale-task",
+                message: `Task ${task.id} has been active for ${Math.round(ageHours)}h. Complete, cancel, or re-scope it; a stale scope blocks writes it no longer describes.`,
+            });
+        }
+    }
+    if (integrity.ok) {
+        const ledger = readQualityLedger(root);
+        const seen = new Set();
+        for (let index = ledger.length - 1; index >= 0; index -= 1) {
+            const checkId = ledger[index].check_id;
+            if (seen.has(checkId))
+                continue;
+            seen.add(checkId);
+            const streak = consecutiveFailures(ledger, checkId);
+            if (streak >= FAIL_STREAK_THRESHOLD) {
+                findings.push({
+                    severity: "medium",
+                    id: `fail-streak-${checkId}`,
+                    message: `Check ${checkId} has failed ${streak} consecutive runs. Stop re-running it; diagnose the root cause first.`,
+                });
+            }
+        }
+    }
+    for (const name of listServiceStateDirs(root)) {
+        const synthesized = synthesizeServiceStatus(readServiceState(root, name));
+        if (synthesized.status === "crashed") {
+            findings.push({
+                severity: "high",
+                id: `service-crashed-${name}`,
+                message: `Service ${name} tripped its restart breaker and gave up. The fault is not transient; read its log before restarting.`,
+            });
+        }
+        else if (synthesized.status === "dead") {
+            findings.push({
+                severity: "high",
+                id: `service-dead-${name}`,
+                message: `Service ${name} is recorded as supervised but its supervisor process is gone. Restart it or mark it stopped.`,
+            });
+        }
+    }
+    const stateDir = resolve(root, STATE_REL);
+    if (existsSync(stateDir)) {
+        const quarantined = readdirSync(stateDir).filter((name) => name.includes(".corrupt-"));
+        if (quarantined.length > 0) {
+            findings.push({
+                severity: "medium",
+                id: "quarantined-state",
+                message: `${quarantined.length} corrupt state file(s) were quarantined (${quarantined.slice(0, 3).join(", ")}). They are forensic evidence; the active state was rebuilt.`,
+            });
+        }
+    }
+    for (const waiver of readWaivers(root)) {
+        const expiry = Date.parse(String(waiver.value.expiry || ""));
+        if (Number.isFinite(expiry) && expiry <= Date.now()) {
+            findings.push({
+                severity: "info",
+                id: `waiver-expired-${waiver.id}`,
+                message: `Waiver ${waiver.id} expired; its deferred check ${String(waiver.value.check || "?")} is due.`,
+            });
+        }
+    }
+    const notePath = resolve(root, STATE_REL, "compaction-note.json");
+    if (existsSync(notePath)) {
+        findings.push({
+            severity: "info",
+            id: "compaction-note",
+            message: `A pre-compaction recovery note exists at ${posix(relative(root, notePath))}.`,
+        });
+    }
+    const candidates = feedbackLessons(root).filter((lesson) => lesson.errors.length === 0 && lesson.occurrences >= 3 && !lesson.graduated);
+    if (candidates.length > 0) {
+        findings.push({
+            severity: "info",
+            id: "feedback-graduation",
+            message: `${candidates.length} recorded lesson(s) recurred 3+ times without graduating into a rule: ${candidates.map((lesson) => lesson.id).slice(0, 3).join(", ")}.`,
+        });
+    }
+    return findings;
+}
+function riskCommand(options) {
+    const root = targetFrom(options);
+    const findings = riskScan(root);
+    const highs = findings.filter((finding) => finding.severity === "high");
+    printJson({
+        command: "risk",
+        target: root,
+        ok: highs.length === 0,
+        counts: {
+            high: highs.length,
+            medium: findings.filter((finding) => finding.severity === "medium").length,
+            info: findings.filter((finding) => finding.severity === "info").length,
+        },
+        findings,
+    });
+    if (highs.length > 0 && boolOption(options, "strict"))
+        process.exitCode = 1;
+}
+const RETENTION_DEFAULTS = {
+    evidenceMaxAgeDays: 30,
+    evidenceMaxCount: 200,
+    contextMaxCount: 50,
+};
+function retentionPolicy(root) {
+    const declared = catalog(root).retention || {};
+    return {
+        evidenceMaxAgeDays: positiveNumber(declared.evidenceMaxAgeDays, RETENTION_DEFAULTS.evidenceMaxAgeDays, "retention.evidenceMaxAgeDays"),
+        evidenceMaxCount: positiveNumber(declared.evidenceMaxCount, RETENTION_DEFAULTS.evidenceMaxCount, "retention.evidenceMaxCount"),
+        contextMaxCount: positiveNumber(declared.contextMaxCount, RETENTION_DEFAULTS.contextMaxCount, "retention.contextMaxCount"),
+    };
+}
+function retention(options) {
+    const root = targetFrom(options);
+    const policy = retentionPolicy(root);
+    const dryRun = boolOption(options, "dry-run");
+    const ledger = readQualityLedger(root);
+    const current = binding(root);
+    const protectedPaths = new Set();
+    const newestPerCheck = new Map();
+    for (const receipt of ledger) {
+        newestPerCheck.set(receipt.check_id, receipt);
+        if (receipt.diff_sha256 === current.diff_sha256 && receipt.evidence_path) {
+            protectedPaths.add(posix(receipt.evidence_path));
+        }
+    }
+    for (const receipt of newestPerCheck.values()) {
+        if (receipt.evidence_path)
+            protectedPaths.add(posix(receipt.evidence_path));
+    }
+    const deleted = [];
+    const kept = [];
+    const evidenceDir = resolve(root, STATE_REL, "evidence");
+    const cutoff = Date.now() - policy.evidenceMaxAgeDays * 24 * 3_600_000;
+    if (existsSync(evidenceDir)) {
+        const entries = readdirSync(evidenceDir)
+            .map((name) => {
+            const absolute = resolve(evidenceDir, name);
+            const rel = posix(relative(root, absolute));
+            try {
+                return { rel, absolute, mtime: statSync(absolute).mtimeMs };
+            }
+            catch {
+                return null;
+            }
+        })
+            .filter((entry) => entry !== null)
+            .sort((left, right) => right.mtime - left.mtime);
+        let unprotectedKept = 0;
+        for (const entry of entries) {
+            if (protectedPaths.has(entry.rel)) {
+                kept.push(entry.rel);
+                continue;
+            }
+            const tooOld = entry.mtime < cutoff;
+            const overCount = unprotectedKept >= policy.evidenceMaxCount;
+            if (tooOld || overCount) {
+                deleted.push(entry.rel);
+                if (!dryRun)
+                    rmSync(entry.absolute, { force: true });
+            }
+            else {
+                unprotectedKept += 1;
+            }
+        }
+    }
+    const contextDir = resolve(root, STATE_REL, "context");
+    if (existsSync(contextDir)) {
+        const packs = readdirSync(contextDir)
+            .map((name) => {
+            const absolute = resolve(contextDir, name);
+            try {
+                return { rel: posix(relative(root, absolute)), absolute, mtime: statSync(absolute).mtimeMs };
+            }
+            catch {
+                return null;
+            }
+        })
+            .filter((entry) => entry !== null)
+            .sort((left, right) => right.mtime - left.mtime);
+        for (const pack of packs.slice(policy.contextMaxCount)) {
+            deleted.push(pack.rel);
+            if (!dryRun)
+                rmSync(pack.absolute, { force: true });
+        }
+    }
+    printJson({
+        command: "retention",
+        target: root,
+        dry_run: dryRun,
+        policy,
+        deleted: deleted.length,
+        deleted_paths: deleted.slice(0, 100),
+        protected: kept.length,
+        note: "Evidence referenced by current-diff receipts and the newest receipt per check is never deleted. " +
+            "Quarantined *.corrupt-* files are forensic evidence and are left alone.",
+    });
+}
+// ============================== Feedback corpus ==============================
+// Lessons are recorded as reviewable files with an occurrence count. A lesson that recurs three
+// times is a rule the repository has already paid for; the scan proposes graduating it.
+const FEEDBACK_DIR_REL = "docs/feedback";
+function parseFrontmatter(contents) {
+    const match = /^---\n([\s\S]*?)\n---/.exec(normalizeLf(contents));
+    if (!match)
+        return {};
+    const fields = {};
+    for (const line of match[1].split("\n")) {
+        const separator = line.indexOf(":");
+        if (separator === -1)
+            continue;
+        fields[line.slice(0, separator).trim()] = line.slice(separator + 1).trim();
+    }
+    return fields;
+}
+function feedbackLessons(root) {
+    const dir = resolve(root, FEEDBACK_DIR_REL);
+    if (!existsSync(dir))
+        return [];
+    const lessons = [];
+    for (const name of readdirSync(dir)) {
+        // Lesson files are lowercase kebab-case; README and TEMPLATE are contract files, not data.
+        if (!/^[a-z0-9][a-z0-9-]*\.md$/.test(name))
+            continue;
+        const path = resolve(dir, name);
+        const errors = [];
+        let fields = {};
+        let title = "";
+        try {
+            const contents = readFileSync(path, "utf8");
+            fields = parseFrontmatter(contents);
+            title = (/^#\s+(.+)$/m.exec(contents)?.[1] || "").trim();
+        }
+        catch (error) {
+            errors.push(errorMessage(error));
+        }
+        const id = name.replace(/\.md$/, "");
+        if (fields.id !== id)
+            errors.push(`frontmatter id ${JSON.stringify(fields.id || "")} must equal the filename ${id}.`);
+        const occurrences = Number(fields.occurrences);
+        if (!Number.isInteger(occurrences) || occurrences < 1) {
+            errors.push("frontmatter occurrences must be a positive integer.");
+        }
+        if (fields.graduated !== "true" && fields.graduated !== "false") {
+            errors.push("frontmatter graduated must be true or false.");
+        }
+        if (!title)
+            errors.push("a lesson needs a # title line.");
+        lessons.push({
+            id,
+            path: posix(relative(root, path)),
+            occurrences: Number.isInteger(occurrences) ? occurrences : 0,
+            graduated: fields.graduated === "true",
+            title,
+            errors,
+        });
+    }
+    return lessons;
+}
+function feedbackCommand(positional, options) {
+    const root = targetFrom(options);
+    const subcommand = positional[0] || "list";
+    const lessons = feedbackLessons(root);
+    if (subcommand === "lint") {
+        const failures = lessons.filter((lesson) => lesson.errors.length > 0);
+        const duplicates = lessons.filter((lesson, index) => lessons.findIndex((other) => other.id === lesson.id) !== index);
+        const ok = failures.length === 0 && duplicates.length === 0;
+        printJson({
+            command: "feedback lint",
+            target: root,
+            ok,
+            lessons: lessons.length,
+            failures: failures.map((lesson) => ({ id: lesson.id, errors: lesson.errors })),
+            duplicates: duplicates.map((lesson) => lesson.id),
+            note: lessons.length === 0 ? `No corpus at ${FEEDBACK_DIR_REL}; nothing to lint.` : undefined,
+        });
+        if (!ok)
+            process.exitCode = 1;
+        return;
+    }
+    if (subcommand !== "list")
+        throw new Error("feedback supports list or lint.");
+    const candidates = lessons.filter((lesson) => lesson.errors.length === 0 && lesson.occurrences >= 3 && !lesson.graduated);
+    printJson({
+        command: "feedback list",
+        target: root,
+        lessons: lessons.map(({ id, occurrences, graduated, title }) => ({ id, occurrences, graduated, title })),
+        graduation_candidates: candidates.map((lesson) => lesson.id),
+        note: candidates.length > 0
+            ? "A lesson that recurred three times is a rule the repository already paid for. Propose graduating it into a rule or skill, with the user's confirmation."
+            : undefined,
+    });
+}
 // A gate nobody can show a catch for is pure cost: latency, false positives, and the false
 // confidence of a control that has never been exercised. This makes that measurable.
 function gateAudit(options) {
@@ -2424,8 +3464,52 @@ function adrCheck(options) {
 function quality(positional, options) {
     const root = targetFrom(options);
     const subcommand = positional[0] || "status";
-    if (subcommand !== "status" && subcommand !== "attributes") {
-        throw new Error("quality supports the status or attributes subcommand.");
+    if (subcommand !== "status" && subcommand !== "attributes" && subcommand !== "verify") {
+        throw new Error("quality supports the status, attributes, or verify subcommand.");
+    }
+    if (subcommand === "verify") {
+        // Chain verification is cheap and runs everywhere; evidence re-hashing reads files, so it
+        // lives here rather than inside every hook-time assessment.
+        const integrity = verifyLedgerChain(root);
+        const current = binding(root, options.base);
+        const ledger = integrity.ok ? readQualityLedger(root) : [];
+        const evidence = ledger
+            .filter((receipt) => receipt.evidence_path)
+            .map((receipt) => {
+            const absolute = resolve(root, String(receipt.evidence_path));
+            const currentDiff = receipt.diff_sha256 === current.diff_sha256;
+            if (!existsSync(absolute)) {
+                return {
+                    check: receipt.check_id,
+                    path: receipt.evidence_path,
+                    // Retention prunes old evidence by design; only evidence backing the current diff
+                    // has to still exist for its receipt to stand.
+                    status: currentDiff ? "MISSING" : "PRUNED",
+                };
+            }
+            const contents = readFileSync(absolute);
+            const matches = sha256(contents) === receipt.evidence_sha256 && contents.length === receipt.evidence_bytes;
+            return {
+                check: receipt.check_id,
+                path: receipt.evidence_path,
+                status: matches ? "VERIFIED" : "TAMPERED",
+            };
+        });
+        const tampered = evidence.filter((entry) => entry.status === "TAMPERED");
+        const missing = evidence.filter((entry) => entry.status === "MISSING");
+        const ok = integrity.ok && tampered.length === 0 && missing.length === 0;
+        printJson({
+            command: "quality verify",
+            target: root,
+            ok,
+            integrity,
+            evidence_checked: evidence.length,
+            tampered,
+            missing_for_current_diff: missing,
+        });
+        if (!ok)
+            process.exitCode = 1;
+        return;
     }
     const plan = buildVerifyPlan(root, [], options);
     const assessment = assessQuality(root, plan);
@@ -3157,6 +4241,21 @@ async function handleHookEvent(event, payload, root) {
         if (existsSync(notePath)) {
             lines.push(`A pre-compaction state note is available at ${posix(relative(root, notePath))}.`);
         }
+        // Risk decays silently between sessions; the start of one is the moment the agent can
+        // still act on it cheaply. Only the worst findings are surfaced, and a failing scan must
+        // not block the session it is trying to help.
+        try {
+            const findings = riskScan(root).filter((finding) => finding.severity !== "info");
+            for (const finding of findings.slice(0, 3)) {
+                lines.push(`[risk:${finding.severity}] ${finding.message}`);
+            }
+            if (findings.length > 3) {
+                lines.push(`${findings.length - 3} further risk finding(s): run \`node scripts/harness.mjs risk\`.`);
+            }
+        }
+        catch (error) {
+            lines.push(`The risk scan failed (${boundedHead(errorMessage(error), 120)}); treat harness state as unknown rather than healthy.`);
+        }
         output = { env: { CURSOR_HARNESS_ROOT: root }, additional_context: lines.join(" ") };
     }
     else if (event === "afterFileEdit") {
@@ -3473,6 +4572,41 @@ function validate(options) {
         if (isDefaultBootstrapConfig(root)) {
             warnings.push("Module catalog and verification matrix still use bootstrap defaults; customize them for this repository.");
         }
+        // Risk-tier lists select checks, so a dangling reference would silently verify nothing.
+        try {
+            const activeMatrix = matrix(root);
+            for (const [level, ids] of Object.entries(activeMatrix.riskChecks || {})) {
+                if (!RISK_LEVELS.includes(level)) {
+                    errors.push(`verification matrix riskChecks declares unknown level ${level}.`);
+                    continue;
+                }
+                for (const id of ids || []) {
+                    if (!activeMatrix.checks?.[id]) {
+                        errors.push(`verification matrix riskChecks.${level} references unknown check ${id}.`);
+                    }
+                }
+            }
+        }
+        catch (error) {
+            errors.push(`Unable to validate the verification matrix: ${errorMessage(error)}`);
+        }
+        try {
+            servicesConfig(root);
+        }
+        catch (error) {
+            errors.push(`Invalid ${SERVICES_CONFIG_REL}: ${errorMessage(error)}`);
+        }
+        const integrity = verifyLedgerChain(root);
+        if (!integrity.ok) {
+            errors.push(`Quality ledger integrity: ${integrity.reason}`);
+        }
+        else if (integrity.legacy) {
+            warnings.push(integrity.reason);
+        }
+        const feedbackFailures = feedbackLessons(root).filter((lesson) => lesson.errors.length > 0);
+        for (const lesson of feedbackFailures.slice(0, 20)) {
+            errors.push(`Feedback lesson ${lesson.path}: ${lesson.errors.join(" ")}`);
+        }
     }
     if (Number(process.versions.node.split(".")[0]) < 20)
         errors.push("Node.js 20 or newer is required.");
@@ -3516,6 +4650,31 @@ function doctor(options) {
         ok: syncErrors.length === 0,
         detail: syncErrors[0] || "source and runtime match",
     });
+    const integrity = verifyLedgerChain(root);
+    checks.push({
+        name: "ledger-chain",
+        ok: integrity.ok,
+        detail: integrity.reason,
+    });
+    if (existsSync(resolve(root, SERVICES_CONFIG_REL))) {
+        let detail = "parseable";
+        let ok = true;
+        try {
+            const services = servicesConfig(root);
+            detail = `${Object.keys(services).length} service(s) declared`;
+        }
+        catch (error) {
+            ok = false;
+            detail = errorMessage(error);
+        }
+        checks.push({ name: "services-config", ok, detail });
+    }
+    for (const name of listServiceStateDirs(root)) {
+        const synthesized = synthesizeServiceStatus(readServiceState(root, name));
+        if (synthesized.status === "crashed" || synthesized.status === "dead") {
+            warnings.push(`Service ${name} is ${synthesized.status}; run \`node scripts/harness.mjs service status\`.`);
+        }
+    }
     if (isDefaultBootstrapConfig(root)) {
         warnings.push("Module catalog and verification matrix still use bootstrap defaults; customize them for this repository.");
     }
@@ -3774,19 +4933,44 @@ function waiver(positional, options) {
     }
     if (subcommand !== "create")
         throw new Error("waiver supports create, check, or list.");
+    const checkId = String(options.check || "").trim();
+    if (!checkId)
+        throw new Error("waiver create requires --check naming the check being deferred.");
+    const checks = matrix(root).checks || {};
+    const definition = checks[checkId];
+    if (!definition)
+        throw new Error(`Waiver names unknown check ${checkId}; a waiver must defer something real.`);
+    // Refusal happens at creation, not consumption, so an invalid waiver never sits in the state
+    // directory looking like a plan.
+    if (definition.class === "security") {
+        throw new Error("Security-class checks cannot be waived.");
+    }
+    const catalogDefinition = catalog(root);
+    const critical = catalogDefinition.modules.some((module) => (module.verification || []).includes(checkId) &&
+        Object.entries(module.attributes || {}).some(([attribute, requirement]) => (definition.attributes || []).includes(attribute) &&
+            normalizeRequirement(requirement).tier === "critical"));
+    if (critical) {
+        throw new Error(`Check ${checkId} evidences a critical-tier attribute; critical tiers cannot be waived.`);
+    }
+    const bound = binding(root, options.base);
     const value = {
         version: 1,
+        check: checkId,
         owner: options.owner,
         reason: options.reason,
         scope: options.scope,
         expiry: options.expiry,
         compensation: options.compensation,
+        /** Where the approval happened — a message, review, or ticket the owner can be held to. */
+        approval: options.approval,
+        base_commit: bound.base_commit,
+        diff_sha256: bound.diff_sha256,
         created_at: new Date().toISOString(),
     };
     const errors = validateWaiver(value);
     if (errors.length)
         throw new Error(errors.join(" "));
-    const id = `${Date.now()}-${sha256(`${value.owner}\0${value.scope}`).slice(0, 10)}`;
+    const id = `${Date.now()}-${sha256(`${value.owner}\0${value.scope}\0${checkId}`).slice(0, 10)}`;
     const path = resolve(dir, `${id}.json`);
     if (!boolOption(options, "dry-run"))
         writeJson(path, value);
@@ -3796,9 +4980,14 @@ function validateWaiver(value) {
     const errors = [];
     if (value?.version !== 1)
         errors.push("Waiver version must be 1.");
-    for (const field of ["owner", "reason", "scope", "expiry", "compensation"]) {
+    for (const field of ["check", "owner", "reason", "scope", "expiry", "compensation", "approval"]) {
         if (!value?.[field] || !String(value[field]).trim())
             errors.push(`Missing waiver field: ${field}.`);
+    }
+    // The binding is what stops one approval from silently covering every future diff. A waiver
+    // without it is an opinion, not a deferral.
+    if (!/^[0-9a-f]{64}$/.test(String(value?.diff_sha256 || ""))) {
+        errors.push("Waiver must be bound to the canonical diff hash it defers (diff_sha256).");
     }
     if (!validTimestamp(value?.created_at))
         errors.push("Waiver created_at must be an ISO timestamp.");
@@ -3834,7 +5023,7 @@ Commands:
   affected [paths]   Resolve affected modules from paths and declared dependencies
   verify-plan        Build a verification plan for affected modules
   gate [checks]      Execute the verification plan and record diff-bound receipts
-  quality <sub>      status, or attributes for per-attribute evidence coverage
+  quality <sub>      status, attributes, or verify for ledger and evidence integrity
   fitness            Run built-in quality-attribute rules over changed paths or --all
   adapters <sub>     list external quality tools, or add one to the verification matrix
   adr-check          Require every live decision record to name the check that enforces it
@@ -3844,7 +5033,11 @@ Commands:
   task <sub>         start, status, complete, or cancel the owning task
   gate-audit         Report which hooks have actually intervened and which never have
   receipt            Create or check a diff-bound review receipt
-  waiver             Create, check, or list non-safety quality waivers
+  waiver             Create, check, or list diff-bound non-safety quality waivers
+  service <sub>      start, stop, status, list, or logs for supervised dev services
+  risk               Scan harness state for stale tasks, broken chains, and dead services
+  retention          Destroy aged evidence and context packs; protects referenced receipts
+  feedback <sub>     list or lint recorded lessons; recurring ones graduate into rules
 `);
 }
 export async function main(argv = process.argv.slice(2)) {
@@ -3921,6 +5114,18 @@ export async function main(argv = process.argv.slice(2)) {
             break;
         case "waiver":
             waiver(positional, options);
+            break;
+        case "service":
+            await serviceCommand(positional, options);
+            break;
+        case "risk":
+            riskCommand(options);
+            break;
+        case "retention":
+            retention(options);
+            break;
+        case "feedback":
+            feedbackCommand(positional, options);
             break;
         case undefined:
         case "help":

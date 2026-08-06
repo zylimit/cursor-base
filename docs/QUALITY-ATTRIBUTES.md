@@ -61,6 +61,24 @@ A load test or an SLO probe measures a deployed system. No diff hash describes i
 labelled `time-window-<n>h` so the result is never mistaken for evidence about the code currently
 in the working tree.
 
+## Evidence integrity and deferral
+
+The receipt ledger is hash-chained; a broken chain means every receipt in it is unusable, and
+completion is assessed as if nothing was verified (see `docs/PROTOCOLS.md`, Ledger chain).
+
+A diff-bound waiver can defer a check that could not run. The deferral is visible on the check
+(`waived`), a `high`-tier attribute gap defers only when every claiming check holds a valid
+waiver, and a `critical` tier never defers. An attribute with no claiming checks cannot be
+waived at all — that is a wiring defect in the catalog or matrix, and an exemption must not
+paper over it.
+
+## Task risk widens the plan
+
+`task start --risk high` (or `--risk` on `gate`/`verify-plan`) unions the matrix's `riskChecks`
+lists into the plan cumulatively: high runs the low and medium lists too, so raising declared
+risk can only add evidence. The risk level is part of the plan hash, so changing it invalidates
+receipts gathered under a narrower selection.
+
 ## Built-in rules
 
 `node scripts/harness.mjs fitness` runs pattern rules that need no external tool, so they work on

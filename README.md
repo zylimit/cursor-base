@@ -55,14 +55,26 @@ than merely tested:
 
 ```sh
 node scripts/harness.mjs quality attributes   # per-attribute evidence coverage and gaps
+node scripts/harness.mjs quality verify       # ledger chain and evidence-file integrity
 node scripts/harness.mjs fitness --all        # built-in rules, no external tool required
 node scripts/harness.mjs adapters list        # curated external tools and whether they exist
 node scripts/harness.mjs adapters add sast-semgrep
 node scripts/harness.mjs adr-check           # every live decision names the check enforcing it
 ```
 
+Operations: supervised services, proactive risk findings, and evidence lifecycle:
+
+```sh
+node scripts/harness.mjs service start dev-server   # crash restart, breaker, health probe
+node scripts/harness.mjs service status             # liveness from pids, not from records
+node scripts/harness.mjs risk                       # stale tasks, broken chains, dead services
+node scripts/harness.mjs retention --dry-run        # what the destruction schedule would remove
+node scripts/harness.mjs feedback list              # recorded lessons and graduation candidates
+```
+
 See [docs/QUALITY-ATTRIBUTES.md](docs/QUALITY-ATTRIBUTES.md) for the six strength tiers, the
-coverage rules, and the boundary between what this proves and what it does not.
+coverage rules, and the boundary between what this proves and what it does not. See
+[docs/OPERATIONS.md](docs/OPERATIONS.md) for service supervision, risk scanning, and retention.
 
 Behavior lives in `src/harness.mts`. The checked-in `.cursor/runtime/harness.mjs` is compiler
 output so hooks and installed repositories run without a build step; `npm run runtime-sync`

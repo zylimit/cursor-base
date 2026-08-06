@@ -15,6 +15,31 @@
     "version": {
       "const": 1
     },
+    "riskChecks": {
+      "description": "Extra check IDs per task risk level. Levels are cumulative: a high-risk task also runs the low and medium lists.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "low": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "medium": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "high": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "checks": {
       "type": "object",
       "additionalProperties": {

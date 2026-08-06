@@ -42,6 +42,38 @@ Stop expanding when evidence covers the stated risk, unless a required gate rema
 - Do not install a missing tool or dependency without approval.
 - Preserve logs needed as evidence, but exclude secrets and unnecessary repository content.
 - Return a partial receipt when blocked.
+- A check that has failed three consecutive runs is a diagnosis problem, not a retry problem;
+  `quality status` says so explicitly. Follow root-cause-debugging before running it again.
+
+## Supervised services
+
+`node scripts/harness.mjs service start|stop|status|list|logs` runs development services under
+a supervisor: crash restart with exponential backoff, a restart-storm breaker (a service that
+keeps crashing is marked `crashed` and left down with its log intact — the fault is not
+transient), and an optional health probe that treats "alive but not serving" as an outage.
+`status` reports liveness from pids, never from recorded state, so a supervisor lost to a
+reboot shows as `dead` rather than `running`.
+
+The supervisor only terminates processes it started itself, start/stop are explicit commands,
+and it is a development-time guardian — production supervision belongs to the platform. See the
+`service-operations` skill for incident playbooks.
+
+## Risk scan
+
+`node scripts/harness.mjs risk` turns silent state decay into findings with severities: a
+broken ledger chain, a task active past its useful life, a check failing repeatedly, crashed or
+dead services, quarantined state files, expired waivers, and lessons that recurred enough to
+graduate. The sessionStart hook surfaces the worst findings automatically; `--strict` makes
+high findings fail the command for use in CI.
+
+## Retention
+
+Evidence is collected redacted and destroyed on schedule: `node scripts/harness.mjs retention`
+applies the policy in the module catalog (`retention` section; defaults: 30 days, 200 evidence
+files, 50 context packs). Evidence referenced by a current-diff receipt or the newest receipt
+per check is never deleted, so fresh receipts stay verifiable — destroying history is the
+policy's job, destroying the ability to verify the present would be a defect. `--dry-run`
+previews. Quarantined `*.corrupt-*` files are forensic evidence and are left alone.
 
 ## Branch finish
 

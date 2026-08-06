@@ -64,3 +64,24 @@ Hooks only calculate impact and protect safety boundaries. They must not scan al
 - Measure false positives and hook latency with `node scripts/harness.mjs gate-audit`, and remove
   gates it reports as inert. A control that has never intervened is cost plus false confidence.
 - Generate large synthetic fixtures during tests instead of committing them.
+
+## Measured scale
+
+The design target is 600k+ lines. Measured on a generated repository of 600,000 lines across
+30,000 files and 120 modules (Linux, Node 22):
+
+| Command | What it does at this scale | Measured |
+| --- | --- | --- |
+| `catalog lint` | classifies all 30,001 tracked paths against 120 modules | ~3.2s |
+| `affected <path>` | maps a change to its module and reverse dependents | ~60ms |
+
+Compiled glob patterns are cached, because classification cost is pattern-count times
+path-count and recompiling the same regex per path dominates long before file I/O does. The
+regression suite pins this behavior with a generated 600k-line repository so a slowdown fails a
+test instead of arriving as a complaint. `maxTrackedPaths` (default 100k files) truncates with
+an explicit warning; a truncated measurement expands verification conservatively rather than
+silently under-reporting.
+
+At this scale the practices above stop being style and become load-bearing: hooks must never
+scan the tree, context packs must stay budgeted, and verification must be selected by impact
+rather than run wholesale.

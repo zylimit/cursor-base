@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "harness_version": "1.0.0",
+  "harness_version": "1.1.0",
   "hash": "sha256-lf-v1",
   "files": [
     {
@@ -85,8 +85,8 @@
     },
     {
       "path": ".cursor/runtime/harness.mjs",
-      "sha256": "be03c41f1a6583796e0f6bf3ba7e4adb45e5af11cccbd73d9b25a9a99e33fee0",
-      "bytes": 168320
+      "sha256": "07eb697a4b57cfd93306cb70f51805e1dddb93831bef3ac8599461e99f7eca2d",
+      "bytes": 220878
     },
     {
       "path": ".cursor/sandbox.json",
@@ -104,6 +104,16 @@
       "bytes": 1016
     },
     {
+      "path": ".cursor/skills/architecture-design/REFERENCE.md",
+      "sha256": "86723fad942bb52667f48c022462ab0baad90e77a9b2f0196e02dc62a94b4e6b",
+      "bytes": 5061
+    },
+    {
+      "path": ".cursor/skills/architecture-design/SKILL.md",
+      "sha256": "1d2b4c43f4582856bf6edefc16fe2b1f2cb3252e453c80aadba4312553c5a41c",
+      "bytes": 1542
+    },
+    {
       "path": ".cursor/skills/code-review/REFERENCE.md",
       "sha256": "3eb3882d2c2c66ae8434408961087fcf4d7c9b867b2cdb6791b2dd3bd616c4c8",
       "bytes": 1065
@@ -112,6 +122,16 @@
       "path": ".cursor/skills/code-review/SKILL.md",
       "sha256": "1c247676c38e16d358a6530d706717b1cdb849476b40644cab06e1be3f081b24",
       "bytes": 861
+    },
+    {
+      "path": ".cursor/skills/dfx-design/REFERENCE.md",
+      "sha256": "04001bee69e8875fcb3c804e1dd14f903cf1a79851e2bf690c30151c39e184c0",
+      "bytes": 5072
+    },
+    {
+      "path": ".cursor/skills/dfx-design/SKILL.md",
+      "sha256": "cc43f9bb144541eadd727ca2c95597a4316c460778b0b55ed247a562431dd789",
+      "bytes": 2094
     },
     {
       "path": ".cursor/skills/finish-branch/REFERENCE.md",
@@ -154,6 +174,16 @@
       "bytes": 992
     },
     {
+      "path": ".cursor/skills/record-lesson/REFERENCE.md",
+      "sha256": "a343b18bcbf1e1f8b1b56ddce020db2ba1da6dc8d54d6245243847905b230687",
+      "bytes": 2411
+    },
+    {
+      "path": ".cursor/skills/record-lesson/SKILL.md",
+      "sha256": "332e8fa50beab0652ea7c1799e0ccc7685b5d1a2287afc007cb48e2bf7339af7",
+      "bytes": 1848
+    },
+    {
       "path": ".cursor/skills/root-cause-debugging/REFERENCE.md",
       "sha256": "024bddd0a657cdd195883d30f719fa9dbcbacb837dfff8ab4cee73cc617db186",
       "bytes": 1166
@@ -172,6 +202,16 @@
       "path": ".cursor/skills/scoped-implementation/SKILL.md",
       "sha256": "0ff49a46fa5fede17af224919e7b0a70836ca6e8f228183f9d5c0d2e7a38f20d",
       "bytes": 862
+    },
+    {
+      "path": ".cursor/skills/service-operations/REFERENCE.md",
+      "sha256": "2c877c7505db3e464fbd3a998e1d62bea6f2223a2d5426706f84bf2cf2dde2ac",
+      "bytes": 3544
+    },
+    {
+      "path": ".cursor/skills/service-operations/SKILL.md",
+      "sha256": "d304d112c275f55dff25bb0ce01e1bc076914ea4a22d05398ae9e8f269d01a81",
+      "bytes": 1620
     },
     {
       "path": ".cursor/worktrees.json",
@@ -200,18 +240,18 @@
     },
     {
       "path": "harness/default-module-catalog.json",
-      "sha256": "ac4008f47b31b93c9ca66348bde7c201379d0afbaa39b1b3e75a02cf2c5fd778",
-      "bytes": 3403
+      "sha256": "a5c08b1efb2676b9e16b68dd633aeb972eb1941286a6ddeb83f8c3a2157870c4",
+      "bytes": 3428
     },
     {
       "path": "harness/default-verification-matrix.json",
-      "sha256": "7d600bc3e1e3cf431e2c84d9f7a3723ca1846055d724fc78ecb92111900b5bdc",
-      "bytes": 1968
+      "sha256": "cc32aa564cf188e26b2a48a80437c3c02d17eb018e802199ec0ee8210abf3f79",
+      "bytes": 2228
     },
     {
       "path": "harness/module-catalog.json",
-      "sha256": "ac4008f47b31b93c9ca66348bde7c201379d0afbaa39b1b3e75a02cf2c5fd778",
-      "bytes": 3403
+      "sha256": "a5c08b1efb2676b9e16b68dd633aeb972eb1941286a6ddeb83f8c3a2157870c4",
+      "bytes": 3428
     },
     {
       "path": "harness/schemas/install-manifest.schema.json",
@@ -220,8 +260,8 @@
     },
     {
       "path": "harness/schemas/module-catalog.schema.json",
-      "sha256": "458a9edd11f63bf51061f89d11d04159e202507b0916f135760d17478df8fd1d",
-      "bytes": 12040
+      "sha256": "6e20d15886eea9f6da5fb1ede658616392cb92da134fdee10d8d1aac488861b9",
+      "bytes": 12636
     },
     {
       "path": "harness/schemas/receipt.schema.json",
@@ -229,19 +269,29 @@
       "bytes": 1330
     },
     {
+      "path": "harness/schemas/services.schema.json",
+      "sha256": "ff614596577993cff479cf24387c2dd92dd1398e597193ffc6a880064d9eaef0",
+      "bytes": 3057
+    },
+    {
       "path": "harness/schemas/verification-matrix.schema.json",
-      "sha256": "36fc7ebaf0b4fdc6d71bf216ba4bf1dba12414c698f6643bb0fc051314f6778c",
-      "bytes": 1645
+      "sha256": "8d930fc71a00bcfb3a40a2b1e621b9b52fd78a2618620100da631d6ede5c6dce",
+      "bytes": 2254
     },
     {
       "path": "harness/schemas/waiver.schema.json",
-      "sha256": "09a418cc686129a3b1671edaac5cfec65285ca5132a203013f27c9f44429289f",
-      "bytes": 849
+      "sha256": "128f83a409fc3a897d28ce9c391565d874cc26c96b952aa29ab1a900d3f98b49",
+      "bytes": 1644
+    },
+    {
+      "path": "harness/services.json",
+      "sha256": "19f54c4d5514eab8bd321c8a409b5af38b18ffa8a1e9b7322a5ff562b382030f",
+      "bytes": 84
     },
     {
       "path": "harness/verification-matrix.json",
-      "sha256": "7d600bc3e1e3cf431e2c84d9f7a3723ca1846055d724fc78ecb92111900b5bdc",
-      "bytes": 1968
+      "sha256": "cc32aa564cf188e26b2a48a80437c3c02d17eb018e802199ec0ee8210abf3f79",
+      "bytes": 2228
     },
     {
       "path": "scripts/harness.mjs",
@@ -249,5 +299,5 @@
       "bytes": 185
     }
   ],
-  "digest": "f21712059a7f373abbbb53eb514da80596f7ceaaa5d85a36efe6c7963a116c4f"
+  "digest": "fbeb31b9dd9dc6a083f453ea976669ede7e464ef81804493d3cb3de4816945b3"
 }

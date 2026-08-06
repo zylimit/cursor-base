@@ -44,7 +44,8 @@
       "verification": [
         "validate",
         "fitness",
-        "adr-check"
+        "adr-check",
+        "feedback-lint"
       ],
       "owners": [],
       "attributes": {

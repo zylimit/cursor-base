@@ -2,7 +2,7 @@
 
 ## Design goals
 
-This harness is a technology-neutral governance layer for repositories up to roughly 200k–300k lines. It minimizes always-loaded context while making discovery, impact analysis, implementation, debugging, review, and verification repeatable.
+This harness is a technology-neutral governance layer designed for repositories of 600k lines and beyond. It minimizes always-loaded context while making discovery, impact analysis, implementation, debugging, review, and verification repeatable. The scale claim is measured, not aspirational: on a generated 600k-line, 30,000-file, 120-module repository, `catalog lint` classifies every tracked path in ~3.2s and `affected` resolves impact in ~60ms (see `docs/LARGE-REPO-GUIDE.md`).
 
 ## Layers
 
@@ -11,7 +11,8 @@ This harness is a technology-neutral governance layer for repositories up to rou
 3. **Role isolation** — `.cursor/agents` separates read-only analysis from scoped writers and testers.
 4. **Workflow guidance** — `.cursor/skills` provides short entrypoints with progressively loaded references.
 5. **Executable checks** — the `scripts/harness.mjs` entrypoint owns deterministic doctor, validate, and test behavior. Its behavior is written once in `src/harness.mts` and compiled to the checked-in `.cursor/runtime/harness.mjs`, so hooks and installed repositories need no build step while parity stays machine-verifiable.
-6. **Evidence contracts** — task envelopes, completion receipts, review bindings, and waivers make handoffs auditable.
+6. **Evidence contracts** — task envelopes, completion receipts, review bindings, and waivers make handoffs auditable. The quality ledger is hash-chained, so deleting or editing a receipt is detectable rather than silent.
+7. **Operational resilience** — supervised development services (crash restart with backoff, restart-storm breaker, health probes), a proactive risk scan at session start, and a retention schedule that destroys aged evidence without breaking current receipts.
 
 ## Scaling model
 

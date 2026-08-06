@@ -9,6 +9,7 @@ import {
   readdirSync,
   rmSync,
   symlinkSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -91,6 +92,34 @@ function manifestDigest(files) {
 function refreshManifestDigest(manifest) {
   manifest.digest = manifestDigest(manifest.files);
   return manifest;
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+// Mirrors the runtime's signing so a test can mutate a ledger legitimately. Tampering tests
+// deliberately skip this, because tampering is exactly a mutation without a re-sign.
+function rechainLedger(ledger) {
+  let previous = ledger.anchor || "genesis";
+  for (const receipt of ledger.receipts) {
+    delete receipt.content_sha256;
+    delete receipt.chain_sha256;
+    receipt.content_sha256 = createHash("sha256").update(canonicalJson(receipt)).digest("hex");
+    receipt.chain_sha256 = createHash("sha256")
+      .update(`${previous}\u0000${receipt.content_sha256}`)
+      .digest("hex");
+    previous = receipt.chain_sha256;
+  }
+  ledger.head = previous;
+  return ledger;
 }
 
 function hook(root, event, payload) {
@@ -603,6 +632,8 @@ test("waivers require all fields, reject expiry, and cannot bypass safety", (t) 
       "create",
       "--target",
       root,
+      "--check",
+      "validate",
       "--owner",
       "quality-owner",
       "--reason",
@@ -613,9 +644,14 @@ test("waivers require all fields, reject expiry, and cannot bypass safety", (t) 
       future,
       "--compensation",
       "Manual formatting review",
+      "--approval",
+      "user approved in the planning thread",
     ]),
   );
   assert.equal(valid.waiver.owner, "quality-owner");
+  // The binding is what stops one approval from covering every future diff.
+  assert.match(valid.waiver.diff_sha256, /^[0-9a-f]{64}$/);
+  assert.equal(valid.waiver.check, "validate");
   assert.equal(jsonResult(runHarness(["waiver", "check", valid.path, "--target", root])).valid, true);
   writeJson(valid.path, { ...valid.waiver, version: 2 });
   assert.equal(
@@ -636,16 +672,23 @@ test("waivers require all fields, reject expiry, and cannot bypass safety", (t) 
   assert.equal(expiredCheck.valid, false);
   assert.ok(expiredCheck.errors.includes("Waiver is expired."));
 
+  // Without a check to defer there is nothing to waive, and the refusal happens first.
+  const noCheck = runHarness(["waiver", "create", "--target", root, "--owner", "quality-owner"]);
+  assert.equal(noCheck.status, 1);
+  assert.match(noCheck.stderr, /requires --check/);
+
   const missing = runHarness([
     "waiver",
     "create",
     "--target",
     root,
+    "--check",
+    "validate",
     "--owner",
     "quality-owner",
   ]);
   assert.equal(missing.status, 1);
-  for (const field of ["reason", "scope", "expiry", "compensation"]) {
+  for (const field of ["reason", "scope", "expiry", "compensation", "approval"]) {
     assert.match(missing.stderr, new RegExp(`Missing waiver field: ${field}`));
   }
 
@@ -654,6 +697,8 @@ test("waivers require all fields, reject expiry, and cannot bypass safety", (t) 
     "create",
     "--target",
     root,
+    "--check",
+    "validate",
     "--owner",
     "quality-owner",
     "--reason",
@@ -664,6 +709,8 @@ test("waivers require all fields, reject expiry, and cannot bypass safety", (t) 
     expired,
     "--compensation",
     "Manual review",
+    "--approval",
+    "recorded in the review thread",
   ]);
   assert.equal(expiredResult.status, 1);
   assert.match(expiredResult.stderr, /Waiver is expired/);
@@ -673,6 +720,8 @@ test("waivers require all fields, reject expiry, and cannot bypass safety", (t) 
     "create",
     "--target",
     root,
+    "--check",
+    "validate",
     "--owner",
     "quality-owner",
     "--reason",
@@ -683,6 +732,8 @@ test("waivers require all fields, reject expiry, and cannot bypass safety", (t) 
     future,
     "--compensation",
     "Observe deployment",
+    "--approval",
+    "asked in chat",
   ]);
   assert.equal(safety.status, 1);
   assert.match(safety.stderr, /Safety and external-side-effect controls cannot be waived/);
@@ -1985,7 +2036,8 @@ test("runtime-class evidence binds to a time window and says so", (t) => {
   const ledgerPath = resolve(root, ".cursor/harness-state/quality-ledger.json");
   const ledger = JSON.parse(readFileSync(ledgerPath, "utf8"));
   ledger.receipts[0].created_at = new Date(Date.now() - 3 * 3600_000).toISOString();
-  writeJson(ledgerPath, ledger);
+  // A legitimate state migration re-signs; only an unsigned mutation is tampering.
+  writeJson(ledgerPath, rechainLedger(ledger));
   const expired = jsonResult(runHarness(["quality", "status", "--target", root]), 2);
   assert.equal(expired.complete, false);
   assert.equal(expired.checks[0].status, "MISSING");
@@ -2399,11 +2451,13 @@ test("waiver check validates a stored waiver and rejects a tampered one", (t) =>
   const created = jsonResult(
     runHarness([
       "waiver", "create",
+      "--check", "validate",
       "--owner", "platform-team",
       "--reason", "Flaky integration suite under investigation",
       "--scope", "integration-tests",
       "--expiry", expiry,
       "--compensation", "Manual smoke test recorded in the receipt",
+      "--approval", "user approved in the standup note",
       "--target", root,
     ]),
   );
@@ -2563,4 +2617,522 @@ test("affected scales by declared paths and graph in a generated 200k-line modul
     elapsedMilliseconds < 5_000,
     `affected took ${elapsedMilliseconds.toFixed(1)}ms for ${generatedLines} generated lines`,
   );
+});
+
+async function waitFor(fn, timeoutMs, label) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const value = fn();
+    if (value) return value;
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${label}`);
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 100));
+  }
+}
+
+function readServiceState(root, name) {
+  const path = resolve(root, ".cursor", "harness-state", "services", name, "state.json");
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function pidAlive(pid) {
+  if (!pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === "EPERM";
+  }
+}
+
+test("quality ledger is hash-chained and tampering fails closed", (t) => {
+  const root = gateFixture(t);
+  setMatrix(root, {
+    unit: { class: "test", command: `${process.execPath} -e "process.exit(0)"`, required: true },
+  });
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+  jsonResult(runHarness(["gate", "--target", root]));
+  jsonResult(runHarness(["gate", "--target", root]));
+
+  const ledgerPath = resolve(root, ".cursor", "harness-state", "quality-ledger.json");
+  const pristine = readFileSync(ledgerPath, "utf8");
+  const ledger = JSON.parse(pristine);
+  assert.ok(ledger.head, "ledger must record a chain head");
+  assert.ok(ledger.receipts.every((receipt) => receipt.chain_sha256));
+  const verified = jsonResult(runHarness(["quality", "verify", "--target", root]));
+  assert.equal(verified.ok, true);
+  assert.equal(verified.integrity.legacy, false);
+
+  // Editing a signed receipt must be detected by its own content hash.
+  const edited = JSON.parse(pristine);
+  edited.receipts[0].status = "FAIL";
+  writeFileSync(ledgerPath, JSON.stringify(edited, null, 2), "utf8");
+  const editDetected = jsonResult(runHarness(["quality", "verify", "--target", root]), 1);
+  assert.equal(editDetected.ok, false);
+  assert.match(editDetected.integrity.reason, /content hash/);
+
+  // Deleting a receipt breaks the chain even though every survivor is individually valid.
+  const truncated = JSON.parse(pristine);
+  truncated.receipts.splice(0, 1);
+  writeFileSync(ledgerPath, JSON.stringify(truncated, null, 2), "utf8");
+  const deletionDetected = jsonResult(runHarness(["quality", "verify", "--target", root]), 1);
+  assert.match(deletionDetected.integrity.reason, /chain breaks/);
+
+  // A broken ledger can satisfy no check: completion is decided as if nothing was verified.
+  const status = jsonResult(runHarness(["quality", "status", "--target", root]), 2);
+  assert.equal(status.complete, false);
+  assert.equal(status.integrity.ok, false);
+  assert.ok(status.checks.every((check) => check.status === "MISSING"));
+
+  const risk = jsonResult(runHarness(["risk", "--target", root]));
+  assert.ok(risk.findings.some((finding) => finding.id === "ledger-chain-broken" && finding.severity === "high"));
+
+  writeFileSync(ledgerPath, pristine, "utf8");
+  assert.equal(jsonResult(runHarness(["quality", "verify", "--target", root])).ok, true);
+});
+
+test("tampered evidence files are detected for receipts on the current diff", (t) => {
+  const root = gateFixture(t);
+  setMatrix(root, {
+    unit: {
+      class: "test",
+      command: `${process.execPath} -e "console.log('evidence line'); process.exit(0)"`,
+      required: true,
+    },
+  });
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+  jsonResult(runHarness(["gate", "--target", root]));
+
+  const ledger = JSON.parse(
+    readFileSync(resolve(root, ".cursor", "harness-state", "quality-ledger.json"), "utf8"),
+  );
+  const receipt = ledger.receipts.find((entry) => entry.evidence_path);
+  assert.ok(receipt, "gate must have written evidence");
+  writeFileSync(resolve(root, receipt.evidence_path), "rewritten after the fact\n", "utf8");
+
+  const verified = jsonResult(runHarness(["quality", "verify", "--target", root]), 1);
+  assert.equal(verified.ok, false);
+  assert.ok(verified.tampered.some((entry) => entry.path === receipt.evidence_path));
+});
+
+test("waivers defer only unrun checks, bind to the diff, and never cover critical tiers", (t) => {
+  const root = gateFixture(t);
+  writeJson(resolve(root, "harness", "module-catalog.json"), {
+    version: 1,
+    modules: [
+      { id: "app", paths: ["src/**"], dependsOn: [], verification: ["unit", "audit"], owners: [] },
+    ],
+  });
+  setMatrix(root, {
+    unit: { class: "test", command: `${process.execPath} -e "process.exit(0)"`, required: true },
+    audit: { class: "static", command: "definitely-not-a-real-tool-xyz --scan", required: true },
+  });
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+
+  const gate = jsonResult(runHarness(["gate", "--target", root]), 2);
+  assert.equal(gate.status, "BLOCKED");
+  assert.equal(jsonResult(runHarness(["quality", "status", "--target", root]), 2).complete, false);
+
+  // A waiver without its binding fields must not exist at all.
+  const missingFields = runHarness(["waiver", "create", "--owner", "o", "--target", root]);
+  assert.notEqual(missingFields.status, 0);
+
+  const expiry = new Date(Date.now() + 24 * 3600_000).toISOString();
+  const created = jsonResult(
+    runHarness([
+      "waiver", "create",
+      "--check", "audit",
+      "--owner", "maintainer",
+      "--reason", "external scanner is unavailable on this host",
+      "--scope", "audit check for the app module only",
+      "--expiry", expiry,
+      "--compensation", "scheduled run on the analysis host tomorrow",
+      "--approval", "user approved in review thread 2026-08-07",
+      "--target", root,
+    ]),
+  );
+  assert.equal(created.waiver.check, "audit");
+  assert.match(created.waiver.diff_sha256, /^[0-9a-f]{64}$/);
+
+  const deferred = jsonResult(runHarness(["quality", "status", "--target", root]));
+  assert.equal(deferred.complete, true);
+  const auditEntry = deferred.checks.find((check) => check.id === "audit");
+  assert.ok(auditEntry.waived, "the deferral must be visible on the check");
+  assert.match(auditEntry.reason, /Deferred by waiver/);
+
+  // Any edit moves the diff, and the waiver no longer describes what it deferred.
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 2;\n", "utf8");
+  assert.equal(jsonResult(runHarness(["quality", "status", "--target", root]), 2).complete, false);
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+
+  // An executed failure is evidence of a defect; no waiver converts it into completion.
+  setMatrix(root, {
+    unit: { class: "test", command: `${process.execPath} -e "process.exit(0)"`, required: true },
+    audit: { class: "static", command: `${process.execPath} -e "process.exit(1)"`, required: true },
+  });
+  jsonResult(runHarness(["gate", "--target", root]), 2);
+  const afterFail = jsonResult(runHarness(["quality", "status", "--target", root]), 2);
+  const failedAudit = afterFail.checks.find((check) => check.id === "audit");
+  assert.equal(failedAudit.status, "FAIL");
+  assert.equal(failedAudit.acceptable, false);
+  assert.equal(failedAudit.waived, undefined);
+
+  // A check that evidences a critical-tier attribute cannot be waived at creation time.
+  writeJson(resolve(root, "harness", "module-catalog.json"), {
+    version: 1,
+    modules: [
+      {
+        id: "app",
+        paths: ["src/**"],
+        dependsOn: [],
+        verification: ["unit", "audit"],
+        owners: [],
+        attributes: { security: "critical" },
+      },
+    ],
+  });
+  writeJson(resolve(root, "harness", "verification-matrix.json"), {
+    version: 1,
+    checks: {
+      unit: { class: "test", command: `${process.execPath} -e "process.exit(0)"`, required: true },
+      audit: { class: "static", command: "definitely-not-a-real-tool-xyz --scan", required: true, attributes: ["security"] },
+    },
+  });
+  const critical = runHarness([
+    "waiver", "create",
+    "--check", "audit",
+    "--owner", "maintainer",
+    "--reason", "tool unavailable",
+    "--scope", "audit for app",
+    "--expiry", expiry,
+    "--compensation", "next-day scheduled run",
+    "--approval", "recorded",
+    "--target", root,
+  ]);
+  assert.notEqual(critical.status, 0);
+  assert.match(critical.stderr, /critical/);
+});
+
+test("task risk widens the verification plan cumulatively", (t) => {
+  const root = gateFixture(t);
+  writeJson(resolve(root, "harness", "verification-matrix.json"), {
+    version: 1,
+    checks: {
+      unit: { class: "test", command: `${process.execPath} -e "process.exit(0)"`, required: true },
+      contract: { class: "integration", command: `${process.execPath} -e "process.exit(0)"`, required: true },
+      probe: { class: "static", command: `${process.execPath} -e "process.exit(0)"`, required: true },
+    },
+    riskChecks: { medium: ["contract"], high: ["probe"] },
+  });
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+
+  const base = jsonResult(runHarness(["verify-plan", "--target", root]));
+  assert.deepEqual(base.checks.map((check) => check.id), ["unit"]);
+  assert.equal(base.task_risk, null);
+
+  const medium = jsonResult(runHarness(["verify-plan", "--risk", "medium", "--target", root]));
+  assert.deepEqual(medium.checks.map((check) => check.id).sort(), ["contract", "unit"]);
+
+  // High includes the medium list too: raising risk can only add evidence.
+  const high = jsonResult(runHarness(["verify-plan", "--risk", "high", "--target", root]));
+  assert.deepEqual(high.checks.map((check) => check.id).sort(), ["contract", "probe", "unit"]);
+  assert.equal(high.checks.find((check) => check.id === "probe").riskSelected, "high");
+  assert.notEqual(high.plan_sha256, base.plan_sha256);
+
+  // An active task's declared risk drives the same widening without a flag.
+  jsonResult(
+    runHarness(["task", "start", "--goal", "risk-driven plan", "--owned", "src/**", "--risk", "high", "--target", root]),
+  );
+  const viaTask = jsonResult(runHarness(["verify-plan", "--target", root]));
+  assert.equal(viaTask.task_risk, "high");
+  assert.deepEqual(viaTask.checks.map((check) => check.id).sort(), ["contract", "probe", "unit"]);
+  jsonResult(runHarness(["task", "cancel", "--target", root]));
+
+  // A dangling risk check id fails loudly instead of silently verifying nothing.
+  writeJson(resolve(root, "harness", "verification-matrix.json"), {
+    version: 1,
+    checks: { unit: { class: "test", command: "node -e 0", required: true } },
+    riskChecks: { high: ["ghost"] },
+  });
+  const dangling = runHarness(["verify-plan", "--risk", "high", "--target", root]);
+  assert.notEqual(dangling.status, 0);
+  assert.match(dangling.stderr, /unknown check ghost/);
+});
+
+test("a repeated failure redirects to root-cause analysis instead of another rerun", (t) => {
+  const root = gateFixture(t);
+  setMatrix(root, {
+    unit: { class: "test", command: `${process.execPath} -e "process.exit(1)"`, required: true },
+  });
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+
+  for (let run = 0; run < 3; run += 1) {
+    jsonResult(runHarness(["gate", "--target", root]), 2);
+  }
+  const status = jsonResult(runHarness(["quality", "status", "--target", root]), 2);
+  const unit = status.checks.find((check) => check.id === "unit");
+  assert.match(unit.reason, /3 consecutive runs/);
+  assert.match(unit.reason, /root-cause/);
+
+  const risk = jsonResult(runHarness(["risk", "--target", root]));
+  assert.ok(risk.findings.some((finding) => finding.id === "fail-streak-unit"));
+});
+
+test("retention destroys aged evidence but never what current receipts reference", (t) => {
+  const root = gateFixture(t);
+  writeJson(resolve(root, "harness", "module-catalog.json"), {
+    version: 1,
+    retention: { evidenceMaxAgeDays: 30, evidenceMaxCount: 3, contextMaxCount: 2 },
+    modules: [{ id: "app", paths: ["src/**"], dependsOn: [], verification: ["unit"], owners: [] }],
+  });
+  setMatrix(root, {
+    unit: {
+      class: "test",
+      command: `${process.execPath} -e "console.log('kept evidence'); process.exit(0)"`,
+      required: true,
+    },
+  });
+  mkdirSync(resolve(root, "src"), { recursive: true });
+  writeFileSync(resolve(root, "src", "app.js"), "export const one = 1;\n", "utf8");
+  jsonResult(runHarness(["gate", "--target", root]));
+
+  const evidenceDir = resolve(root, ".cursor", "harness-state", "evidence");
+  const referenced = readdirSync(evidenceDir);
+  assert.equal(referenced.length, 1);
+
+  const oldTime = new Date(Date.now() - 40 * 24 * 3600_000);
+  for (const name of ["stale-a.log", "stale-b.log"]) {
+    const path = resolve(evidenceDir, name);
+    writeFileSync(path, "old evidence\n", "utf8");
+    utimesSync(path, oldTime, oldTime);
+  }
+
+  const preview = jsonResult(runHarness(["retention", "--dry-run", "--target", root]));
+  assert.equal(preview.dry_run, true);
+  assert.ok(preview.deleted_paths.some((path) => path.endsWith("stale-a.log")));
+  assert.ok(existsSync(resolve(evidenceDir, "stale-a.log")), "dry-run must not delete");
+
+  const applied = jsonResult(runHarness(["retention", "--target", root]));
+  assert.ok(applied.deleted >= 2);
+  assert.equal(existsSync(resolve(evidenceDir, "stale-a.log")), false);
+  assert.equal(existsSync(resolve(evidenceDir, "stale-b.log")), false);
+  assert.ok(existsSync(resolve(evidenceDir, referenced[0])), "referenced evidence must survive");
+  assert.equal(jsonResult(runHarness(["quality", "verify", "--target", root])).ok, true);
+});
+
+test("service supervision restarts a killed child and trips the breaker on a crash loop", async (t) => {
+  const root = gateFixture(t);
+  writeJson(resolve(root, "harness", "services.json"), {
+    version: 1,
+    services: {
+      ticker: { command: `${process.execPath} -e "setInterval(()=>{},1000)"` },
+      crasher: {
+        command: `${process.execPath} -e "process.exit(1)"`,
+        restart: { backoffMs: 50, maxBackoffMs: 100, maxRestarts: 2, windowSec: 60 },
+      },
+    },
+  });
+  t.after(() => {
+    for (const name of ["ticker", "crasher"]) {
+      const state = readServiceState(root, name);
+      runHarness(["service", "stop", name, "--target", root]);
+      for (const pid of [state?.child_pid, state?.supervisor_pid]) {
+        if (pid && pidAlive(pid)) {
+          try {
+            process.kill(pid, "SIGKILL");
+          } catch {
+            // Best-effort cleanup; the stop command is the real mechanism under test.
+          }
+        }
+      }
+    }
+  });
+
+  // Liftoff is confirmed against a live pid, not against the act of spawning.
+  const started = jsonResult(runHarness(["service", "start", "ticker", "--target", root], { timeout: 15_000 }));
+  assert.equal(started.ok, true);
+  assert.ok(pidAlive(started.supervisor_pid));
+  const firstChild = await waitFor(
+    () => {
+      const state = readServiceState(root, "ticker");
+      return state?.child_pid && pidAlive(state.child_pid) ? state.child_pid : null;
+    },
+    10_000,
+    "ticker child to start",
+  );
+
+  // Starting twice must be refused while the first supervisor is alive.
+  const duplicate = runHarness(["service", "start", "ticker", "--target", root]);
+  assert.notEqual(duplicate.status, 0);
+  assert.match(duplicate.stderr, /already supervised/);
+
+  // A killed child is a crash; the supervisor restarts it with a fresh pid.
+  process.kill(firstChild, "SIGKILL");
+  const restarted = await waitFor(
+    () => {
+      const state = readServiceState(root, "ticker");
+      return state?.child_pid && state.child_pid !== firstChild && pidAlive(state.child_pid)
+        ? state
+        : null;
+    },
+    15_000,
+    "ticker to restart after SIGKILL",
+  );
+  assert.ok(restarted.restarts >= 1);
+
+  const stopped = jsonResult(runHarness(["service", "stop", "ticker", "--target", root], { timeout: 15_000 }));
+  assert.equal(stopped.ok, true);
+  const finalState = readServiceState(root, "ticker");
+  assert.equal(pidAlive(finalState.supervisor_pid), false);
+  assert.equal(pidAlive(finalState.child_pid), false);
+
+  // A crash loop must trip the breaker and stay visibly crashed, not restart forever.
+  runHarness(["service", "start", "crasher", "--target", root], { timeout: 15_000 });
+  await waitFor(
+    () => {
+      const state = readServiceState(root, "crasher");
+      return state?.status === "crashed" && !pidAlive(state.supervisor_pid) ? state : null;
+    },
+    15_000,
+    "crasher breaker to trip",
+  );
+  const status = jsonResult(runHarness(["service", "status", "crasher", "--target", root]), 2);
+  assert.equal(status.services[0].status, "crashed");
+
+  const risk = jsonResult(runHarness(["risk", "--target", root]));
+  assert.ok(risk.findings.some((finding) => finding.id === "service-crashed-crasher" && finding.severity === "high"));
+});
+
+test("risk scan reports stale tasks and session start surfaces the findings", (t) => {
+  const root = gateFixture(t);
+  writeJson(resolve(root, ".cursor", "harness-state", "tasks.json"), {
+    version: 1,
+    tasks: [
+      {
+        version: 1,
+        id: "task-stale",
+        goal: "long forgotten work",
+        scope: "src",
+        out_of_scope: "",
+        risk: "low",
+        owned_paths: ["src/**"],
+        status: "active",
+        base_commit: "0".repeat(40),
+        known_hashes: {},
+        preexisting_dirty: [],
+        created_at: new Date(Date.now() - 100 * 3600_000).toISOString(),
+      },
+    ],
+  });
+  const risk = jsonResult(runHarness(["risk", "--target", root]));
+  assert.ok(risk.findings.some((finding) => finding.id === "stale-task" && finding.severity === "medium"));
+
+  const strict = runHarness(["risk", "--strict", "--target", root]);
+  assert.equal(strict.status, 0, "medium findings alone must not fail --strict");
+
+  const session = hook(root, "sessionStart", {});
+  assert.match(session.additional_context, /\[risk:medium\] Task task-stale/);
+});
+
+test("feedback corpus lints frontmatter and lists graduation candidates", (t) => {
+  const root = tempRepository(t);
+  const dir = resolve(root, "docs", "feedback");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    resolve(dir, "verify-before-claiming.md"),
+    [
+      "---",
+      "id: verify-before-claiming",
+      "occurrences: 3",
+      "first_seen: 2026-08-01",
+      "last_seen: 2026-08-07",
+      "graduated: false",
+      "---",
+      "",
+      "# Verify before claiming completion",
+      "",
+      "Every completion claim needs a fresh check run in this session.",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  writeFileSync(
+    resolve(dir, "broken-lesson.md"),
+    ["---", "id: wrong-id", "occurrences: many", "graduated: maybe", "---", "", "no title line", ""].join("\n"),
+    "utf8",
+  );
+
+  const lint = jsonResult(runHarness(["feedback", "lint", "--target", root]), 1);
+  assert.equal(lint.ok, false);
+  const broken = lint.failures.find((failure) => failure.id === "broken-lesson");
+  assert.ok(broken.errors.some((error) => /must equal the filename/.test(error)));
+  assert.ok(broken.errors.some((error) => /positive integer/.test(error)));
+
+  rmSync(resolve(dir, "broken-lesson.md"));
+  assert.equal(jsonResult(runHarness(["feedback", "lint", "--target", root])).ok, true);
+  const list = jsonResult(runHarness(["feedback", "list", "--target", root]));
+  assert.deepEqual(list.graduation_candidates, ["verify-before-claiming"]);
+
+  const risk = jsonResult(runHarness(["risk", "--target", root]));
+  assert.ok(risk.findings.some((finding) => finding.id === "feedback-graduation"));
+});
+
+test("catalog lint and affected stay within budget on a 600k-line repository", (t) => {
+  const root = tempRepository(t, "cursor-harness-600k-");
+  runProgram("git", ["init", "--quiet"], root);
+  runProgram("git", ["config", "user.email", "harness@example.invalid"], root);
+  runProgram("git", ["config", "user.name", "Harness"], root);
+
+  const moduleCount = 60;
+  const filesPerModule = 50;
+  const linesPerFile = 200;
+  const contents = "// synthetic line of a six-hundred-thousand-line repository\n".repeat(linesPerFile);
+  const modules = [];
+  for (let index = 0; index < moduleCount; index += 1) {
+    const id = `module-${String(index).padStart(2, "0")}`;
+    const moduleRoot = resolve(root, "modules", id, "src");
+    mkdirSync(moduleRoot, { recursive: true });
+    for (let file = 0; file < filesPerModule; file += 1) {
+      writeFileSync(resolve(moduleRoot, `part-${String(file).padStart(3, "0")}.js`), contents, "utf8");
+    }
+    modules.push({
+      id,
+      paths: [`modules/${id}/**`],
+      dependsOn: index === 0 ? [] : [`module-${String(index - 1).padStart(2, "0")}`],
+      verification: [],
+    });
+  }
+  assert.ok(moduleCount * filesPerModule * linesPerFile >= 600_000);
+  runProgram("git", ["add", "-A"], root);
+  runProgram("git", ["commit", "--quiet", "-m", "seed 600k lines"], root);
+  writeJson(resolve(root, "harness", "module-catalog.json"), {
+    version: 1,
+    globalPaths: ["harness/**"],
+    modules,
+  });
+
+  let started = process.hrtime.bigint();
+  const lint = jsonResult(runHarness(["catalog", "lint", "--target", root], { timeout: 30_000 }));
+  const lintMs = Number(process.hrtime.bigint() - started) / 1_000_000;
+  assert.equal(lint.ok, true);
+  assert.equal(lint.counts.mapped, moduleCount * filesPerModule);
+  assert.ok(lintMs < 10_000, `catalog lint took ${lintMs.toFixed(1)}ms for ${lint.total} tracked paths`);
+
+  started = process.hrtime.bigint();
+  const affected = jsonResult(
+    runHarness(["affected", "modules/module-30/src/part-000.js", "--target", root], { timeout: 10_000 }),
+  );
+  const affectedMs = Number(process.hrtime.bigint() - started) / 1_000_000;
+  assert.deepEqual(affected.direct, ["module-30"]);
+  assert.equal(affected.affected.length, moduleCount - 30);
+  assert.ok(affectedMs < 5_000, `affected took ${affectedMs.toFixed(1)}ms`);
 });

@@ -2,7 +2,56 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use Semantic Versioning.
 
-## [Unreleased]
+## [1.1.0] - 2026-08-07
+
+Resilience, integrity, privacy lifecycle, and design-time governance, distilled from a
+cross-pollination review of the sibling harnesses (`cc-base`, `codex-base`, `pi-base`).
+
+### Added
+
+- `service start|stop|status|list|logs`: development services run under a supervisor with
+  crash restart and exponential backoff, a restart-storm breaker that marks the service
+  `crashed` and preserves the log instead of restarting forever, an optional health probe that
+  treats "alive but not serving" as an outage, and status synthesized from live pids rather
+  than recorded state. Start reports success only after the supervisor's pid answers a
+  liveness check. The supervisor only terminates processes it started itself.
+- `risk`: proactive scan of harness state — broken ledger chain, stale active task, repeated
+  check failures, crashed or dead services, quarantined state, expired waivers, and lessons due
+  for graduation. The sessionStart hook surfaces the worst findings; `--strict` fails on high.
+- Hash-chained quality ledger. Each receipt carries a chain hash, rotation carries an anchor,
+  and deleting, editing, or truncating history is detectable. A broken chain fails closed:
+  completion is assessed as if nothing was verified. `quality verify` additionally re-hashes
+  referenced evidence files and reports tampered or missing evidence for the current diff.
+- `retention`: destroys aged evidence and context packs on the schedule declared in the module
+  catalog, never deleting evidence referenced by a current-diff receipt or the newest receipt
+  per check; `--dry-run` previews. Completes the collect-redacted / store-bounded /
+  destroy-on-schedule lifecycle.
+- Risk-tiered verification: the matrix's `riskChecks` lists join the plan cumulatively from the
+  active task's declared risk or an explicit `--risk`, and the risk level is part of the plan
+  hash, so narrowing risk invalidates receipts.
+- Waivers are bound to one check and one diff, require approval evidence, and defer only checks
+  that could not run: an executed `FAIL` is never waivable, security-class checks and
+  critical-tier attributes refuse waivers at creation, and `assessQuality` consumes valid
+  waivers visibly (`waived` on the check; `high`-tier attribute gaps defer only when every
+  claiming check is waived).
+- A check failing three consecutive runs has its reason rewritten to stop re-running and follow
+  root-cause debugging, and the streak appears as a risk finding.
+- Feedback corpus (`docs/feedback/`) with `feedback list|lint`: lessons carry an occurrence
+  count and graduate into enforced rules after three recurrences, with the initial corpus
+  distilled from the sibling-harness review. `validate` lints the corpus when present.
+- Skills: `architecture-design` (the seven principles — open-closed, dependency inversion,
+  single responsibility, interface segregation, least knowledge, Liskov substitution, composite
+  reuse — each mapped to catalog/arch-check/ADR enforcement), `dfx-design` (DFX dimension
+  ratings with measurable target, design means, and wired verification; cost symmetry),
+  `service-operations` (supervision runbook and incident playbooks), and `record-lesson`
+  (feedback capture and graduation).
+- Scale: compiled glob patterns are cached, and the regression suite pins a generated
+  600k-line, 30k-file, 120-module repository. Measured: `catalog lint` ~3.2s for 30,001
+  tracked paths, `affected` ~60ms.
+- Schemas for services configuration, and schema updates for waiver binding, `riskChecks`, and
+  the retention policy. `doctor` reports ledger-chain and services-config health.
+
+## [1.0.0] - 2026-08-06
 
 ### Added
 

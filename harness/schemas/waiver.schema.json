@@ -6,16 +6,25 @@
   "additionalProperties": false,
   "required": [
     "version",
+    "check",
     "owner",
     "reason",
     "scope",
     "expiry",
     "compensation",
+    "approval",
+    "base_commit",
+    "diff_sha256",
     "created_at"
   ],
   "properties": {
     "version": {
       "const": 1
+    },
+    "check": {
+      "description": "The verification-matrix check this waiver defers. Security-class checks and checks evidencing critical-tier attributes cannot be waived.",
+      "type": "string",
+      "minLength": 1
     },
     "owner": {
       "type": "string",
@@ -36,6 +45,20 @@
     "compensation": {
       "type": "string",
       "minLength": 1
+    },
+    "approval": {
+      "description": "Where the approval happened — a message, review, or ticket the owner can be held to. An audit record, not an identity proof.",
+      "type": "string",
+      "minLength": 1
+    },
+    "base_commit": {
+      "type": "string",
+      "minLength": 1
+    },
+    "diff_sha256": {
+      "description": "Canonical diff hash the waiver is bound to. Any edit moves the diff and invalidates the waiver.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     },
     "created_at": {
       "type": "string",

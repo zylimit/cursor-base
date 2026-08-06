@@ -1,7 +1,20 @@
 {
   "$schema": "./schemas/verification-matrix.schema.json",
   "version": 1,
+  "riskChecks": {
+    "high": [
+      "manifest-check"
+    ]
+  },
   "checks": {
+    "feedback-lint": {
+      "class": "static",
+      "command": "node scripts/harness.mjs feedback lint",
+      "required": true,
+      "attributes": [
+        "maintainability"
+      ]
+    },
     "runtime-sync": {
       "class": "static",
       "command": "node scripts/harness.mjs validate --sync-only",
