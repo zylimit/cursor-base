@@ -35,8 +35,8 @@
     },
     {
       "path": ".cursor/cli.json",
-      "sha256": "336cbad41f03d0d977d26cff3799a044a7e85fd86e0a71587dde709b23f0852d",
-      "bytes": 577
+      "sha256": "77f585adf71f67603773ffc9c176fbc3929abe7a314769c336fdce5f32fb5648",
+      "bytes": 551
     },
     {
       "path": ".cursor/harness-state/.gitignore",
@@ -299,5 +299,5 @@
       "bytes": 185
     }
   ],
-  "digest": "fbeb31b9dd9dc6a083f453ea976669ede7e464ef81804493d3cb3de4816945b3"
+  "digest": "a6404edc4c3dc86778549e6f6b467df5b27bf46b085154cb001cab5809185139"
 }

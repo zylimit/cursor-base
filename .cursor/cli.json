@@ -16,7 +16,6 @@
       "Shell(del:*)",
       "Shell(format:*)",
       "Shell(shutdown:*)",
-      "Shell(git:push*)",
       "Read(**/.env*)",
       "Read(**/*.key)",
       "Read(**/*.pem)",
