@@ -7,7 +7,8 @@ import { posix, sensitivePath, whichCommand } from "./core.mjs";
 export function requiresShell(parse) {
     return parse.segments.length !== 1 || parse.dynamic || parse.expands || parse.segments[0].rawTokens.length === 0;
 }
-// Words a shell interprets itself; none of them is a program on PATH.
+// Words a shell interprets itself. Some also exist as programs (`echo`, `test`, `time`), but
+// the builtin's semantics are what the author of the command line meant.
 const SHELL_KEYWORDS = new Set([
     ".", "source", "exec", "command", "builtin", "eval", "cd", "export", "unset", "set", "exit", "return",
     "time", "if", "then", "else", "fi", "for", "while", "until", "do", "done", "case", "esac", "function",
@@ -29,18 +30,25 @@ export function directSpawnTarget(parse, cwd) {
     const program = tokens[0];
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(program) || SHELL_KEYWORDS.has(program.toLowerCase()))
         return { kind: "shell" };
-    let resolved;
-    if (program.includes("/") || program.includes("\\")) {
-        const absolute = resolve(cwd, program);
+    const fileAt = (candidate) => {
         try {
-            resolved = statSync(absolute).isFile() ? absolute : null;
+            return statSync(candidate).isFile() ? candidate : null;
         }
         catch {
-            resolved = null;
+            return null;
         }
+    };
+    let resolved;
+    if (program.includes("/") || program.includes("\\")) {
+        resolved = fileAt(resolve(cwd, program));
     }
     else {
         resolved = whichCommand(program);
+        // cmd.exe also finds a plain word in the working directory (`gradlew build`); sh does not.
+        if (!resolved && process.platform === "win32") {
+            const extensions = ["", ...(process.env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)];
+            resolved = extensions.map((extension) => fileAt(resolve(cwd, `${program}${extension}`))).find(Boolean) ?? null;
+        }
     }
     if (!resolved)
         return { kind: "missing", program };
@@ -194,8 +202,10 @@ export function parseShellCommand(value) {
             continue;
         }
         // Unquoted parentheses group commands (a subshell), so `(shutdown -h now)` is the same
-        // program call as `shutdown -h now`, not a program named `(shutdown`.
+        // program call as `shutdown -h now`, not a program named `(shutdown`. Grouping is shell
+        // syntax, so the command also needs a shell to run as written.
         if (char === "(" || char === ")") {
+            expands = true;
             pushToken();
             continue;
         }
@@ -346,11 +356,31 @@ export function classifyGit(rest, raw, root) {
 // Commands that act on the machine rather than on the repository. Recognized by the resolved
 // program name after wrapper stripping, so quoted prose that mentions them is never a match.
 export const MACHINE_COMMANDS = new Set(["shutdown", "reboot", "halt", "poweroff", "diskpart"]);
+function isMachineCommand(name) {
+    return MACHINE_COMMANDS.has(name) || name.startsWith("mkfs");
+}
+/**
+ * Program names that run inside a segment's substitutions: the word after each `$(` or opening
+ * backtick in any token. A machine command hidden in `echo $(shutdown -h now)` is still the
+ * machine command; the segment head is only the program that receives its output.
+ */
+export function substitutedPrograms(segment) {
+    const names = [];
+    for (const token of segment.rawTokens) {
+        for (const match of token.matchAll(/(?:\$\(|`)\s*([^\s()`;&|]+)/g)) {
+            names.push(stripExecutableName(match[1]));
+        }
+    }
+    return names;
+}
 export function classifySegment(segment, raw, root) {
     const allow = { permission: "allow" };
+    if (substitutedPrograms(segment).some(isMachineCommand)) {
+        return decision("deny", "Blocked an obviously destructive command.", raw);
+    }
     if (!segment.name)
         return allow;
-    if (MACHINE_COMMANDS.has(segment.name) || segment.name.startsWith("mkfs")) {
+    if (isMachineCommand(segment.name)) {
         return decision("deny", "Blocked an obviously destructive command.", raw);
     }
     if (segment.name === "git") {
@@ -446,7 +476,7 @@ export function shellDecision(command, root) {
         /\bgit\s+(reset\s+--hard|clean\s+(?:--force|-[a-z]*f[a-z]*)|checkout\s+--)\b/i,
         // Machine-level commands are recognized in command position only, so a commit message or
         // an echo that merely mentions "shutdown" is not read as a shutdown.
-        /(^|[;&|]\s*|\b(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+|\b(?:timeout\s+\d+|nice|nohup|env)\s+)(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
+        /(^|[;&|]\s*|\$\(\s*|`\s*|\b(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+|\b(?:timeout\s+\d+|nice|nohup|env)\s+)(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
         /\bformat\s+[a-z]:/i,
         /\bdd\b[^;&|]*(\bof=\/dev\/|\bof=\\\\\.\\physicaldrive)/i,
         /\b(drop|truncate)\s+(database|schema)\b/i,

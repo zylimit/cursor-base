@@ -6,7 +6,7 @@ import { homedir, tmpdir } from "node:os";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { POLICY_REL, compilePolicy, effectiveSelection, isProtectedCheck, loadPolicy, openDebts, readLoan, resolveAssurance } from "./assurance.mjs";
 import { RISK_LEVELS, matrix, validateCatalog } from "./catalog.mjs";
-import { discoverCatalog, writeDiscoveredCatalog } from "./graph.mjs";
+import { discoverCatalog, isUneditedTemplate, writeDiscoveredCatalog } from "./graph.mjs";
 import { EVENTS, HARNESS_ROOT, INSTALL_MANIFEST_REL, LIVE_CONTRACTS, SECURITY_EVENTS, SOURCE_MANIFEST_REL, VERSION, boolOption, copyNormalized, errorMessage, fileHash, git, gitAvailable, isHarnessSourceRoot, isWithin, normalizeLf, posix, printJson, readJson, run, sha256, snapshotFiles, targetFrom, walkFiles, writeJson, } from "./core.mjs";
 import { feedbackLessons } from "./memory.mjs";
 import { verifyLedgerChain } from "./quality.mjs";
@@ -195,7 +195,9 @@ export function installLike(action, options) {
     // A seeded catalog describes nothing yet. When the target is a git repository, the module map
     // is proposed from its own tree and real import edges instead, so the first gate governs the
     // right modules; a catalog someone edited is never touched.
-    let catalogNote = { source: "template" };
+    // `existing`: the target already had a catalog and nothing here touched it. `template`: it was
+    // seeded and left as the neutral template. `discovered`: seeded and then proposed from the tree.
+    let catalogNote = { source: seededCatalog ? "template" : "existing" };
     if (action === "install" && seededCatalog && !boolOption(options, "no-discover")) {
         try {
             const proposal = discoverCatalog(target);
@@ -344,15 +346,9 @@ export function validateManagedJson(root, paths, errors) {
 }
 export function isDefaultBootstrapConfig(root) {
     // The policy's template equals the built-in defaults, so matching it says nothing; only the
-    // catalog and the matrix tell whether a repository has described itself yet.
-    const pairs = LIVE_CONTRACTS.filter(([live]) => !live.endsWith("assurance-policy.json"));
-    return pairs.every(([local, fallback]) => {
-        const localPath = resolve(root, local);
-        const fallbackPath = resolve(root, fallback);
-        return (existsSync(localPath) &&
-            existsSync(fallbackPath) &&
-            normalizeLf(readFileSync(localPath, "utf8")) === normalizeLf(readFileSync(fallbackPath, "utf8")));
-    });
+    // catalog and the matrix tell whether a repository has described itself yet. One comparison
+    // (`isUneditedTemplate`) decides "still the template" everywhere.
+    return LIVE_CONTRACTS.filter(([live]) => !live.endsWith("assurance-policy.json")).every(([live, template]) => existsSync(resolve(root, live)) && isUneditedTemplate(root, live, template));
 }
 export function validate(options) {
     const root = targetFrom(options);

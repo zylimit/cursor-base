@@ -5,7 +5,8 @@
 // context depth, deferral, completion) ordered so that every stronger profile is at least
 // as demanding on every control. The effective profile of a change is the strongest of the
 // requested profile and every floor the change triggers: task risk, unmapped or shared
-// impact, protected quality attributes on affected modules, and governance paths.
+// impact, protected quality attributes on affected modules, other attributes at critical or
+// high, and governance paths.
 //
 // Two things a profile never does: it never changes what the safety hooks deny or ask (that
 // is the capability axis, owned by hooks, cli.json, and the sandbox), and it never changes the

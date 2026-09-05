@@ -921,6 +921,7 @@ test("upgrade never removes or reseeds a live contract a 1.x install distributed
   const upgraded = jsonResult(runHarness(["upgrade", "--target", root]));
   const touched = upgraded.operations.filter((entry) => entry.path === "harness/module-catalog.json");
   assert.deepEqual(touched, [], `the live catalog must not appear as obsolete or seeded: ${JSON.stringify(touched)}`);
+  assert.equal(upgraded.catalog.source, "existing", "an untouched catalog is not reported as the template");
   assert.equal(readFileSync(resolve(root, "harness/module-catalog.json"), "utf8").replace(/\r\n?/g, "\n"), catalogText);
 });
 
@@ -944,6 +945,11 @@ test("machine commands are recognized by program name, not by prose", (t) => {
     ["echo 'reboot the discussion'", "allow"],
     ["(shutdown -h now)", "deny"],
     ["sudo -u root shutdown -h now", "deny"],
+    // A machine command inside a substitution is still the machine command.
+    ["echo $(shutdown -h now)", "deny"],
+    ["$(shutdown -h now)", "deny"],
+    ["echo `reboot`", "deny"],
+    ["echo $(date)", "allow"],
   ];
   for (const [command, expected] of cases) {
     assert.equal(hook(root, "beforeShellExecution", { command }).permission, expected, command);

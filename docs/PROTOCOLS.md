@@ -43,8 +43,10 @@ Exit code: process result, or null when the command never ran
 Evidence: path, byte count, and hash of the captured output
 ```
 
-`BLOCKED` means the check could not run — no command configured, or the executable is absent.
-A blocked check is never a pass. Structural validation of the harness itself proves nothing about
+`BLOCKED` means the check could not run — no command configured, or, for a command that is one
+program with literal arguments, a program that resolves to nothing. A command a shell must
+interpret (pipeline, variable, keyword, `.cmd` shim) runs through the shell, and a program the
+shell cannot find is that shell's non-zero exit, recorded as `FAIL`. Neither is ever a pass. Structural validation of the harness itself proves nothing about
 project behavior and never produces a verification receipt.
 
 A receipt is valid only for the diff it was bound to. Any edit invalidates every receipt, and the

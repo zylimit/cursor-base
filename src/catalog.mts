@@ -13,6 +13,7 @@ import {
   readJson,
   splitNulPaths,
   targetFrom,
+  LIVE_CONTRACTS,
 } from "./core.mjs";
 import type { CliOptions } from "./core.mjs";
 
@@ -345,16 +346,20 @@ export interface VerificationMatrix {
   riskChecks?: Partial<Record<RiskLevel, string[]>>;
 }
 
+/** The live contract when the repository has one, else the harness's neutral template. */
+function liveOrTemplate(root: string, live: string): string {
+  const pair = LIVE_CONTRACTS.find(([candidate]) => candidate === live);
+  if (!pair) throw new Error(`Unknown live contract: ${live}.`);
+  const local = resolve(root, live);
+  return existsSync(local) ? local : resolve(HARNESS_ROOT, pair[1]);
+}
+
 export function catalog(root: string): ModuleCatalog {
-  const local = resolve(root, "harness/module-catalog.json");
-  return readJson(existsSync(local) ? local : resolve(HARNESS_ROOT, "harness/default-module-catalog.json"));
+  return readJson(liveOrTemplate(root, "harness/module-catalog.json"));
 }
 
 export function matrix(root: string): VerificationMatrix {
-  const local = resolve(root, "harness/verification-matrix.json");
-  return readJson(
-    existsSync(local) ? local : resolve(HARNESS_ROOT, "harness/default-verification-matrix.json"),
-  );
+  return readJson(liveOrTemplate(root, "harness/verification-matrix.json"));
 }
 
 export function moduleForPath(definition: ModuleCatalog, path: string): ModuleDefinition | null {

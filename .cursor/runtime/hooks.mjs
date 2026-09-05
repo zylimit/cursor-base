@@ -379,7 +379,7 @@ function assuranceBanner(root, taskId) {
     const loan = readLoan(root);
     const debts = openDebts(root).length;
     const parts = [
-        `Assurance profile: ${resolved.effective} (selection ${selection}${resolved.requested !== resolved.effective ? `, raised by ${resolved.floors.map((floor) => floor.source).join(", ")}` : ""}); floors from impact, protected attributes, and governance paths are applied per change by the gate.`,
+        `Assurance profile: ${resolved.effective} (selection ${selection}${resolved.requested !== resolved.effective ? `, raised by ${resolved.floors.map((floor) => floor.source).join(", ")}` : ""}); floors from impact, protected and other critical/high attributes, and governance paths are applied per change by the gate.`,
     ];
     if (loan.active) {
         parts.push(`FAST LOAN OPEN until ${loan.loan?.expires_at} (${loan.loan?.reason}): allowFastSkip checks are deferred and recorded as debt.`);

@@ -122,6 +122,17 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   stop and preCompact hooks work in a repository with no commits; `diffStats` counts the index
   when there is no commit and uses numstat's line convention; review change discovery reuses
   `changedPaths`; `validate` requires and compiles `harness/default-assurance-policy.json`.
+- From round 4 (one error): a machine command inside a substitution — `echo $(shutdown -h now)`,
+  a backtick form — is denied by both layers (the semantic layer reads the program after each
+  `$(` or backtick; the regex layer names `$(` and backtick as command positions); unquoted
+  grouping parentheses route the command through the shell; `whichCommand` probes the bare name
+  on Windows and `directSpawnTarget` also looks in the working directory there; `diffStats`
+  counts both the index and the worktree when there is no commit; `isDefaultBootstrapConfig`,
+  `catalog()`, and `matrix()` derive from `LIVE_CONTRACTS` and share `isUneditedTemplate`;
+  `harness/*.draft.json` is never distributed; `upgrade` reports `catalog.source: "existing"`
+  for a catalog it did not touch; a path-form program that does not resolve says so instead of
+  "not found on PATH"; five floor kinds named consistently; `docs/PROTOCOLS.md` states exactly
+  when a missing program is `BLOCKED` and when it is the shell's `FAIL`.
 
 ### Fixed
 

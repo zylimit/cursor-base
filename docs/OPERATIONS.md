@@ -36,8 +36,8 @@ Stop expanding when evidence covers the stated risk, unless a required gate rema
 
 The breadth of step 2–5 is set by the effective assurance profile (`verify-plan` shows it):
 `rapid` runs the changed modules' checks, `balanced` their reverse-dependency closure, `strict`
-every module. Floors from task risk, impact, protected attributes, and governance paths only
-widen it. Under a fast loan (`fast on`), checks the matrix pre-declared `allowFastSkip` are
+every module. Floors from task risk, impact, protected attributes, other critical/high
+attributes, and governance paths only widen it. Under a fast loan (`fast on`), checks the matrix pre-declared `allowFastSkip` are
 deferred and recorded as debt; run the gate again with the loan closed to repay them. See
 `docs/ASSURANCE-PROFILES.md`.
 

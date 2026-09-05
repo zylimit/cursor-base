@@ -14,8 +14,9 @@ changed shape, or when the install reported `source: "template"`.
 2. Decide what the engine refused to guess: attribute tiers (from what a failure would cost),
    forbidden dependencies (commitments, not observations), layer order. Start with the modules
    under `attribute_proposals`; the evidence there is a reason to look, not a decision.
-3. Write the draft: `catalog discover --write`. An edited catalog is never overwritten; the draft
-   lands beside it as `harness/module-catalog.draft.json` for a merge.
+3. Write the draft: `catalog discover --write`. An edited file is never overwritten; each draft
+   lands beside its file (`harness/module-catalog.draft.json`,
+   `harness/verification-matrix.draft.json`) for a merge, and drafts are never distributed.
 4. Prove coverage: `node scripts/harness.mjs catalog lint` must report every tracked path as
    mapped, global, or ignored with a reason. Then `arch-check` starts clean because `dependsOn`
    came from the real edges.

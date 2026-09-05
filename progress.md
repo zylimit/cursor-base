@@ -73,8 +73,14 @@ section contract.
   resolvable program with literal arguments; a shell for anything a shell must interpret; a
   `missing` verdict only when a plain program resolves to nothing. Rejected: per-caller
   predicates — round 3 of the review showed them diverging within a day (env assignments and
-  `.cmd` shims handled in one place and not the other). Rejected: keeping one 5,860-line file — it had outgrown navigation and
-  made ownership of a change unreadable.
+  `.cmd` shims handled in one place and not the other).
+  (The sentence "Rejected: keeping one 5,860-line file ..." that first appeared here belongs to
+  the engine-split decision above and is retired; round 4 of the review caught the misplacement.)
+
+- 2026-09-05 Five floor kinds, not four: the 2026-09-05 assurance decision above names risk,
+  impact, protected attributes, and governance paths; the policy also floors any other attribute
+  at critical or high to `balanced` (`floors.criticalHighAttributes`). Recorded here because
+  Decisions are append-only.
 
 - 2026-08-07 Waivers defer only checks that could not run (`MISSING`/`BLOCKED`/`SKIPPED`), bound
   to one check and one diff, with approval evidence.
@@ -117,7 +123,7 @@ section contract.
   kill, stop through the flag, direct spawn), blast-radius budget, nested module contracts,
   authorship hook, 1.x → 2.0 upgrade notes, range reviews, install-time catalog discovery with
   neutral templates and live contracts that are never distributed, and every error the
-  structured self-review found in rounds 1 and 2 (see CHANGELOG "Fixed").
+  structured self-review found in rounds 1 to 3 (see CHANGELOG 2.0.0 "Changed" and "Fixed").
 - 2.0.0 (2026-09-05), after a line-by-line study of dsh-base and cc-base and a review of
   codex-base (`docs/CAPABILITY-MATRIX.md` records every accept/adapt/reject):
   - Engine split into 18 modules plus the entry (`docs/ARCHITECTURE.md`); parity over the whole tree.
@@ -163,9 +169,11 @@ section contract.
   reviewer subagent per lens because the other models were unavailable. Round 1: 5 errors, fixed
   (05ff9ab). Round 2: 2 errors, fixed (3c177fc). Round 3: 4 errors (quoted variables, env
   assignments and `.cmd` shims in check execution, 1.x live contracts removed on upgrade), fixed
-  in the following commit; the engine set `escalate: true` at round 3 as designed. The user had
-  instructed the session to finish, so the escalation is recorded here and in the final report
-  rather than pausing; a further round runs the eight lenses again on the fixed range.
+  in 417962b; the engine set `escalate: true` at round 3 as designed. The user had instructed the
+  session to finish, so the escalation is recorded here and in the final report rather than
+  pausing. Round 4: 1 error (machine command hidden in a substitution) plus warnings, fixed in
+  the following commit; the error count per round was 5 → 2 → 4 → 1. Round 5 runs all eight
+  lenses on the fixed range.
 
 ## Not doing
 

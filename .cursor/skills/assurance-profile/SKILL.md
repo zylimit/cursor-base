@@ -14,9 +14,9 @@ description: Reads, selects, or explains the assurance profile (explore, rapid, 
    - `strict` — governance, trust boundaries, releases. Everything verified; lens-covered review.
 3. Set it for the project (`profile set NAME`) or one task (`profile set NAME --task ID`);
    `adaptive` returns to the policy default plus floors.
-4. Never argue with a floor. If task risk, a protected attribute, or a governance path raised
-   the profile, that is the change telling you what it costs; lower the risk or split the change
-   instead.
+4. Never argue with a floor. If task risk, unmapped or shared impact, a protected or other
+   critical/high attribute, or a governance path raised the profile, that is the change telling
+   you what it costs; lower the risk or split the change instead.
 5. Re-run `node scripts/harness.mjs gate` after changing the profile: receipts are bound to the
    controls that produced them.
 

@@ -57,8 +57,9 @@ What changes for a repository that already runs the harness:
   (`receipt --reviewer NAME --decision approve`, or the structured review's final `ACCEPT`).
   Teams that want the 1.x behavior for small work select `rapid`
   (`node scripts/harness.mjs profile set rapid`), which closes low-risk tasks on a passing gate
-  alone. Floors still apply: medium risk, protected attributes, and governance paths raise the
-  profile regardless of the selection.
+  alone. Floors still apply: medium or high risk, unmapped or shared impact, protected and
+  other critical/high attributes, and governance paths raise the profile regardless of the
+  selection.
 - **New hook event.** `.cursor/hooks.json` gains `postToolUse` (invariant re-injection after a
   compaction), and `validate` requires exactly one hook per event. If your `hooks.json` was
   modified, `upgrade` leaves it in place and writes `hooks.json.cursor-harness-new` beside it;
@@ -74,8 +75,9 @@ What changes for a repository that already runs the harness:
   place. A 1.x install carried this repository's own module map (modules `governance`,
   `runtime`, `tests`, `distribution`, with `security: critical` on `src/**`). Discovery does not
   run on `upgrade`, so after upgrading run `node scripts/harness.mjs catalog discover`, review
-  the proposal, then `catalog discover --write`: because your file differs from the new neutral
-  template, the draft lands beside it as `harness/module-catalog.draft.json` for you to merge.
+  the proposal, then `catalog discover --write`: because your files differ from the new neutral
+  templates, the drafts land beside them as `harness/module-catalog.draft.json` and
+  `harness/verification-matrix.draft.json` for you to merge.
 - **Matrix and catalog fields.** Checks may declare `allowFastSkip` (deferrable under a fast
   loan; never for security, safety, or privacy evidence). The catalog accepts `memory`,
   `budget`, and `review` sections; none is required.

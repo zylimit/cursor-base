@@ -354,7 +354,9 @@ export function executeCheck(root: string, check: SelectedCheck, plan: VerifyPla
   } else {
     if (target.kind === "missing") {
       receipt.duration_ms = Date.now() - started;
-      receipt.reason = `Command not found on PATH: ${target.program}.`;
+      receipt.reason = /[\\/]/.test(target.program)
+        ? `Command did not resolve under ${root}: ${target.program}.`
+        : `Command not found on PATH: ${target.program}.`;
       return signReceipt(receipt);
     }
     const { program, args } = target as { program: string; args: string[] };

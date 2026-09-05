@@ -290,12 +290,12 @@ export function diffStats(cwd, base) {
         return null;
     const excludeState = (path) => path !== STATE_REL && !path.startsWith(`${STATE_REL}/`);
     let changedLines = 0;
-    {
-        // Without a commit, the index is the only tracked side; `--cached` is what `changedPaths`
-        // and the diff digest see in that state too.
-        const args = base === "NO_COMMIT"
-            ? ["diff", "--cached", "--numstat", "-z", "--relative", "--", "."]
-            : ["diff", "--numstat", "-z", "--relative", base, "--", "."];
+    // Without a commit there is no base to diff against: the index (`--cached`) and the worktree
+    // changes on top of it are the two passes the diff digest binds in that state.
+    const passes = base === "NO_COMMIT"
+        ? [["diff", "--cached", "--numstat", "-z", "--relative", "--", "."], ["diff", "--numstat", "-z", "--relative", "--", "."]]
+        : [["diff", "--numstat", "-z", "--relative", base, "--", "."]];
+    for (const args of passes) {
         const result = git(cwd, args, true);
         if (!result.ok)
             return null;
@@ -569,6 +569,9 @@ export function isInstallable(root, absolute) {
         return true;
     if (LIVE_CONTRACTS.some(([live]) => live === rel))
         return false;
+    // A discovery draft describes the repository it was produced in, never a target.
+    if (rel.startsWith("harness/") && rel.endsWith(".draft.json"))
+        return false;
     if (rel.startsWith("harness/"))
         return true;
     if (!rel.startsWith(".cursor/"))
@@ -679,8 +682,10 @@ export function whichCommand(name) {
         return existsSync(direct) && statSync(direct).isFile() ? direct : null;
     }
     const separator = process.platform === "win32" ? ";" : ":";
+    // On Windows a name may already carry its extension (`node.exe`), so the bare name is probed
+    // before PATHEXT is appended.
     const extensions = process.platform === "win32"
-        ? (process.env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)
+        ? ["", ...(process.env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)]
         : [""];
     for (const directory of (process.env.PATH || "").split(separator).filter(Boolean)) {
         for (const extension of extensions) {

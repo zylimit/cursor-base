@@ -15,7 +15,7 @@ Safety is not waivable. When instructions conflict, choose the higher priority a
 Speed and convenience are traded against required quality gates through one explicit axis, the
 assurance profile (`explore < rapid < balanced < strict`), never against safety. A team selects
 the profile the work deserves; floors derived from the change — task risk, unmapped or shared
-impact, protected attributes, governance paths — can only raise it. Deadline pressure is met with
+impact, protected attributes, other critical/high attributes, governance paths — can only raise it. Deadline pressure is met with
 a dated, repayable fast loan that names the deferred evidence, not with a weaker profile or a
 silenced hook. See `docs/ASSURANCE-PROFILES.md`.
 
