@@ -4,6 +4,7 @@ import { existsSync, renameSync, rmSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { effectiveSelection, loadPolicy, openDebts, readLoan, resolveAssurance } from "./assurance.mjs";
 import { invariants, syncCheck } from "./memory.mjs";
+import { recordAuthorship } from "./review.mjs";
 import { EVENTS, SECURITY_EVENTS, STATE_REL, binding, boundedHead, boundedText, changedPaths, errorMessage, posix, printJson, readJson, redactSecrets, sensitivePath, stdinJson, targetFrom, withStateLock, writeJson, } from "./core.mjs";
 import { appendLedger, riskScan } from "./ops.mjs";
 import { QUALITY_LEDGER_REL, assessQuality, buildVerifyPlan, quality } from "./quality.mjs";
@@ -194,8 +195,14 @@ export async function handleHookEvent(event, payload, root) {
                 ],
             });
         });
-        if (editedFile)
+        if (editedFile) {
             recordTaskWrite(root, editedFile);
+            // Who edited what, per conversation. The review verdict uses it to refuse a self-review;
+            // it is a claim about the editing conversation, not an authenticated identity.
+            const author = payload.subagent_id ?? payload.conversation_id ?? null;
+            if (author)
+                recordAuthorship(root, String(author), [editedFile]);
+        }
     }
     else if (event === "afterShellExecution") {
         // Recording what actually ran turns "Verified" from an agent's claim into a fact the
@@ -339,6 +346,11 @@ export async function handleHookEvent(event, payload, root) {
                 catch {
                     // A memory check that cannot run must not convert a completed turn into a loop.
                 }
+            }
+            // A blast radius over budget is a reason to split the change or escalate on purpose; under
+            // `budget: block` the turn does not end on it silently.
+            if (assessment.budget.mode === "block" && assessment.budget.exceeded.length > 0) {
+                parts.push(`a blast radius over budget (${assessment.budget.exceeded.join("; ")})`);
             }
             if (parts.length > 0) {
                 output = {

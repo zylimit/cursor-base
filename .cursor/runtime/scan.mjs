@@ -549,8 +549,13 @@ export function skillsLintCommand(options) {
 // holds a protected attribute at a blocking tier must state its boundaries where the work happens.
 export const MODULE_CONTRACT_SECTIONS = ["Purpose", "Boundaries", "Invariants", "Verification"];
 export const ROOT_AGENTS_BUDGET_BYTES = 12_000;
-/** The directory a module contract would live in: the literal prefix before the first wildcard. */
-export function moduleDirectory(module) {
+/**
+ * Directories a module contract could live in: the literal prefix of each path pattern before
+ * its first wildcard, root-level files excluded. A module confined to one directory has one
+ * candidate; a module spanning several has several, and any one of them holding an AGENTS.md
+ * counts, because Cursor loads the nested file wherever the work happens.
+ */
+export function moduleDirectories(module) {
     const prefixes = module.paths.map((pattern) => {
         const solid = [];
         for (const segment of (module.root ? `${module.root}/${pattern}` : pattern).split("/")) {
@@ -562,10 +567,12 @@ export function moduleDirectory(module) {
             solid.pop();
         return solid.join("/");
     });
-    const unique = [...new Set(prefixes.filter(Boolean))];
-    if (unique.length !== 1)
-        return null;
-    return unique[0];
+    return [...new Set(prefixes.filter(Boolean))];
+}
+/** The single directory a module contract would live in, or null when the module spans several. */
+export function moduleDirectory(module) {
+    const unique = moduleDirectories(module);
+    return unique.length === 1 ? unique[0] : null;
 }
 export function agentsLint(root) {
     const findings = [];
@@ -585,12 +592,15 @@ export function agentsLint(root) {
         const blocking = tiers.filter((entry) => entry.tier === "critical" || entry.tier === "high");
         if (blocking.length === 0)
             continue;
-        const directory = moduleDirectory(module);
-        if (directory === null || directory === "") {
-            findings.push({ module: module.id, severity: "warning", code: "MODULE_ROOT_UNDECIDABLE", message: `module ${module.id} spans several roots or the repository root, so no contract directory can be derived; declare \`root\` to name one` });
+        const candidates = moduleDirectories(module);
+        if (candidates.length === 0) {
+            findings.push({ module: module.id, severity: "warning", code: "MODULE_ROOT_UNDECIDABLE", message: `module ${module.id} claims only repository-root files, so no contract directory can be derived` });
             continue;
         }
-        const file = `${directory}/AGENTS.md`;
+        // The first candidate is the conventional location; an existing contract anywhere in the
+        // module's directories is accepted, because the agent loads it wherever it works.
+        const existing = candidates.find((candidate) => existsSync(resolve(root, `${candidate}/AGENTS.md`)));
+        const file = `${existing ?? candidates[0]}/AGENTS.md`;
         const absolute = resolve(root, file);
         const protectedAttributes = blocking.filter((entry) => ["security", "safety", "privacy"].includes(entry.attribute));
         if (!existsSync(absolute)) {
@@ -599,7 +609,7 @@ export function agentsLint(root) {
                 file,
                 severity: protectedAttributes.length ? "error" : "warning",
                 code: "NO_MODULE_AGENTS",
-                message: `module ${module.id} declares ${blocking.map((entry) => `${entry.attribute}=${entry.tier}`).join(", ")} but has no ${file}; the agent loads that file whenever it works in the module, so it is the cheapest boundary contract available`,
+                message: `module ${module.id} declares ${blocking.map((entry) => `${entry.attribute}=${entry.tier}`).join(", ")} but has no ${file}${candidates.length > 1 ? ` (or in ${candidates.slice(1).join(", ")})` : ""}; the agent loads that file whenever it works in the module, so it is the cheapest boundary contract available`,
             });
             continue;
         }

@@ -57,7 +57,7 @@ Commands:
   profile <sub>      show, explain, list, or set the assurance profile (explore|rapid|balanced|strict|adaptive)
   fast <sub>         on --minutes N --reason TEXT, off, or status: a dated, repayable loan against evidence
   debt list          Evidence still owed from fast loans; only a later PASS repays it
-  quality <sub>      status, attributes, or verify for ledger and evidence integrity
+  quality <sub>      status, attributes, budget, or verify for ledger and evidence integrity
   fitness            Run built-in quality-attribute rules over changed paths or --all
   adapters <sub>     list external quality tools, or add one to the verification matrix
   adr-check          Require every live decision record to name the check that enforces it

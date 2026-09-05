@@ -161,12 +161,10 @@ section contract.
 - Hook behavior is exercised through the harness CLI and the test suite; in a live Cursor
   session the `postToolUse` re-injection was observed to fire after a compaction on 2026-09-05
   (the invariants block arrived as tool-result context), so that path is verified on the host.
-  Whether subagent edits arrive with a distinct `conversation_id` for authorship is still
-  unverified.
+  `afterFileEdit` now records authorship per `subagent_id`/`conversation_id`; whether subagent
+  edits arrive with a distinct identity on this host is still unverified.
 - Authorship on Cursor is a per-conversation claim, not an authenticated identity; the review
   verdict says `authorship_enforced: false` whenever it could not check.
-- The `budget` control is resolved and reported but no blast-radius budget check consumes it yet
-  (the catalog `budget` section is accepted by the schema for that purpose).
 - `catalog discover` proposes attributes from keyword signals; the proposals are evidence to
   look at, never tiers, and a codebase with unusual vocabulary will get few or none.
 - On Windows a `shell: true` child's recorded pid is `cmd.exe`; killing that pid alone orphans

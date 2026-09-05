@@ -461,7 +461,9 @@ export function validate(options: CliOptions): void {
         errors.push("default-verification-matrix.json must define version 1 and a checks object.");
       }
     }
-    if (isDefaultBootstrapConfig(root)) {
+    // The source checkout is where the template lives, so matching it is expected there and a
+    // signal everywhere else.
+    if (isDefaultBootstrapConfig(root) && !isHarnessSourceRoot(root)) {
       warnings.push(
         "Module catalog and verification matrix still use bootstrap defaults; customize them for this repository.",
       );
@@ -602,7 +604,7 @@ export function doctor(options: CliOptions): void {
       warnings.push(`Service ${name} is ${synthesized.status}; run \`node scripts/harness.mjs service status\`.`);
     }
   }
-  if (isDefaultBootstrapConfig(root)) {
+  if (isDefaultBootstrapConfig(root) && !isHarnessSourceRoot(root)) {
     warnings.push(
       "Module catalog and verification matrix still use bootstrap defaults; customize them for this repository.",
     );

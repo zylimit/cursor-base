@@ -333,6 +333,46 @@ test("the stop hook names the profile and blocks on stale memory only under stri
   assert.match(banner.additional_context, /Assurance profile: strict \(selection strict\)/);
 });
 
+test("the blast-radius budget warns under balanced and blocks under strict", (t) => {
+  const root = fixture(t, {
+    catalog: {
+      version: 1,
+      budget: { maxChangedFiles: 1, maxChangedLines: 1 },
+      modules: [{ id: "app", paths: ["src/**"], dependsOn: [], verification: ["unit", "lint"], owners: [] }],
+    },
+  });
+  hook(root, "sessionStart", {});
+  edit(root, "src/app.js", "export const one = 2;\n");
+  edit(root, "src/extra.js", "export const two = 2;\n");
+
+  const budget = jsonResult(runHarness(["quality", "budget", "--target", root]));
+  assert.equal(budget.mode, "warn");
+  assert.equal(budget.measured.changed_files, 2);
+  assert.equal(budget.measured.new_files, 1);
+  assert.ok(budget.measured.changed_lines >= 2);
+  assert.equal(budget.exceeded.length, 2);
+
+  // Balanced: reported as advisory, completion is not held hostage to it.
+  jsonResult(runHarness(["gate", "--target", root]));
+  jsonResult(runHarness(["receipt", "--reviewer", "colleague", "--decision", "approve", "--target", root]));
+  const balanced = jsonResult(runHarness(["quality", "status", "--target", root]));
+  assert.equal(balanced.closable, true);
+  assert.ok(balanced.blockers.some((entry) => /^advisory: budget:/.test(entry)));
+
+  // Strict: the same numbers block, and the stop hook says so.
+  jsonResult(runHarness(["profile", "set", "strict", "--target", root]));
+  jsonResult(runHarness(["gate", "--target", root]));
+  const strict = jsonResult(runHarness(["quality", "budget", "--target", root]), 2);
+  assert.equal(strict.mode, "block");
+  // `quality status` exits on `complete` (checks and attributes); `closable` carries the rest.
+  const status = jsonResult(runHarness(["quality", "status", "--target", root]));
+  assert.equal(status.complete, true);
+  assert.equal(status.closable, false);
+  assert.ok(status.blockers.some((entry) => /^budget: 2 changed files exceed maxChangedFiles 1/.test(entry)));
+  const stop = hook(root, "stop", { status: "completed", loop_count: 0 });
+  assert.match(stop.followup_message, /blast radius over budget/);
+});
+
 // ---------------------------------------------------------------------------------------------
 // Structured review
 // ---------------------------------------------------------------------------------------------

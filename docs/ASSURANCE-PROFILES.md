@@ -26,7 +26,7 @@ lattice when the policy compiles).
 | `reviewMode` | `none` → `receipt` → `structured` | What closing a task needs: nothing, an approving diff-bound receipt, or a receipt with lens coverage from the review engine |
 | `attributeGaps` | `advisory` → `blocking` | Whether uncovered critical/high attribute gaps block completion or are only reported |
 | `memorySync` | `off` → `warn` → `block` | Whether governed code changing without `progress.md` is ignored, reported by `recap`/`risk`, or blocks the stop hook |
-| `budget` | `off` → `warn` → `block` | Whether exceeding the blast-radius budget warns or blocks |
+| `budget` | `off` → `warn` → `block` | Whether exceeding the catalog's blast-radius `budget` (changed files, changed lines, modules touched, new files) is ignored, reported as advisory, or blocks completion and the stop hook |
 | `contextDepth` | `changed` → `affected` → `conservative` | How much of the repository a context pack pulls in |
 | `completion` | `forbidden` → `low-risk` → `delivery` → `release-capable` | The strongest work a passing gate under this profile may close |
 | `reviewLenses` | set; a superset is stronger | Lenses a structured review convenes before attribute exclusions |

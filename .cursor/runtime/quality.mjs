@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { RISK_LEVELS, TIER_ENFORCEMENT, catalog, matrix, normalizeRequirement } from "./catalog.mjs";
-import { STATE_REL, binding, boolOption, boundedText, canonicalJson, contentHash, errorMessage, gitBase, normalizeLf, posix, printJson, pruneDirectory, readJson, redactSecrets, sha256, targetFrom, validTimestamp, whichCommand, withStateLock, writeJson, } from "./core.mjs";
+import { STATE_REL, binding, boolOption, boundedText, canonicalJson, contentHash, errorMessage, git, gitAvailable, gitBase, normalizeLf, posix, printJson, pruneDirectory, readJson, redactSecrets, sha256, targetFrom, validTimestamp, whichCommand, withStateLock, writeJson, } from "./core.mjs";
 import { affectedModules, requestedPaths } from "./graph.mjs";
 import { parseShellCommand } from "./shell-policy.mjs";
 import { activeTask } from "./state.mjs";
@@ -88,6 +88,7 @@ export function buildVerifyPlan(root, positional, options) {
         expanded_to_all: impact.expanded_to_all,
         expansion_reasons: impact.expansion_reasons,
         modules,
+        direct_modules: impact.direct,
         task_risk: taskRisk,
         assurance,
         checks: selected,
@@ -553,6 +554,7 @@ export function assessQuality(root, plan) {
     const blockingGaps = attributes.filter((entry) => entry.enforcement === "block" && !entry.covered && !entry.deferred);
     const complete = integrity.ok && checks.every((check) => check.acceptable) && (!gapsBlock || blockingGaps.length === 0);
     const review = reviewRequirement(root, plan);
+    const budget = assessBudget(root, plan);
     const debts = openDebts(root);
     const loaned = checks.filter((check) => check.deferred);
     const blockers = [];
@@ -569,6 +571,9 @@ export function assessQuality(root, plan) {
             blockers.push(`advisory: attribute ${gap.module}/${gap.attribute} (${gap.tier}) is uncovered`);
     if (!review.satisfied)
         blockers.push(`review: ${review.reason}`);
+    for (const entry of budget.exceeded) {
+        blockers.push(`${budget.mode === "block" ? "" : "advisory: "}budget: ${entry}`);
+    }
     if (debts.length > 0)
         blockers.push(`${debts.length} evidence debt(s) from fast loans are unpaid`);
     if (loaned.length > 0)
@@ -590,11 +595,91 @@ export function assessQuality(root, plan) {
             controls: plan.assurance.controls,
         },
         review,
+        budget,
         open_debts: debts.length,
         integrity,
         checks,
         attributes,
     };
+}
+/**
+ * The blast radius of the change against the catalog's `budget`. Exceeding it is a signal to
+ * split the work or escalate deliberately, never a reason to trim the plan; the profile decides
+ * whether the signal warns or blocks. Line and new-file counts need Git; without it they are
+ * reported as unknown rather than as zero.
+ */
+export function assessBudget(root, plan) {
+    const declared = catalog(root).budget ?? {};
+    const limits = {
+        maxChangedFiles: positiveOrNull(declared.maxChangedFiles),
+        maxChangedLines: positiveOrNull(declared.maxChangedLines),
+        maxModulesTouched: positiveOrNull(declared.maxModulesTouched),
+        maxNewFiles: positiveOrNull(declared.maxNewFiles),
+    };
+    const anyDeclared = Object.values(limits).some((value) => value !== null);
+    let changedLines = null;
+    let newFiles = null;
+    if (gitAvailable(root) && plan.base_commit !== "NO_GIT") {
+        const tracked = plan.base_commit === "NO_COMMIT"
+            ? { ok: true, stdout: "" }
+            : git(root, ["diff", "--numstat", plan.base_commit, "--"], true);
+        const untracked = git(root, ["ls-files", "--others", "--exclude-standard", "-z"], true);
+        if (tracked.ok && untracked.ok) {
+            changedLines = 0;
+            for (const line of tracked.stdout.split("\n")) {
+                const match = /^(\d+|-)\s+(\d+|-)\s+/.exec(line);
+                if (!match)
+                    continue;
+                // Binary files report "-"; they count as a file, not as lines.
+                if (match[1] !== "-")
+                    changedLines += Number(match[1]);
+                if (match[2] !== "-")
+                    changedLines += Number(match[2]);
+            }
+            const added = untracked.stdout.split("\0").filter(Boolean);
+            newFiles = added.length;
+            for (const path of added) {
+                try {
+                    const contents = readFileSync(resolve(root, path));
+                    if (!contents.includes(0))
+                        changedLines += contents.toString("utf8").split("\n").length;
+                }
+                catch {
+                    // Unreadable or vanished; counted as a file above.
+                }
+            }
+        }
+    }
+    const measured = {
+        changed_files: plan.paths.length,
+        changed_lines: changedLines,
+        modules_touched: plan.direct_modules.length,
+        new_files: newFiles,
+    };
+    const exceeded = [];
+    if (limits.maxChangedFiles !== null && measured.changed_files > limits.maxChangedFiles) {
+        exceeded.push(`${measured.changed_files} changed files exceed maxChangedFiles ${limits.maxChangedFiles}`);
+    }
+    if (limits.maxChangedLines !== null && measured.changed_lines !== null && measured.changed_lines > limits.maxChangedLines) {
+        exceeded.push(`${measured.changed_lines} changed lines exceed maxChangedLines ${limits.maxChangedLines}`);
+    }
+    if (limits.maxModulesTouched !== null && measured.modules_touched > limits.maxModulesTouched) {
+        exceeded.push(`${measured.modules_touched} modules touched exceed maxModulesTouched ${limits.maxModulesTouched}`);
+    }
+    if (limits.maxNewFiles !== null && measured.new_files !== null && measured.new_files > limits.maxNewFiles) {
+        exceeded.push(`${measured.new_files} new files exceed maxNewFiles ${limits.maxNewFiles}`);
+    }
+    const mode = plan.assurance.controls.budget;
+    return {
+        mode,
+        declared: anyDeclared,
+        limits,
+        measured,
+        exceeded: mode === "off" ? [] : exceeded,
+    };
+}
+function positiveOrNull(value) {
+    return Number.isInteger(value) && Number(value) > 0 ? Number(value) : null;
 }
 /** The newest valid approving review receipt bound to this exact diff, if any. */
 export function acceptingReceipt(root, bound) {
@@ -780,8 +865,8 @@ export function gate(positional, options) {
 export function quality(positional, options) {
     const root = targetFrom(options);
     const subcommand = positional[0] || "status";
-    if (subcommand !== "status" && subcommand !== "attributes" && subcommand !== "verify") {
-        throw new Error("quality supports the status, attributes, or verify subcommand.");
+    if (!["status", "attributes", "verify", "budget"].includes(subcommand)) {
+        throw new Error("quality supports the status, attributes, budget, or verify subcommand.");
     }
     if (subcommand === "verify") {
         // Chain verification is cheap and runs everywhere; evidence re-hashing reads files, so it
@@ -828,6 +913,13 @@ export function quality(positional, options) {
         return;
     }
     const plan = buildVerifyPlan(root, [], options);
+    if (subcommand === "budget") {
+        const budget = assessBudget(root, plan);
+        printJson({ command: "quality budget", target: root, base_commit: plan.base_commit, diff_sha256: plan.diff_sha256, ...budget });
+        if (budget.mode === "block" && budget.exceeded.length > 0)
+            process.exitCode = 2;
+        return;
+    }
     const assessment = assessQuality(root, plan);
     if (subcommand === "attributes") {
         const gaps = assessment.attributes.filter((entry) => !entry.covered);

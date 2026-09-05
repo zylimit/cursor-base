@@ -46,7 +46,14 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   `PASS | FAIL | BLOCKED`, CI observed through `gh` or reported `BLOCKED`; trust-boundary
   fields false by construction; no release action is ever taken.
 - **Exit-code contract**: `0` ok, `1` violation, `2` gate, `3` degraded (never a pass), `4` stale.
-- `quality status` reports `closable`, `blockers`, `assurance`, `review`, and `open_debts`
+- Blast-radius budget: the catalog's `budget` (`maxChangedFiles`, `maxChangedLines`,
+  `maxModulesTouched`, `maxNewFiles`) is measured per change and enforced as the profile's
+  `budget` control says — advisory under `balanced`, blocking under `strict` (`quality budget`,
+  `quality status`, the `stop` hook).
+- Nested `AGENTS.md` contracts for this repository's own modules (`src/`, `tests/`, `docs/`,
+  `harness/`); `agents-lint` accepts a contract in any directory a multi-root module spans.
+- `afterFileEdit` records authorship per conversation for the review verdict's independence check.
+- `quality status` reports `closable`, `blockers`, `assurance`, `review`, `budget`, and `open_debts`
   alongside `complete`; `task complete` requires `closable` and a completion control that
   matches the task's risk; `receipt --lenses` records lens coverage by hand.
 - Session and delegation hooks announce the effective profile, open loan, and unpaid debt.
@@ -69,6 +76,9 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   and `rm .gitignore` ask; `rm -rf /`, `rm -rf "/"`, `rm -rf /*`, `rm -rf ../x`, and any `.git`
   directory still deny.
 - Skill descriptions trimmed under 220 characters; every request pays for them.
+- `validate`/`doctor` no longer warn about bootstrap defaults inside the harness source
+  checkout, where the catalog is the template by definition.
+- CI uses `actions/checkout@v5` and `actions/setup-node@v5`.
 
 ### Fixed
 

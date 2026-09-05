@@ -105,8 +105,8 @@
     },
     {
       "path": ".cursor/runtime/cli.mjs",
-      "sha256": "8da514554eecf272f682c8c1998e54b847b3b92703ef60d4f93b389e7dbb6d28",
-      "bytes": 9978
+      "sha256": "fc8c01bb8b8f693548ab2e5656cf8a510a6708b75aa99b98ccfd815470144d12",
+      "bytes": 9986
     },
     {
       "path": ".cursor/runtime/context.mjs",
@@ -130,13 +130,13 @@
     },
     {
       "path": ".cursor/runtime/hooks.mjs",
-      "sha256": "ca9f620938dae3593ee6a80f220a27cefc9dba0df2b6e8c0be6c7a6b0b25dd0d",
-      "bytes": 19883
+      "sha256": "1a8f1a9ee66368dd0cb92dc2959406fffba81160a09ac424fede62e9ad178209",
+      "bytes": 20698
     },
     {
       "path": ".cursor/runtime/install.mjs",
-      "sha256": "a298fe739233de94dac3c3a366076a192315640d4ac825c74f0a666d044f2382",
-      "bytes": 26437
+      "sha256": "71c5bc6d1ec7417ccb93a6b686dbf4eef83b58ccde92e284bd813f1c23d7073c",
+      "bytes": 26631
     },
     {
       "path": ".cursor/runtime/memory.mjs",
@@ -150,8 +150,8 @@
     },
     {
       "path": ".cursor/runtime/quality.mjs",
-      "sha256": "cce768d39ad085dc1a32026e16da36cbb63d92118f72255c242d5f6d845f6e51",
-      "bytes": 51623
+      "sha256": "4031eb6a0e023ceedbb18631f2202a5ee4d8f83ab159a122af13a541a82760f2",
+      "bytes": 55921
     },
     {
       "path": ".cursor/runtime/release.mjs",
@@ -165,8 +165,8 @@
     },
     {
       "path": ".cursor/runtime/scan.mjs",
-      "sha256": "379dbc4ad07ba594d6f793ecf3c4c3057cda20ecacf10467cc17d50cfed21ad7",
-      "bytes": 37914
+      "sha256": "64930605d92c3ddbc9e096cdb2afc877596f86f1cd3bc0c7d8d65b5b05146813",
+      "bytes": 38682
     },
     {
       "path": ".cursor/runtime/services.mjs",
@@ -364,6 +364,11 @@
       "bytes": 4985
     },
     {
+      "path": "harness/AGENTS.md",
+      "sha256": "b803dca67fc60f5a106d0fd252b8228147bbd457102f35e1c82ab851edc5af03",
+      "bytes": 1685
+    },
+    {
       "path": "harness/assurance-policy.json",
       "sha256": "d5a9f345960e557c2710e238d04b0b39cd1594ec44651b642b4d498a9ef9e872",
       "bytes": 1046
@@ -434,5 +439,5 @@
       "bytes": 185
     }
   ],
-  "digest": "deaa5644aff2efc90e3928442e151700e45a8eb436e030d1c5c95839282f1850"
+  "digest": "faa36541e997df653dac8a9fe815b0367401d0fab7c64398c996116fe19067b0"
 }
