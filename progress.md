@@ -73,9 +73,11 @@ section contract.
   resolvable program with literal arguments; a shell for anything a shell must interpret; a
   `missing` verdict only when a plain program resolves to nothing. Rejected: per-caller
   predicates — round 3 of the review showed them diverging within a day (env assignments and
-  `.cmd` shims handled in one place and not the other).
-  (The sentence "Rejected: keeping one 5,860-line file ..." that first appeared here belongs to
-  the engine-split decision above and is retired; round 4 of the review caught the misplacement.)
+  `.cmd` shims handled in one place and not the other). Rejected: keeping one 5,860-line file —
+  it had outgrown navigation and made ownership of a change unreadable.
+  (The last sentence belongs to the engine-split decision above and was pasted here by mistake;
+  round 4 of the review caught it. It stays visible because Decisions are append-only — round 5
+  caught that the round-4 correction had deleted it instead of annotating it.)
 
 - 2026-09-05 Five floor kinds, not four: the 2026-09-05 assurance decision above names risk,
   impact, protected attributes, and governance paths; the policy also floors any other attribute
@@ -171,9 +173,10 @@ section contract.
   assignments and `.cmd` shims in check execution, 1.x live contracts removed on upgrade), fixed
   in 417962b; the engine set `escalate: true` at round 3 as designed. The user had instructed the
   session to finish, so the escalation is recorded here and in the final report rather than
-  pausing. Round 4: 1 error (machine command hidden in a substitution) plus warnings, fixed in
-  the following commit; the error count per round was 5 → 2 → 4 → 1. Round 5 runs all eight
-  lenses on the fixed range.
+  pausing. Round 4: 1 error (machine command hidden in a substitution), fixed in c3f3544.
+  Round 5: 1 error (Windows bare-name probe shadowing `npm.cmd`, a regression from round 4),
+  fixed in the following commit; error count per round 5 → 2 → 4 → 1 → 1. Round 6 runs all
+  eight lenses on the fixed range.
 
 ## Not doing
 

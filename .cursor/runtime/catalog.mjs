@@ -2,7 +2,7 @@
 // vocabulary, and the verification matrix.
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { HARNESS_ROOT, git, gitAvailable, matchesPath, posix, printJson, readJson, splitNulPaths, targetFrom, LIVE_CONTRACTS, } from "./core.mjs";
+import { git, gitAvailable, matchesPath, posix, printJson, readJson, splitNulPaths, targetFrom, templatePath, } from "./core.mjs";
 export const CATCH_ALL_PATTERNS = new Set(["", ".", "*", "**", "**/*", "./**"]);
 export function moduleSpecificity(pattern) {
     return pattern.replace(/[*?]/g, "").length;
@@ -212,13 +212,15 @@ export function tierIsWaivable(tier) {
     return tier !== "critical";
 }
 export const RISK_LEVELS = ["low", "medium", "high"];
-/** The live contract when the repository has one, else the harness's neutral template. */
+/** The live contract when the repository has one, else its template. */
 function liveOrTemplate(root, live) {
-    const pair = LIVE_CONTRACTS.find(([candidate]) => candidate === live);
-    if (!pair)
-        throw new Error(`Unknown live contract: ${live}.`);
     const local = resolve(root, live);
-    return existsSync(local) ? local : resolve(HARNESS_ROOT, pair[1]);
+    if (existsSync(local))
+        return local;
+    const template = templatePath(root, live);
+    if (!template)
+        throw new Error(`Neither ${live} nor its template exists.`);
+    return template;
 }
 export function catalog(root) {
     return readJson(liveOrTemplate(root, "harness/module-catalog.json"));

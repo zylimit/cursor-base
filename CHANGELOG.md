@@ -128,11 +128,22 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   grouping parentheses route the command through the shell; `whichCommand` probes the bare name
   on Windows and `directSpawnTarget` also looks in the working directory there; `diffStats`
   counts both the index and the worktree when there is no commit; `isDefaultBootstrapConfig`,
-  `catalog()`, and `matrix()` derive from `LIVE_CONTRACTS` and share `isUneditedTemplate`;
+  `catalog()`, and `matrix()` derive from `LIVE_CONTRACTS`, and `isDefaultBootstrapConfig` and
+  `writeDiscoveredCatalog` share `isUneditedTemplate`;
   `harness/*.draft.json` is never distributed; `upgrade` reports `catalog.source: "existing"`
   for a catalog it did not touch; a path-form program that does not resolve says so instead of
   "not found on PATH"; five floor kinds named consistently; `docs/PROTOCOLS.md` states exactly
   when a missing program is `BLOCKED` and when it is the shell's `FAIL`.
+- From round 5 (one error): on Windows `whichCommand` and the working-directory probe try the
+  PATHEXT candidates before the bare name, as cmd.exe does, so `npm` resolves to `npm.cmd` and
+  `gradlew` to `gradlew.bat` rather than to the POSIX scripts shipped beside them; the parser
+  records the text of every `$(...)` and backtick substitution outside single quotes and the
+  semantic layer classifies it like a top-level command (nested, with wrapper and assignment
+  stripping), so `echo $(exec shutdown -h now)` is denied while a single-quoted mention is not,
+  and the regex layer no longer treats `$(`/backticks as command positions; one `templatePath`
+  resolver in core serves the seed, the read fallback, and the template comparison; install-time
+  discovery writes only the files the same install seeded; the draft suffix is one constant
+  shared by the writer and the distribution filter.
 
 ### Fixed
 

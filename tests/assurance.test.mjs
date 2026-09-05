@@ -945,11 +945,17 @@ test("machine commands are recognized by program name, not by prose", (t) => {
     ["echo 'reboot the discussion'", "allow"],
     ["(shutdown -h now)", "deny"],
     ["sudo -u root shutdown -h now", "deny"],
-    // A machine command inside a substitution is still the machine command.
+    // A machine command inside a substitution is still the machine command, wrappers included.
     ["echo $(shutdown -h now)", "deny"],
     ["$(shutdown -h now)", "deny"],
     ["echo `reboot`", "deny"],
+    ["echo $(exec shutdown -h now)", "deny"],
+    ["echo $(FOO=1 nice -n 5 reboot)", "deny"],
+    ['echo "$(halt)"', "deny"],
     ["echo $(date)", "allow"],
+    // Inside single quotes the same characters are literal text.
+    ["echo 'run $(halt) later'", "allow"],
+    ["git commit -m 'docs: explain the `shutdown` hook'", "ask"],
   ];
   for (const [command, expected] of cases) {
     assert.equal(hook(root, "beforeShellExecution", { command }).permission, expected, command);

@@ -3,7 +3,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, relative, resolve } from "node:path";
 import { catalog, classifyPath, detectCycles, moduleForPath, trackedPaths } from "./catalog.mjs";
-import { EXIT, HARNESS_ROOT, LIVE_CONTRACTS, boolOption, changedPaths, gitAvailable, gitBase, isWithin, matchesPath, normalizeLf, posix, printJson, readJson, targetFrom, walkFiles, writeJson, } from "./core.mjs";
+import { EXIT, LIVE_CONTRACTS, boolOption, changedPaths, draftPath, gitAvailable, gitBase, isWithin, matchesPath, normalizeLf, posix, printJson, readJson, targetFrom, templatePath, walkFiles, writeJson, } from "./core.mjs";
 // Widening costs verification time; missing a dependent costs a silent regression. Every
 // condition that makes the mapping untrustworthy therefore fans out to the whole graph.
 export function affectedModules(root, paths, discovered = true) {
@@ -606,14 +606,14 @@ export function discoverCatalog(root, depth = 2) {
  * read from the target's installed copy, or from the harness when the target has none, so the
  * answer is the same one the installer's seed step used.
  */
-export function isUneditedTemplate(root, live, template) {
+export function isUneditedTemplate(root, live) {
     const livePath = resolve(root, live);
     if (!existsSync(livePath))
         return true;
-    const templatePath = [resolve(root, template), resolve(HARNESS_ROOT, template)].find((candidate) => existsSync(candidate));
-    if (!templatePath)
+    const template = templatePath(root, live);
+    if (!template)
         return false;
-    return normalizeLf(readFileSync(livePath, "utf8")) === normalizeLf(readFileSync(templatePath, "utf8"));
+    return normalizeLf(readFileSync(livePath, "utf8")) === normalizeLf(readFileSync(template, "utf8"));
 }
 const CONTRACT_SCHEMAS = {
     "harness/module-catalog.json": "./schemas/module-catalog.schema.json",
@@ -624,16 +624,18 @@ const CONTRACT_SCHEMAS = {
  * edited is never overwritten; the draft lands beside it as `*.draft.json` for a merge. Each
  * file is judged on its own, so an edited matrix survives a fresh catalog and vice versa.
  */
-export function writeDiscoveredCatalog(root, result) {
+export function writeDiscoveredCatalog(root, result, options = {}) {
     const written = [];
     const values = {
         "harness/module-catalog.json": result.draft,
         "harness/verification-matrix.json": result.matrix,
     };
-    for (const [live, template] of LIVE_CONTRACTS) {
+    for (const [live] of LIVE_CONTRACTS) {
         if (!(live in values))
             continue;
-        const target = isUneditedTemplate(root, live, template) ? live : live.replace(/\.json$/, ".draft.json");
+        if (options.only && !options.only.includes(live))
+            continue;
+        const target = isUneditedTemplate(root, live) ? live : draftPath(live);
         writeJson(resolve(root, target), { $schema: CONTRACT_SCHEMAS[live], ...values[live] });
         written.push(target);
     }

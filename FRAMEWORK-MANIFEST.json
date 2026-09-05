@@ -100,8 +100,8 @@
     },
     {
       "path": ".cursor/runtime/catalog.mjs",
-      "sha256": "2e160e4317df7db046c36d374242996176fd0fbb07ac03115cd349f6e9af4a92",
-      "bytes": 13921
+      "sha256": "d09df8a34b087a51f9a019d9d78fb8414ea8fa5d16d53d87d9a8de30b79c2277",
+      "bytes": 13871
     },
     {
       "path": ".cursor/runtime/cli.mjs",
@@ -115,13 +115,13 @@
     },
     {
       "path": ".cursor/runtime/core.mjs",
-      "sha256": "a6989bcda75ef27edb2cdb335b1d08636dc088b82d2023c4e8162f388409268a",
-      "bytes": 32638
+      "sha256": "5470bae58ae9c2e90742f63087750c7ad4c59c4800a0ebd941f99d6cbcccaedd",
+      "bytes": 33549
     },
     {
       "path": ".cursor/runtime/graph.mjs",
-      "sha256": "9fa8f130cc6f7db7493f0d92792cdc07b9f20cd0c9e9163abc2bbf94a99a99e5",
-      "bytes": 33636
+      "sha256": "01105b48ee7d5fc930f5a5808d80b1919151a97ae142317cbc42764bba4a09af",
+      "bytes": 33599
     },
     {
       "path": ".cursor/runtime/harness.mjs",
@@ -135,8 +135,8 @@
     },
     {
       "path": ".cursor/runtime/install.mjs",
-      "sha256": "b50aa82632864947d6bf65fa1aad663e063352f100696f33da1a3a89304113cb",
-      "bytes": 30559
+      "sha256": "106b28fe812bd23d45eb04648d3008af1da249fc9a2717240bf162ea3192ee82",
+      "bytes": 30848
     },
     {
       "path": ".cursor/runtime/memory.mjs",
@@ -175,8 +175,8 @@
     },
     {
       "path": ".cursor/runtime/shell-policy.mjs",
-      "sha256": "5c6f8e599b35571eeb17b69ea78a501ae2d6c21f45a560d2845134866760d9d9",
-      "bytes": 27675
+      "sha256": "c8c7b0f9ee5acf9c4809cc256b3400de2de91e5757dd66a2d880d0e57f288d10",
+      "bytes": 29825
     },
     {
       "path": ".cursor/runtime/state.mjs",
@@ -429,5 +429,5 @@
       "bytes": 185
     }
   ],
-  "digest": "1904221c9a6471988fda5ca85088ea7ec9e8db1c6ede0b67b4abc2c02864dc74"
+  "digest": "af4c8f1a90f7752b24d0fcce1de3e860f2539373b1b7ece03bb536251e23ca52"
 }

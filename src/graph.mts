@@ -7,10 +7,10 @@ import { catalog, classifyPath, detectCycles, moduleForPath, trackedPaths } from
 import type { ClassifiedPath, ModuleCatalog, ModuleDefinition, QualityAttribute } from "./catalog.mjs";
 import {
   EXIT,
-  HARNESS_ROOT,
   LIVE_CONTRACTS,
   boolOption,
   changedPaths,
+  draftPath,
   gitAvailable,
   gitBase,
   isWithin,
@@ -20,6 +20,7 @@ import {
   printJson,
   readJson,
   targetFrom,
+  templatePath,
   walkFiles,
   writeJson,
 } from "./core.mjs";
@@ -651,12 +652,12 @@ export function discoverCatalog(root: string, depth = 2) {
  * read from the target's installed copy, or from the harness when the target has none, so the
  * answer is the same one the installer's seed step used.
  */
-export function isUneditedTemplate(root: string, live: string, template: string): boolean {
+export function isUneditedTemplate(root: string, live: string): boolean {
   const livePath = resolve(root, live);
   if (!existsSync(livePath)) return true;
-  const templatePath = [resolve(root, template), resolve(HARNESS_ROOT, template)].find((candidate) => existsSync(candidate));
-  if (!templatePath) return false;
-  return normalizeLf(readFileSync(livePath, "utf8")) === normalizeLf(readFileSync(templatePath, "utf8"));
+  const template = templatePath(root, live);
+  if (!template) return false;
+  return normalizeLf(readFileSync(livePath, "utf8")) === normalizeLf(readFileSync(template, "utf8"));
 }
 
 const CONTRACT_SCHEMAS: Record<string, string> = {
@@ -672,15 +673,17 @@ const CONTRACT_SCHEMAS: Record<string, string> = {
 export function writeDiscoveredCatalog(
   root: string,
   result: { draft: ModuleCatalog; matrix: { version: number; checks: Record<string, unknown> } },
+  options: { only?: string[] } = {},
 ): string[] {
   const written: string[] = [];
   const values: Record<string, unknown> = {
     "harness/module-catalog.json": result.draft,
     "harness/verification-matrix.json": result.matrix,
   };
-  for (const [live, template] of LIVE_CONTRACTS) {
+  for (const [live] of LIVE_CONTRACTS) {
     if (!(live in values)) continue;
-    const target = isUneditedTemplate(root, live, template) ? live : live.replace(/\.json$/, ".draft.json");
+    if (options.only && !options.only.includes(live)) continue;
+    const target = isUneditedTemplate(root, live) ? live : draftPath(live);
     writeJson(resolve(root, target), { $schema: CONTRACT_SCHEMAS[live], ...(values[live] as Record<string, unknown>) });
     written.push(target);
   }

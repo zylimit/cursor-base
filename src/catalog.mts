@@ -4,7 +4,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  HARNESS_ROOT,
   git,
   gitAvailable,
   matchesPath,
@@ -13,7 +12,7 @@ import {
   readJson,
   splitNulPaths,
   targetFrom,
-  LIVE_CONTRACTS,
+  templatePath,
 } from "./core.mjs";
 import type { CliOptions } from "./core.mjs";
 
@@ -346,12 +345,13 @@ export interface VerificationMatrix {
   riskChecks?: Partial<Record<RiskLevel, string[]>>;
 }
 
-/** The live contract when the repository has one, else the harness's neutral template. */
+/** The live contract when the repository has one, else its template. */
 function liveOrTemplate(root: string, live: string): string {
-  const pair = LIVE_CONTRACTS.find(([candidate]) => candidate === live);
-  if (!pair) throw new Error(`Unknown live contract: ${live}.`);
   const local = resolve(root, live);
-  return existsSync(local) ? local : resolve(HARNESS_ROOT, pair[1]);
+  if (existsSync(local)) return local;
+  const template = templatePath(root, live);
+  if (!template) throw new Error(`Neither ${live} nor its template exists.`);
+  return template;
 }
 
 export function catalog(root: string): ModuleCatalog {

@@ -7,7 +7,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { POLICY_REL, compilePolicy, effectiveSelection, isProtectedCheck, loadPolicy, openDebts, readLoan, resolveAssurance } from "./assurance.mjs";
 import { RISK_LEVELS, matrix, validateCatalog } from "./catalog.mjs";
 import { discoverCatalog, isUneditedTemplate, writeDiscoveredCatalog } from "./graph.mjs";
-import { EVENTS, HARNESS_ROOT, INSTALL_MANIFEST_REL, LIVE_CONTRACTS, SECURITY_EVENTS, SOURCE_MANIFEST_REL, VERSION, boolOption, copyNormalized, errorMessage, fileHash, git, gitAvailable, isHarnessSourceRoot, isWithin, normalizeLf, posix, printJson, readJson, run, sha256, snapshotFiles, targetFrom, walkFiles, writeJson, } from "./core.mjs";
+import { EVENTS, HARNESS_ROOT, INSTALL_MANIFEST_REL, LIVE_CONTRACTS, templatePath, SECURITY_EVENTS, SOURCE_MANIFEST_REL, VERSION, boolOption, copyNormalized, errorMessage, fileHash, git, gitAvailable, isHarnessSourceRoot, isWithin, normalizeLf, posix, printJson, readJson, run, sha256, snapshotFiles, targetFrom, walkFiles, writeJson, } from "./core.mjs";
 import { feedbackLessons } from "./memory.mjs";
 import { verifyLedgerChain } from "./quality.mjs";
 import { SERVICES_CONFIG_REL, listServiceStateDirs, readServiceState, servicesConfig, synthesizeServiceStatus, } from "./services.mjs";
@@ -178,20 +178,22 @@ export function installLike(action, options) {
     // The live contracts are the target's own files. They are seeded from the neutral templates
     // when absent and never distributed, so nothing about this repository's module map or risk
     // posture reaches a target; an existing live file is left exactly as it is.
-    let seededCatalog = false;
-    for (const [live, template] of LIVE_CONTRACTS) {
+    const seeded = [];
+    for (const [live] of LIVE_CONTRACTS) {
         const destination = safeManagedPath(target, live);
         if (existsSync(destination))
             continue;
-        const source = resolve(HARNESS_ROOT, template);
-        if (!existsSync(source))
+        // The same template the comparison and the read fallback use (`templatePath`), so a target
+        // that customized its installed copy of a template is seeded from that copy.
+        const source = templatePath(target, live);
+        if (!source)
             continue;
         operations.push({ path: live, action: "seed" });
         if (!dryRun)
             copyNormalized(source, destination);
-        if (live === "harness/module-catalog.json")
-            seededCatalog = true;
+        seeded.push(live);
     }
+    const seededCatalog = seeded.includes("harness/module-catalog.json");
     // A seeded catalog describes nothing yet. When the target is a git repository, the module map
     // is proposed from its own tree and real import edges instead, so the first gate governs the
     // right modules; a catalog someone edited is never touched.
@@ -202,9 +204,10 @@ export function installLike(action, options) {
         try {
             const proposal = discoverCatalog(target);
             if (proposal.ok && proposal.draft && proposal.matrix) {
-                // The shared writer judges each file on its own: an edited matrix that the copy step
-                // preserved behind a sidecar receives a draft beside it, never an overwrite.
-                const written = dryRun ? [] : writeDiscoveredCatalog(target, { draft: proposal.draft, matrix: proposal.matrix });
+                // Only the files this run seeded are written; a live file the target already had is
+                // not touched even when it still equals its template. The shared writer additionally
+                // judges each file on its own, so an edited file only ever receives a draft beside it.
+                const written = dryRun ? [] : writeDiscoveredCatalog(target, { draft: proposal.draft, matrix: proposal.matrix }, { only: seeded });
                 catalogNote = {
                     source: "discovered",
                     written,
@@ -348,7 +351,7 @@ export function isDefaultBootstrapConfig(root) {
     // The policy's template equals the built-in defaults, so matching it says nothing; only the
     // catalog and the matrix tell whether a repository has described itself yet. One comparison
     // (`isUneditedTemplate`) decides "still the template" everywhere.
-    return LIVE_CONTRACTS.filter(([live]) => !live.endsWith("assurance-policy.json")).every(([live, template]) => existsSync(resolve(root, live)) && isUneditedTemplate(root, live, template));
+    return LIVE_CONTRACTS.filter(([live]) => !live.endsWith("assurance-policy.json")).every(([live]) => existsSync(resolve(root, live)) && isUneditedTemplate(root, live));
 }
 export function validate(options) {
     const root = targetFrom(options);

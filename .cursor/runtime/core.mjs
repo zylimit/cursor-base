@@ -563,6 +563,22 @@ export const LIVE_CONTRACTS = [
     ["harness/verification-matrix.json", "harness/default-verification-matrix.json"],
     ["harness/assurance-policy.json", "harness/default-assurance-policy.json"],
 ];
+/** Suffix of a discovery draft written beside an edited live contract. */
+export const DRAFT_SUFFIX = ".draft.json";
+export function draftPath(live) {
+    return live.replace(/\.json$/, DRAFT_SUFFIX);
+}
+/**
+ * The template a live contract is seeded from and compared against: the repository's installed
+ * copy when it has one, else the harness's. One resolver for the seed, the read fallback, and
+ * the "still the template" comparison, so they can never disagree.
+ */
+export function templatePath(root, live) {
+    const pair = LIVE_CONTRACTS.find(([candidate]) => candidate === live);
+    if (!pair)
+        throw new Error(`Unknown live contract: ${live}.`);
+    return [resolve(root, pair[1]), resolve(HARNESS_ROOT, pair[1])].find((candidate) => existsSync(candidate)) ?? null;
+}
 export function isInstallable(root, absolute) {
     const rel = posix(relative(root, absolute));
     if (INSTALL_ROOT_FILES.has(rel))
@@ -570,7 +586,7 @@ export function isInstallable(root, absolute) {
     if (LIVE_CONTRACTS.some(([live]) => live === rel))
         return false;
     // A discovery draft describes the repository it was produced in, never a target.
-    if (rel.startsWith("harness/") && rel.endsWith(".draft.json"))
+    if (rel.startsWith("harness/") && rel.endsWith(DRAFT_SUFFIX))
         return false;
     if (rel.startsWith("harness/"))
         return true;
@@ -682,10 +698,11 @@ export function whichCommand(name) {
         return existsSync(direct) && statSync(direct).isFile() ? direct : null;
     }
     const separator = process.platform === "win32" ? ";" : ":";
-    // On Windows a name may already carry its extension (`node.exe`), so the bare name is probed
-    // before PATHEXT is appended.
+    // On Windows the PATHEXT candidates come first, as cmd.exe resolves them, so `npm` finds
+    // `npm.cmd` and not the POSIX `npm` script that ships beside it; the bare name is tried last
+    // for a word that already carries its extension (`node.exe`).
     const extensions = process.platform === "win32"
-        ? ["", ...(process.env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)]
+        ? [...(process.env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean), ""]
         : [""];
     for (const directory of (process.env.PATH || "").split(separator).filter(Boolean)) {
         for (const extension of extensions) {

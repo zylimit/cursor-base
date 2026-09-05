@@ -45,8 +45,9 @@ export function directSpawnTarget(parse, cwd) {
     else {
         resolved = whichCommand(program);
         // cmd.exe also finds a plain word in the working directory (`gradlew build`); sh does not.
+        // PATHEXT comes first, as in cmd.exe: `gradlew.bat` wins over the POSIX `gradlew` script.
         if (!resolved && process.platform === "win32") {
-            const extensions = ["", ...(process.env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)];
+            const extensions = [...(process.env.PATHEXT || ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean), ""];
             resolved = extensions.map((extension) => fileAt(resolve(cwd, `${program}${extension}`))).find(Boolean) ?? null;
         }
     }
@@ -114,7 +115,31 @@ export function parseShellCommand(value) {
     let dynamic = false;
     let expands = false;
     let substitutionDepth = 0;
+    let backtickOpen = false;
     let pendingPipe = false;
+    const substitutions = [];
+    // Records the text a shell would run for a substitution opening at `index`; the tokenizer
+    // itself continues unchanged, this only remembers what to classify.
+    const captureSubstitution = (index) => {
+        if (value[index] === "`") {
+            const close = value.indexOf("`", index + 1);
+            substitutions.push(value.slice(index + 1, close === -1 ? value.length : close).trim());
+            return;
+        }
+        let depth = 0;
+        for (let cursor = index + 1; cursor < value.length; cursor += 1) {
+            if (value[cursor] === "(")
+                depth += 1;
+            else if (value[cursor] === ")") {
+                depth -= 1;
+                if (depth === 0) {
+                    substitutions.push(value.slice(index + 2, cursor).trim());
+                    return;
+                }
+            }
+        }
+        substitutions.push(value.slice(index + 2).trim());
+    };
     const pushToken = () => {
         if (hasCurrent) {
             tokens.push(current);
@@ -161,6 +186,10 @@ export function parseShellCommand(value) {
             if (char === '"')
                 quote = null;
             else {
+                if (char === "$" && value[index + 1] === "(")
+                    captureSubstitution(index);
+                if (char === "`")
+                    captureSubstitution(index);
                 if (char === "$" && (value[index + 1] === "(" || value[index + 1] === "{"))
                     dynamic = true;
                 if (char === "`")
@@ -180,6 +209,11 @@ export function parseShellCommand(value) {
         }
         if (char === "`") {
             dynamic = true;
+            expands = true;
+            // Backticks come in pairs; capture on the opener only.
+            if (!backtickOpen)
+                captureSubstitution(index);
+            backtickOpen = !backtickOpen;
             current += char;
             hasCurrent = true;
             continue;
@@ -188,8 +222,10 @@ export function parseShellCommand(value) {
             dynamic = true;
             expands = true;
             // `$(` opens a substitution; its parentheses belong to the token until it closes.
-            if (value[index + 1] === "(")
+            if (value[index + 1] === "(") {
                 substitutionDepth += 1;
+                captureSubstitution(index);
+            }
             current += char + value[index + 1];
             hasCurrent = true;
             index += 1;
@@ -226,7 +262,7 @@ export function parseShellCommand(value) {
         hasCurrent = true;
     }
     pushSegment(false);
-    return { segments, dynamic, expands };
+    return { segments, dynamic, expands, substitutions };
 }
 export function toSegment(tokens) {
     let index = 0;
@@ -360,24 +396,28 @@ function isMachineCommand(name) {
     return MACHINE_COMMANDS.has(name) || name.startsWith("mkfs");
 }
 /**
- * Program names that run inside a segment's substitutions: the word after each `$(` or opening
- * backtick in any token. A machine command hidden in `echo $(shutdown -h now)` is still the
- * machine command; the segment head is only the program that receives its output.
+ * Program names a shell would run inside a command's substitutions, at any nesting depth, with
+ * the same wrapper and assignment stripping the segment heads receive. A machine command hidden
+ * in `echo $(exec shutdown -h now)` is still the machine command; the segment head is only the
+ * program that receives its output. Single-quoted text is never a substitution and never here.
  */
-export function substitutedPrograms(segment) {
+export function substitutedPrograms(parse, depth = 0) {
+    if (depth > 4)
+        return [];
     const names = [];
-    for (const token of segment.rawTokens) {
-        for (const match of token.matchAll(/(?:\$\(|`)\s*([^\s()`;&|]+)/g)) {
-            names.push(stripExecutableName(match[1]));
-        }
+    for (const inner of parse.substitutions) {
+        if (!inner)
+            continue;
+        const nested = parseShellCommand(inner);
+        for (const segment of nested.segments)
+            if (segment.name)
+                names.push(segment.name);
+        names.push(...substitutedPrograms(nested, depth + 1));
     }
     return names;
 }
 export function classifySegment(segment, raw, root) {
     const allow = { permission: "allow" };
-    if (substitutedPrograms(segment).some(isMachineCommand)) {
-        return decision("deny", "Blocked an obviously destructive command.", raw);
-    }
     if (!segment.name)
         return allow;
     if (isMachineCommand(segment.name)) {
@@ -469,6 +509,10 @@ export function shellDecision(command, root) {
     for (const segment of parse.segments) {
         semantic = strictest(semantic, classifySegment(segment, value, root));
     }
+    // What runs inside `$(...)` and backticks is a command too, judged by the same names.
+    if (substitutedPrograms(parse).some(isMachineCommand)) {
+        semantic = strictest(semantic, decision("deny", "Blocked an obviously destructive command.", value));
+    }
     semantic = strictest(semantic, classifySecretExposure(parse, value));
     if (semantic.permission === "deny")
         return semantic;
@@ -476,7 +520,9 @@ export function shellDecision(command, root) {
         /\bgit\s+(reset\s+--hard|clean\s+(?:--force|-[a-z]*f[a-z]*)|checkout\s+--)\b/i,
         // Machine-level commands are recognized in command position only, so a commit message or
         // an echo that merely mentions "shutdown" is not read as a shutdown.
-        /(^|[;&|]\s*|\$\(\s*|`\s*|\b(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+|\b(?:timeout\s+\d+|nice|nohup|env)\s+)(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
+        // Substitutions are judged by the semantic layer above, which knows quote context; the
+        // pattern here covers command position only, so single-quoted prose is never a match.
+        /(^|[;&|]\s*|\b(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+|\b(?:timeout\s+\d+|nice|nohup|env)\s+)(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
         /\bformat\s+[a-z]:/i,
         /\bdd\b[^;&|]*(\bof=\/dev\/|\bof=\\\\\.\\physicaldrive)/i,
         /\b(drop|truncate)\s+(database|schema)\b/i,
