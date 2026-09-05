@@ -84,6 +84,18 @@ section contract.
   at critical or high to `balanced` (`floors.criticalHighAttributes`). Recorded here because
   Decisions are append-only.
 
+- 2026-09-06 One walker classifies a parsed command. `classifyParsed` applies the whole rule
+  set — segment (machine, git), secret exposure, the legacy pattern net, then every recorded
+  substitution — at every depth. `shellDecision` only trims and parses. Rejected: keeping
+  `classifySubstitutions` as a second walk that can forget a rule (rounds 4–6 of the 2.0
+  self-review each closed one forgotten path). Rejected: another review round of the same
+  range — three `FIX_REQUIRED` already escalated; the defect class was the split walk, not
+  a missing case list.
+  Consequence: a command and `echo $(that command)` take the same permission unless quoting
+  makes the inner text literal. A test locks that. The pattern net still runs on the outer
+  string (quoted `rm` stays as it was) and also on each inner source so a later
+  command-position narrowing cannot reopen the substitution hole.
+
 - 2026-08-07 Waivers defer only checks that could not run (`MISSING`/`BLOCKED`/`SKIPPED`), bound
   to one check and one diff, with approval evidence.
   Rejected: waiving executed failures — a demonstrated defect deferred by paperwork is a false
@@ -121,7 +133,12 @@ section contract.
 
 ## Done
 
-- 2.0.0 follow-ups (2026-09-05, commits 7cd02d5..): Windows CI fixed at the root (service tree
+- One classification walk (2026-09-06): `shellDecision` trims and parses; `classifyParsed`
+  applies segments, secrets, the pattern net, and every substitution at every depth. The
+  nesting-invariant test locks that a command and `echo $(that command)` take the same
+  permission. Gate PASS on this change (validate through arch-check). Independent structured
+  review of this slice is still required to close the task; not another self-review of 8017024.
+- 2.0.0 follow-ups (2026-09-05, commits 7cd02d5..): Windows CI fixed at the root (service tree)
   kill, stop through the flag, direct spawn), blast-radius budget, nested module contracts,
   authorship hook, 1.x → 2.0 upgrade notes, range reviews, install-time catalog discovery with
   neutral templates and live contracts that are never distributed, and every error the
@@ -167,17 +184,9 @@ section contract.
 
 ## In progress
 
-- Structured self-review of 2.0.0 (`review start --base 8017024`), run by this session with one
-  reviewer subagent per lens because the other models were unavailable. Round 1: 5 errors, fixed
-  (05ff9ab). Round 2: 2 errors, fixed (3c177fc). Round 3: 4 errors (quoted variables, env
-  assignments and `.cmd` shims in check execution, 1.x live contracts removed on upgrade), fixed
-  in 417962b; the engine set `escalate: true` at round 3 as designed. The user had instructed the
-  session to finish, so the escalation is recorded here and in the final report rather than
-  pausing. Round 4: 1 error (machine command hidden in a substitution), fixed in c3f3544.
-  Round 5: 1 error (Windows bare-name probe shadowing `npm.cmd`, a regression from round 4),
-  fixed in 981b70c. Round 6: 1 error (substitutions received only the machine-command check, not
-  the whole semantic rule set), fixed in the following commit; error count per round
-  5 → 2 → 4 → 1 → 1 → 1. Round 7 runs all eight lenses on the fixed range.
+- None. The walker change is implemented and gated; the owning task stays open because
+  `reviewMode: structured` still needs an independent review receipt. Not opening another
+  self-review loop of the 8017024 range.
 
 ## Not doing
 

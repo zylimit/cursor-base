@@ -144,14 +144,19 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   resolver in core serves the seed, the read fallback, and the template comparison; install-time
   discovery writes only the files the same install seeded; the draft suffix is one constant
   shared by the writer and the distribution filter.
-- From round 6 (one error): a substitution receives the whole semantic rule set through
-  `classifySubstitutions` — machine commands, git discards (`echo $(git restore .)` is denied),
+- From round 6 (one error): a substitution receives the whole semantic rule set —
+  machine commands, git discards (`echo $(git restore .)` is denied),
   non-read-only git subcommands (asked), credential exposure — recursively, and nesting past
   eight levels is asked about rather than waved through; backticks pair across quote contexts,
   so the words after a closed pair inside double quotes are prose again; the regex net for
   machine commands is anchored to the start of the line, so a separator inside quoted prose
   (`'rotate logs; reboot not needed'`) is no longer a match while an unquoted one still starts
   a real command the semantic layer denies.
+- One classification walk (`classifyParsed`): `shellDecision` trims and parses; every depth
+  receives segments, secret exposure, the pattern net, then each recorded substitution.
+  A command and `echo $(that command)` take the same permission unless quoting makes the
+  inner text literal. The previous `classifySubstitutions` walk is gone so a later rule
+  cannot be added to only one path.
 
 ### Fixed
 

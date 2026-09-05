@@ -1,5 +1,6 @@
 // Command policy: shell parsing, wrapper stripping, git classification, credential exposure,
-// and the allow/ask/deny decisions for shell and MCP calls.
+// and the allow/ask/deny decisions for shell and MCP calls. Classification has one walk
+// (`classifyParsed`); spawn has one decision (`directSpawnTarget`).
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { posix, sensitivePath, whichCommand } from "./core.mjs";
@@ -401,27 +402,80 @@ function isMachineCommand(name) {
 }
 /** Nesting beyond which a substitution is treated as opaque and asked about rather than judged. */
 export const SUBSTITUTION_DEPTH_LIMIT = 8;
+// Legacy second net: regular expressions over the command text. Combined with the semantic
+// walk by `strictest`. Deny patterns that are not start-anchored still fire on quoted prose
+// (a quoted `rm -rf /` is denied); machine-command patterns are start-anchored because the
+// semantic layer owns that list.
+const DENY_PATTERNS = [
+    /\bgit\s+(reset\s+--hard|clean\s+(?:--force|-[a-z]*f[a-z]*)|checkout\s+--)\b/i,
+    /^\s*(?:(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+)?(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
+    /\bformat\s+[a-z]:/i,
+    /\bdd\b[^;&|]*(\bof=\/dev\/|\bof=\\\\\.\\physicaldrive)/i,
+    /\b(drop|truncate)\s+(database|schema)\b/i,
+    /\b(rm|rmdir)\b[^;&|]*(--no-preserve-root|(?:^|\s)["']?\/["']?(?=[\s;&|)]|$)|(?:^|\s)["']?\/\*|(?:^|\s|[\\/])\.\.(?:[\\/]|\s|$)|(?:^|\s|[\\/])\.git(?:[\\/]|\s|$))/i,
+    /\b(remove-item|del|erase)\b[^;&|]*(\*|\.\.[\\/]|\.git)[^;&|]*(-recurse|-force|\/s|\/q)/i,
+    /\bremove-item\b[^;&|]*\b[a-z]:[\\/]["']?\s+[^;&|]*(-recurse|-force)/i,
+    /\b(reg\s+delete|bcdedit)\b/i,
+];
+const ASK_PATTERNS = [
+    /\bgit(?:\s+(?:-[a-zA-Z]\s+\S+|--[\w-]+(?:=\S+)?))*\s+push\b/i,
+    /\b(gh\s+(pr\s+merge|release\s+create)|npm\s+publish|cargo\s+publish|twine\s+upload)\b/i,
+    /\bgh\s+(api|issue\s+create|pr\s+create)\b/i,
+    /\bcurl\b[^;&|]*(?:\s-d(?:\s|=)|--data(?:-[a-z]+)?(?:\s|=)|--upload-file(?:\s|=)|\s-T\s)/i,
+    /\b(invoke-restmethod|invoke-webrequest)\b[^;&|]*(?:-method\s+(post|put|patch|delete)|-body\b)/i,
+    /\b(kubectl|helm|terraform|pulumi|ansible-playbook)\b/i,
+    /\b(production|prod)\b.*\b(deploy|apply|migrate|restart|delete)\b/i,
+    /\b(deploy|release|publish)\b.*\b(production|prod)\b/i,
+    /\b(?:npm|pnpm|yarn)(?:\s+(?:--prefix|--cwd|-C)\s+\S+|\s+--[\w-]+(?:=\S+)?)*\s+(?:install|add|i)\b/i,
+    /\b(?:pip|pip3|uv|cargo|go)\s+(?:install|add|get)\b/i,
+    /\b(sudo|runas|start-process\b.*-verb\s+runas)\b/i,
+    /\b(kill|killall|pkill|taskkill|stop-process)\b/i,
+    /\b(?:rm|rmdir|del|erase|remove-item)\b/i,
+    /\b(rm|rmdir)\b[^;&|]*-[a-z]*r/i,
+    /\bremove-item\b[^;&|]*-recurse/i,
+    /\bdocker\s+(system|volume|image|container)\s+prune\b/i,
+    /\b(?:sh|bash|zsh)\s+-c\b/i,
+    /\b(?:powershell|pwsh)(?:\.exe)?\s+(?:-command|-c)\b/i,
+    /\bnode(?:\.exe)?\s+(?:-e|--eval)\b/i,
+    /\b(?:python|python3|py)(?:\.exe)?\s+-c\b/i,
+];
+/** Pattern net over `text`; messages name `subject` (the hook's original command). */
+export function classifyPatterns(text, subject) {
+    const allow = { permission: "allow" };
+    if (DENY_PATTERNS.some((pattern) => pattern.test(text))) {
+        return decision("deny", "Blocked an obviously destructive command.", subject);
+    }
+    if (ASK_PATTERNS.some((pattern) => pattern.test(text))) {
+        return decision("ask", "This command has external, destructive, privileged, or installation side effects.", subject);
+    }
+    return text.toLowerCase().includes("git push")
+        ? decision("ask", "Publishing repository changes requires approval.", subject)
+        : allow;
+}
 /**
- * What runs inside `$(...)` and backticks is a command too, and it receives the whole semantic
- * rule set — machine commands, git discards, credential exposure — not a subset. `echo $(git
- * restore .)` discards work exactly as `git restore .` does. Nesting past the limit is asked
- * about, never waved through.
+ * The only classification walk. Every parsed command — the hook line or a substitution —
+ * receives the same rule set: segments, secret exposure, the pattern net on this depth's
+ * source, then each recorded substitution. Nesting past the limit is asked about, never
+ * waved through. `raw` is the hook's original command (messages and git pathspecs);
+ * `source` is the text of this depth (the inner command when walking a substitution).
  */
-export function classifySubstitutions(parse, raw, root, depth = 0) {
-    let verdict = { permission: "allow" };
-    if (parse.substitutions.length === 0)
-        return verdict;
+export function classifyParsed(parse, raw, root, depth = 0, source = raw) {
     if (depth > SUBSTITUTION_DEPTH_LIMIT) {
         return decision("ask", "Command substitutions are nested too deeply to classify.", raw);
     }
+    let verdict = { permission: "allow" };
+    for (const segment of parse.segments) {
+        verdict = strictest(verdict, classifySegment(segment, raw, root));
+    }
+    verdict = strictest(verdict, classifySecretExposure(parse, raw));
+    if (parse.dynamic && parse.segments.every((segment) => !segment.name)) {
+        verdict = strictest(verdict, decision("ask", "This command is built entirely by substitution.", raw));
+    }
+    verdict = strictest(verdict, classifyPatterns(source, raw));
     for (const inner of parse.substitutions) {
         if (!inner)
             continue;
-        const nested = parseShellCommand(inner);
-        for (const segment of nested.segments)
-            verdict = strictest(verdict, classifySegment(segment, raw, root));
-        verdict = strictest(verdict, classifySecretExposure(nested, raw));
-        verdict = strictest(verdict, classifySubstitutions(nested, raw, root, depth + 1));
+        verdict = strictest(verdict, classifyParsed(parseShellCommand(inner), raw, root, depth + 1, inner));
     }
     return verdict;
 }
@@ -507,75 +561,9 @@ export function classifySecretExposure(parse, raw) {
 }
 export function shellDecision(command, root) {
     const value = String(command || "").trim();
-    const lower = value.toLowerCase();
-    const allow = { permission: "allow" };
     if (!value)
-        return allow;
-    // Semantic classification runs first and is never relaxed by the legacy pattern lists below;
-    // the two layers are combined by taking the strictest verdict.
-    const parse = parseShellCommand(value);
-    let semantic = allow;
-    for (const segment of parse.segments) {
-        semantic = strictest(semantic, classifySegment(segment, value, root));
-    }
-    // What runs inside `$(...)` and backticks is a command too, judged by the same rules.
-    semantic = strictest(semantic, classifySubstitutions(parse, value, root));
-    semantic = strictest(semantic, classifySecretExposure(parse, value));
-    if (semantic.permission === "deny")
-        return semantic;
-    const denyPatterns = [
-        /\bgit\s+(reset\s+--hard|clean\s+(?:--force|-[a-z]*f[a-z]*)|checkout\s+--)\b/i,
-        // Machine-level commands are recognized in command position only, so a commit message or
-        // an echo that merely mentions "shutdown" is not read as a shutdown.
-        // Separators, wrappers, and substitutions are judged by the semantic layer above, which
-        // knows quote context; this net is anchored to the start of the line, where no quote can
-        // precede it, so prose inside a quoted argument is never a match here either.
-        /^\s*(?:(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+)?(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
-        /\bformat\s+[a-z]:/i,
-        /\bdd\b[^;&|]*(\bof=\/dev\/|\bof=\\\\\.\\physicaldrive)/i,
-        /\b(drop|truncate)\s+(database|schema)\b/i,
-        // Root, root wildcard, parent traversal, or the .git directory. Anchored to argument
-        // boundaries so `rm -rf build/`, `rm dir/*.log`, and `rm .gitignore` are recursive or plain
-        // deletions that ask, not "obviously destructive" ones that deny.
-        /\b(rm|rmdir)\b[^;&|]*(--no-preserve-root|(?:^|\s)["']?\/["']?(?=[\s;&|)]|$)|(?:^|\s)["']?\/\*|(?:^|\s|[\\/])\.\.(?:[\\/]|\s|$)|(?:^|\s|[\\/])\.git(?:[\\/]|\s|$))/i,
-        /\b(remove-item|del|erase)\b[^;&|]*(\*|\.\.[\\/]|\.git)[^;&|]*(-recurse|-force|\/s|\/q)/i,
-        /\bremove-item\b[^;&|]*\b[a-z]:[\\/]["']?\s+[^;&|]*(-recurse|-force)/i,
-        /\b(reg\s+delete|bcdedit)\b/i,
-    ];
-    if (denyPatterns.some((pattern) => pattern.test(value))) {
-        return decision("deny", "Blocked an obviously destructive command.", value);
-    }
-    if (parse.dynamic && parse.segments.every((segment) => !segment.name)) {
-        return strictest(semantic, decision("ask", "This command is built entirely by substitution.", value));
-    }
-    const askPatterns = [
-        /\bgit(?:\s+(?:-[a-zA-Z]\s+\S+|--[\w-]+(?:=\S+)?))*\s+push\b/i,
-        /\b(gh\s+(pr\s+merge|release\s+create)|npm\s+publish|cargo\s+publish|twine\s+upload)\b/i,
-        /\bgh\s+(api|issue\s+create|pr\s+create)\b/i,
-        /\bcurl\b[^;&|]*(?:\s-d(?:\s|=)|--data(?:-[a-z]+)?(?:\s|=)|--upload-file(?:\s|=)|\s-T\s)/i,
-        /\b(invoke-restmethod|invoke-webrequest)\b[^;&|]*(?:-method\s+(post|put|patch|delete)|-body\b)/i,
-        /\b(kubectl|helm|terraform|pulumi|ansible-playbook)\b/i,
-        /\b(production|prod)\b.*\b(deploy|apply|migrate|restart|delete)\b/i,
-        /\b(deploy|release|publish)\b.*\b(production|prod)\b/i,
-        /\b(?:npm|pnpm|yarn)(?:\s+(?:--prefix|--cwd|-C)\s+\S+|\s+--[\w-]+(?:=\S+)?)*\s+(?:install|add|i)\b/i,
-        /\b(?:pip|pip3|uv|cargo|go)\s+(?:install|add|get)\b/i,
-        /\b(sudo|runas|start-process\b.*-verb\s+runas)\b/i,
-        /\b(kill|killall|pkill|taskkill|stop-process)\b/i,
-        /\b(?:rm|rmdir|del|erase|remove-item)\b/i,
-        /\b(rm|rmdir)\b[^;&|]*-[a-z]*r/i,
-        /\bremove-item\b[^;&|]*-recurse/i,
-        /\bdocker\s+(system|volume|image|container)\s+prune\b/i,
-        /\b(?:sh|bash|zsh)\s+-c\b/i,
-        /\b(?:powershell|pwsh)(?:\.exe)?\s+(?:-command|-c)\b/i,
-        /\bnode(?:\.exe)?\s+(?:-e|--eval)\b/i,
-        /\b(?:python|python3|py)(?:\.exe)?\s+-c\b/i,
-    ];
-    if (askPatterns.some((pattern) => pattern.test(value))) {
-        return strictest(semantic, decision("ask", "This command has external, destructive, privileged, or installation side effects.", value));
-    }
-    return lower.includes("git push")
-        ? strictest(semantic, decision("ask", "Publishing repository changes requires approval.", value))
-        : semantic;
+        return { permission: "allow" };
+    return classifyParsed(parseShellCommand(value), value, root);
 }
 export function mcpDecision(payload) {
     const name = String(payload.tool_name || "").toLowerCase();
