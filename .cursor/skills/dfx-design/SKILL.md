@@ -1,6 +1,6 @@
 ---
 name: dfx-design
-description: Evaluates a design against the DFX dimensions (reliability, serviceability, testability, security, cost, and the rest), turns each rating into a measurable target with a design means and a wired verification check. Use at specification or design time, before implementation locks the cost in.
+description: Rates a design against the DFX dimensions (reliability, serviceability, testability, security, cost) and turns each into a measurable target with a wired check. Use at design time, before implementation.
 ---
 
 # DFX Design

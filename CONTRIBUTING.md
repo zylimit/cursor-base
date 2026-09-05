@@ -22,10 +22,15 @@ Keep contributions technology-neutral and useful in repositories ranging from sm
 
 ## Runtime source of truth
 
-`src/harness.mts` is the only place to edit harness behavior. `.cursor/runtime/harness.mjs` is
-compiler output that is checked in so hooks and installed repositories can run without a build
-step. Never hand-edit the runtime: `npm run runtime-sync` recompiles the source into a scratch
-directory and fails if the checked-in file differs by a single byte.
+`src/*.mts` is the only place to edit harness behavior — one module per concern with an acyclic
+import graph (`docs/ARCHITECTURE.md` lists what each owns; `src/harness.mts` is only the entry).
+`.cursor/runtime/*.mjs` is compiler output that is checked in so hooks and installed repositories
+can run without a build step. Never hand-edit the runtime: `npm run runtime-sync` recompiles the
+source into a scratch directory and fails if any checked-in file differs by a single byte.
+
+Every rule added to `AGENTS.md` or `.cursor/rules/` names the mechanism that enforces it or says
+`(prompt-only)`; `node scripts/harness.mjs rules-audit` fails on a rule that names a mechanism
+which does not exist.
 
 Run `npm install` once before contributing; the type checker and the parity check both require
 the local TypeScript toolchain. The runtime itself has no dependencies.

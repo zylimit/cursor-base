@@ -1,6 +1,6 @@
 ---
 name: service-operations
-description: Runs development services under harness supervision with crash restart, health probes, and a restart-storm breaker; diagnoses crashed or dead services from their state and logs. Use for dev servers, watchers, local daemons, or when a supervised service is reported crashed or dead.
+description: Runs development services under harness supervision with crash restart, health probes, and a restart-storm breaker; diagnoses crashed or dead services. Use for dev servers, watchers, and local daemons.
 ---
 
 # Service Operations

@@ -4,7 +4,7 @@ globs: "**/*.{md,mdc}"
 alwaysApply: false
 ---
 
-# Documentation
+# Documentation (prompt-only)
 
 - Describe current behavior and clearly label expected, proposed, or unverified behavior.
 - Never claim a command, setup path, check, or compatibility result was verified unless it ran.

@@ -1,6 +1,6 @@
 ---
 name: architecture-design
-description: Designs or reviews module boundaries using the seven architecture principles, then makes each decision enforceable through the module catalog, arch-check, and ADRs. Use for new modules, boundary changes, layering decisions, or architecture reviews.
+description: Designs or reviews module boundaries with the seven architecture principles and makes each decision enforceable through the catalog, arch-check, and ADRs. Use for new modules, boundary or layering changes.
 ---
 
 # Architecture Design

@@ -41,6 +41,12 @@
         "timeout": 10
       }
     ],
+    "postToolUse": [
+      {
+        "command": "node .cursor/runtime/harness.mjs hook postToolUse",
+        "timeout": 10
+      }
+    ],
     "subagentStart": [
       {
         "command": "node .cursor/runtime/harness.mjs hook subagentStart",

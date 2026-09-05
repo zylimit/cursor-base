@@ -10,6 +10,15 @@
 
 Safety is not waivable. When instructions conflict, choose the higher priority and record the conflict.
 
+## Assurance strength
+
+Speed and convenience are traded against required quality gates through one explicit axis, the
+assurance profile (`explore < rapid < balanced < strict`), never against safety. A team selects
+the profile the work deserves; floors derived from the change — task risk, unmapped or shared
+impact, protected attributes, governance paths — can only raise it. Deadline pressure is met with
+a dated, repayable fast loan that names the deferred evidence, not with a weaker profile or a
+silenced hook. See `docs/ASSURANCE-PROFILES.md`.
+
 ## Safety boundary
 
 Require explicit approval before destructive commands, publishing or pushing, committing, dependency installation, privilege or machine-configuration changes, process termination, port reclamation, or access to unrelated sensitive data. Never overwrite user changes to make a task pass.

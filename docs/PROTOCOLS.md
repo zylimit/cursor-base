@@ -93,6 +93,53 @@ Not reviewed: explicit gaps
 
 Canonicalize the diff using the repository harness when available. If the base commit, diff bytes, scope, or exclusions change, invalidate the receipt and review again. A branch name or working-tree description alone is not a stable binding.
 
+## Assurance resolution
+
+Every plan carries the assurance profile that governed it:
+
+```text
+Selection: explore | rapid | balanced | strict | adaptive   (project or task; `profile set`)
+Requested: the selection, or the policy default under adaptive
+Floors:    source -> profile: reason   (risk, impact:<kind>, attribute:<module>/<name>, path:<id>)
+Effective: the strongest of requested and every floor
+Controls:  the eight resolved controls plus reviewLenses
+Hash:      sha256 of effective controls; part of the plan hash
+```
+
+A floor may only raise. A named profile may only tighten its parent. Changing the selection
+stales receipts exactly as changing the module set or the risk does.
+
+## Fast loan and evidence debt
+
+```text
+Loan:  reason, by, minutes (<= policy maxLoanMinutes <= 1440), opened_at, expires_at, task
+Debt:  check, modules, diff_sha256, plan_sha256, reason, opened_at, paid_at, paid_by
+```
+
+A check is deferred only when a loan is open, the effective profile permits deferral, the matrix
+pre-declared the check `allowFastSkip`, and the check evidences no protected attribute. The
+deferred receipt is `SKIPPED` with `deferred: true`. A debt is repaid only by a `PASS` of the same
+check created after the debt opened; closing or expiring the loan repays nothing. `complete` may
+be true under a loan; `closable` never is while debt is open.
+
+## Review session
+
+```text
+Binding:   base commit and diff hash at `review start`; any tree change makes the session stale (exit 4)
+Convened:  profile reviewLenses minus lenses whose attribute no affected module declares above minimal; correctness always
+Blue:      claims with evidence (refused otherwise)
+Lens:      findings with severity and file:line or reproduction; `unable` with a reason
+Stage:     1 code -> 2 functional -> 3 trust; a stage opens when the previous one reported clean
+Verdict:   FIX_REQUIRED (any error) | NEEDS_MORE_EVIDENCE (any unable) | ACCEPT; refused when a convened lens is silent
+Receipt:   a final ACCEPT writes an approving review receipt with `lenses` recorded
+Rounds:    each FIX_REQUIRED counts; at maxRounds (3) the verdict sets escalate
+```
+
+## Exit codes
+
+`0` ok · `1` violation or invalid input · `2` gate failure, refused completion, FIX_REQUIRED ·
+`3` degraded (the harness refused to guess) · `4` stale (evidence no longer binds the tree).
+
 ## Handoff rules
 
 - Read-only roles return evidence, not edits.

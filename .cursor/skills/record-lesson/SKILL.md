@@ -1,6 +1,6 @@
 ---
 name: record-lesson
-description: Records a correction, incident, or recurring pattern as a lesson in the feedback corpus, and proposes graduation into an enforced rule once it recurs. Use after a user correction, a defect with a generalizable cause, or when the risk scan reports graduation candidates.
+description: Records a correction, incident, or recurring pattern as a lesson in the feedback corpus and proposes graduation into a rule once it recurs. Use after a user correction or a defect with a general cause.
 ---
 
 # Record Lesson

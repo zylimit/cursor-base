@@ -34,6 +34,62 @@ receipt for the current diff.
 
 Stop expanding when evidence covers the stated risk, unless a required gate remains. Record skipped levels under `Not verified`.
 
+The breadth of step 2–5 is set by the effective assurance profile (`verify-plan` shows it):
+`rapid` runs the changed modules' checks, `balanced` their reverse-dependency closure, `strict`
+every module. Floors from task risk, impact, protected attributes, and governance paths only
+widen it. Under a fast loan (`fast on`), checks the matrix pre-declared `allowFastSkip` are
+deferred and recorded as debt; run the gate again with the loan closed to repay them. See
+`docs/ASSURANCE-PROFILES.md`.
+
+## Working at a chosen strength
+
+```sh
+node scripts/harness.mjs profile show            # effective profile, floors, open loan, debt
+node scripts/harness.mjs profile set rapid       # or balanced, strict, explore, adaptive; --task ID for one task
+node scripts/harness.mjs fast on --minutes 60 --reason "..."   # loan; announce it to the user first
+node scripts/harness.mjs fast off && node scripts/harness.mjs gate   # repay
+node scripts/harness.mjs debt list
+```
+
+## Structured review
+
+```sh
+node scripts/harness.mjs review-pack
+node scripts/harness.mjs review start
+node scripts/harness.mjs review blue  < claims.json
+node scripts/harness.mjs review lens correctness --agent <id> < findings.json
+node scripts/harness.mjs review verdict --reviewer <name>
+```
+
+Delegate one `reviewer` subagent per convened lens of the open stage; the verdict is computed
+from what they recorded. Rules and input contracts: `docs/REVIEW.md`.
+
+## Memory
+
+```sh
+node scripts/harness.mjs recap            # resume from files, not from a summary
+node scripts/harness.mjs invariants       # what is re-injected after a compaction
+node scripts/harness.mjs sync-check       # did progress.md move with the governed code?
+node scripts/harness.mjs archive --apply  # move old Done/Notes entries whole into progress.archive.md
+```
+
+## Governance integrity
+
+```sh
+node scripts/harness.mjs instructions     # instruction files as untrusted input (security class)
+node scripts/harness.mjs rules-audit      # enforced / prompt-only / phantom / unenforced rules
+node scripts/harness.mjs skills-lint      # frontmatter the loader can read
+node scripts/harness.mjs agents-lint      # nested AGENTS.md where a protected attribute blocks
+node scripts/harness.mjs catalog discover # propose a catalog and matrix; --write to save
+```
+
+## Release
+
+`node scripts/harness.mjs release readiness` evaluates every release condition under the strict
+floor — clean tree, remote sync, gate, review, loans and debt, open tasks, memory, manifest,
+changelog, CI — and reports `PASS | FAIL | BLOCKED`. It performs no release action; its
+`trust_boundary` fields are false by construction.
+
 ## Failure handling
 
 - Reproduce before fixing.

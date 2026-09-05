@@ -1,6 +1,6 @@
 # cursor-base
 
-A technology-neutral Cursor governance harness for large repositories. It keeps durable policy small, delegates specialized work to scoped agents and skills, and records evidence for planning, implementation, review, and verification.
+A technology-neutral Cursor governance harness for large repositories. It keeps durable policy small, delegates specialized work to scoped agents and skills, records evidence for planning, implementation, review, and verification, and lets a team dial how much evidence a change must carry — `explore`, `rapid`, `balanced`, or `strict` — without ever dialing down safety.
 
 ## Requirements
 
@@ -50,6 +50,31 @@ node scripts/harness.mjs task start ...    # own a writable scope for the change
 node scripts/harness.mjs gate-audit        # which hooks have ever caught anything
 ```
 
+Assurance profiles decide how much evidence a change needs; floors (task risk, impact, protected
+attributes, governance paths) only raise the answer:
+
+```sh
+node scripts/harness.mjs profile show                     # effective profile and every floor that raised it
+node scripts/harness.mjs profile set rapid                # small low-risk work: changed modules only, no receipt
+node scripts/harness.mjs profile set strict --task T-1    # one task under full verification and lens-covered review
+node scripts/harness.mjs fast on --minutes 60 --reason "demo"   # a dated loan: pre-declared checks deferred as debt
+node scripts/harness.mjs debt list                        # what a later PASS still has to repay
+```
+
+Structured review, project memory, governance scanners, and release readiness:
+
+```sh
+node scripts/harness.mjs review-pack                # evidence pack with deletions and renames set apart
+node scripts/harness.mjs review start               # convene the lenses the profile and attributes require
+node scripts/harness.mjs review verdict             # computed from located findings; writes the receipt
+node scripts/harness.mjs recap                      # budgeted memory digest derived from files, never a summary
+node scripts/harness.mjs sync-check                 # governed code moved without progress.md?
+node scripts/harness.mjs instructions               # instruction files scanned as untrusted input
+node scripts/harness.mjs rules-audit                # which rules name a real enforcement point
+node scripts/harness.mjs catalog discover           # propose the module catalog from the tree and real imports
+node scripts/harness.mjs release readiness          # every release condition under the strict floor; performs nothing
+```
+
 Quality attributes, for building code that is secure, private, resilient, and reliable rather
 than merely tested:
 
@@ -72,11 +97,14 @@ node scripts/harness.mjs retention --dry-run        # what the destruction sched
 node scripts/harness.mjs feedback list              # recorded lessons and graduation candidates
 ```
 
-See [docs/QUALITY-ATTRIBUTES.md](docs/QUALITY-ATTRIBUTES.md) for the six strength tiers, the
-coverage rules, and the boundary between what this proves and what it does not. See
-[docs/OPERATIONS.md](docs/OPERATIONS.md) for service supervision, risk scanning, and retention.
+See [docs/ASSURANCE-PROFILES.md](docs/ASSURANCE-PROFILES.md) for the four profiles, their
+controls, floors, and the fast-loan rules; [docs/REVIEW.md](docs/REVIEW.md) for lenses, stages,
+and verdict rules; [docs/QUALITY-ATTRIBUTES.md](docs/QUALITY-ATTRIBUTES.md) for the six strength
+tiers and the coverage rules; and [docs/OPERATIONS.md](docs/OPERATIONS.md) for service
+supervision, risk scanning, and retention.
 
-Behavior lives in `src/harness.mts`. The checked-in `.cursor/runtime/harness.mjs` is compiler
+Behavior lives in `src/*.mts` (one module per concern, acyclic imports; see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The checked-in `.cursor/runtime/*.mjs` is compiler
 output so hooks and installed repositories run without a build step; `npm run runtime-sync`
 recompiles the source and fails if the two differ.
 
@@ -95,10 +123,13 @@ For operating policy, see [docs/GOVERNANCE.md](docs/GOVERNANCE.md). For the stru
 
 ## Safety defaults
 
-- Safety policy cannot be waived.
-- Quality waivers require owner, reason, exact scope, and expiry.
-- Review receipts are bound to a base commit and diff hash.
-- The harness never automatically pushes, kills a port, or overwrites user changes.
+- Safety policy cannot be waived — not by a profile, a fast loan, a quality waiver, or a deadline.
+- Security, safety, and privacy evidence is never deferred or waived; `validate` rejects a matrix
+  that says otherwise.
+- Quality waivers require owner, reason, exact scope, compensation, and expiry.
+- Review receipts, verification receipts, loans, and debts are bound to a base commit and diff hash.
+- The harness never automatically pushes, tags, publishes, kills a port, or overwrites user changes;
+  `release readiness` reports and stops.
 - Windows sandboxing reduces risk but is not an absolute boundary.
 
 ## License

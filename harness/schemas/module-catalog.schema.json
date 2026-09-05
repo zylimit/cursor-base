@@ -464,6 +464,85 @@
     "runtimeValidityHours": {
       "type": "integer",
       "minimum": 1
+    },
+    "memory": {
+      "description": "Project memory contract: where the ledger lives, how large it may grow before archiving, and the recap budget.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ledger": {
+          "type": "string",
+          "minLength": 1
+        },
+        "archive": {
+          "type": "string",
+          "minLength": 1
+        },
+        "maxLedgerBytes": {
+          "type": "integer",
+          "minimum": 1000
+        },
+        "keepDone": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "keepNotes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recapBudget": {
+          "type": "integer",
+          "minimum": 500
+        }
+      }
+    },
+    "budget": {
+      "description": "Blast-radius budget. Exceeding it is a signal to split the change or escalate deliberately; the assurance profile decides whether it warns or blocks.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxChangedFiles": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "maxChangedLines": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "maxModulesTouched": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "maxNewFiles": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      }
+    },
+    "review": {
+      "description": "Structured review settings.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxRounds": {
+          "description": "FIX_REQUIRED verdicts before the review escalates to the user (default 3).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        }
+      }
     }
   }
 }

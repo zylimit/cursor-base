@@ -1,0 +1,19 @@
+---
+description: Project memory across context boundaries, and review as a gate
+alwaysApply: true
+---
+
+# Memory
+
+- `progress.md` is the memory that survives; record decisions, constraints, and in-flight work when they appear, not at the end (`sync-check`; `stop` blocks on drift under `strict`).
+- Resume cold from files, never from a summary: `recap`, then `task status`, then `quality status`.
+- After a compaction the invariants are re-injected from files on the next tool call; re-read them before continuing (`postToolUse`, `invariants`).
+- Move old entries out whole instead of rewriting them (`archive --apply`).
+- Lessons that recur graduate into enforced mechanisms (`feedback list`).
+
+# Review
+
+- Closing work needs the review the profile demands: an approving diff-bound receipt at `balanced`, lens-covered structured review at `strict` (`quality status`, `task complete`).
+- Structured review is computed, not asserted: `review-pack`, `review start`, `review blue`, one `review lens` per convened lens, then `review verdict`. Every finding is located; one error is never outvoted (`docs/REVIEW.md`).
+- The reviewer is never the author (`authorship show`, `review verdict`).
+- Three rejected rounds mean the change or the standard is wrong; stop and take it to the user (`review verdict` sets `escalate`).

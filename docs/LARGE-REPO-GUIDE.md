@@ -4,6 +4,12 @@ The harness scales by reducing the active scope, not by loading more repository 
 
 ## Partition the repository
 
+Start from a proposal rather than a blank file: `node scripts/harness.mjs catalog discover`
+groups the tree into modules, declares `dependsOn` from the real import edges, detects check
+commands from the build manifests, and lists attribute *proposals* with evidence. It refuses to
+guess tiers, forbidden edges, or layers; those are decisions about what a failure costs.
+`--write` saves the draft (beside an edited catalog, never over it).
+
 Define each bounded module in `harness/module-catalog.json` with:
 
 - stable ID and path globs;

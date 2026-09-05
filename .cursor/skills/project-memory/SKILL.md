@@ -13,7 +13,13 @@ description: Records decisions, constraints, and in-flight work to progress.md s
 
 Keep secrets, long command output, machine paths, and diff restatements out of the file.
 
-To recover context: read `progress.md`, then `node scripts/harness.mjs task status` and
-`node scripts/harness.mjs quality status`.
+To recover context, derive it from files rather than from a summary:
+`node scripts/harness.mjs recap`, then `task status`, then `quality status`. After a compaction
+the invariants are re-injected on the next tool call; `node scripts/harness.mjs invariants`
+prints the same set on demand.
+
+Before ending a turn that changed governed code, `node scripts/harness.mjs sync-check` confirms
+the ledger moved with it. When `recap` reports the ledger over budget, `archive --apply` moves
+the oldest entries whole into `progress.archive.md`; nothing is deleted.
 
 Load [REFERENCE.md](REFERENCE.md) for the section contract and archiving rules.

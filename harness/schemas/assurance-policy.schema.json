@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cursor-base/schemas/assurance-policy.schema.json",
+  "title": "Assurance policy",
+  "description": "How much evidence a change must carry before it may be called done. Four built-in profiles (explore < rapid < balanced < strict) are a fixed lattice; a named profile extends one and may only tighten it; floors are minimums the policy may raise and never lower. Nothing here changes what the safety hooks deny.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "default": {
+      "description": "Profile used when the selection is `adaptive` and no floor raises it.",
+      "type": "string",
+      "default": "balanced"
+    },
+    "maxLoanMinutes": {
+      "description": "Longest fast loan the project allows. The hard ceiling is 1440 (24 hours).",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1440,
+      "default": 480
+    },
+    "profiles": {
+      "description": "Named profiles. Each extends a built-in or another named profile and may only tighten controls.",
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][a-z0-9-]{0,31}$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["extends"],
+        "properties": {
+          "extends": { "type": "string" },
+          "controls": { "$ref": "#/$defs/controls" }
+        }
+      }
+    },
+    "floors": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "risk": {
+          "description": "Minimum profile per task risk. Hard minima: low >= rapid, medium >= balanced, high >= strict.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "low": { "type": "string" },
+            "medium": { "type": "string" },
+            "high": { "type": "string" }
+          }
+        },
+        "impact": {
+          "description": "Applied when a change hits unmapped, global, overlapping, or shared paths, or Git is unavailable. Hard minimum: balanced.",
+          "type": "string"
+        },
+        "protectedAttributes": {
+          "description": "Applied when an affected module declares security, safety, or privacy at critical or high. Hard minimum: strict.",
+          "type": "string"
+        },
+        "criticalHighAttributes": {
+          "description": "Applied when an affected module declares any other attribute at critical or high. Hard minimum: balanced.",
+          "type": "string"
+        },
+        "paths": {
+          "description": "Glob-based floors. An empty list disables path floors for the project.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "patterns", "profile", "reason"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+              "patterns": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+              "profile": { "type": "string" },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "verificationBreadth": { "enum": ["none", "direct", "affected", "all"] },
+        "deferral": { "enum": ["loan", "none"] },
+        "reviewMode": { "enum": ["none", "receipt", "structured"] },
+        "attributeGaps": { "enum": ["advisory", "blocking"] },
+        "memorySync": { "enum": ["off", "warn", "block"] },
+        "budget": { "enum": ["off", "warn", "block"] },
+        "contextDepth": { "enum": ["changed", "affected", "conservative"] },
+        "completion": { "enum": ["forbidden", "low-risk", "delivery", "release-capable"] },
+        "reviewLenses": {
+          "type": "array",
+          "items": {
+            "enum": ["correctness", "architecture", "maintainability", "testing", "performance", "reliability", "resilience", "security", "privacy"]
+          }
+        }
+      }
+    }
+  }
+}

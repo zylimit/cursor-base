@@ -45,7 +45,11 @@
         "validate",
         "fitness",
         "adr-check",
-        "feedback-lint"
+        "feedback-lint",
+        "instructions",
+        "skills-lint",
+        "agents-lint",
+        "rules-audit"
       ],
       "owners": [],
       "attributes": {

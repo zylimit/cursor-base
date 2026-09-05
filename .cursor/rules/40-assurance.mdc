@@ -1,0 +1,17 @@
+---
+description: Assurance profiles, floors, fast loans, and what may close work
+alwaysApply: true
+---
+
+# Assurance
+
+One axis decides how much evidence a change must carry: `explore < rapid < balanced < strict`.
+Details: `docs/ASSURANCE-PROFILES.md`.
+
+- Read the profile in force before planning verification; it decides breadth, review, and what blocks (`profile show`, `verify-plan`).
+- Select the strength the work deserves, not the one that is convenient: `explore` to read, `rapid` for small low-risk changes, `balanced` (default) for delivery, `strict` for governance, trust boundaries, and releases (`profile set`).
+- Floors only raise. Task risk, unmapped or shared impact, protected attributes on affected modules, and governance paths lift the effective profile regardless of the selection (`gate`, `quality status`).
+- Under time pressure open a loan, not a shortcut: `fast on --minutes N --reason TEXT`. Only checks the matrix pre-declared `allowFastSkip` are deferred, each is recorded as debt, and only a later PASS repays it (`debt list`, `risk`).
+- A loaned gate is green for the moment and never closable: `task complete` and `release readiness` refuse until every debt is repaid.
+- Security, safety, and privacy evidence is never deferred; a matrix that says otherwise fails `validate`.
+- Changing the profile stales receipts, exactly as changing the module set or the risk does; re-run `gate` after `profile set`.

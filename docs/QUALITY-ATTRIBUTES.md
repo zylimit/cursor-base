@@ -72,12 +72,27 @@ waiver, and a `critical` tier never defers. An attribute with no claiming checks
 waived at all — that is a wiring defect in the catalog or matrix, and an exemption must not
 paper over it.
 
+A fast loan (`fast on`) can defer a check the matrix pre-declared `allowFastSkip`; the deferral is
+visible on the check (`deferred`), recorded as debt, and repaid only by a later `PASS`. A check
+that evidences a protected attribute is never deferrable, and `validate` rejects a matrix that
+marks one so.
+
+## Protected attributes
+
+`security`, `safety`, and `privacy` are protected: no profile lowers their enforcement, no loan
+defers their evidence, no waiver covers a critical tier, and a module that declares one of them at
+`critical` or `high` raises every change that reaches it to the `strict` profile. Other attributes
+at those tiers raise to `balanced`. Under the `explore` and `rapid` profiles, blocking gaps in the
+remaining attributes are reported as advisory instead of blocking completion — which is why those
+profiles cannot close medium- or high-risk work. See `docs/ASSURANCE-PROFILES.md`.
+
 ## Task risk widens the plan
 
 `task start --risk high` (or `--risk` on `gate`/`verify-plan`) unions the matrix's `riskChecks`
 lists into the plan cumulatively: high runs the low and medium lists too, so raising declared
-risk can only add evidence. The risk level is part of the plan hash, so changing it invalidates
-receipts gathered under a narrower selection.
+risk can only add evidence. Risk also floors the assurance profile (medium → balanced, high →
+strict). The risk level and the effective controls are part of the plan hash, so changing either
+invalidates receipts gathered under a narrower selection.
 
 ## Built-in rules
 

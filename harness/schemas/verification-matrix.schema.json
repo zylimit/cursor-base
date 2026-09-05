@@ -90,6 +90,11 @@
           "timeoutMs": {
             "type": "integer",
             "minimum": 1
+          },
+          "allowFastSkip": {
+            "description": "Declared in advance: an open fast loan may defer this check and record the debt. Never honoured for a check that evidences security, safety, or privacy.",
+            "type": "boolean",
+            "default": false
           }
         }
       }

@@ -2,6 +2,74 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use Semantic Versioning.
 
+## [2.0.0] - 2026-09-05
+
+Tiered assurance, structured review, memory that survives compaction, and governance integrity,
+following a line-by-line study of `dsh-base` and `cc-base` and a review of `codex-base`
+(see `docs/CAPABILITY-MATRIX.md` for every accept/adapt/reject decision).
+
+### Added
+
+- **Assurance profiles** (`profile show|set|list|explain`, `harness/assurance-policy.json`):
+  four built-in strengths `explore < rapid < balanced < strict` over eight monotonic controls
+  (verification breadth, deferral, review mode, attribute gaps, memory sync, budget, context
+  depth, completion) plus the review-lens set. Named profiles may only tighten their parent.
+  Floors from task risk, impact, protected attributes, and governance paths only raise the
+  effective profile. The effective controls are part of the plan hash, so a profile change
+  stales receipts. Profiles never touch the capability axis (hooks, `cli.json`, sandbox).
+- **Fast loan and evidence debt** (`fast on|off|status`, `debt list`): a dated, reasoned loan
+  defers only checks the matrix pre-declared `allowFastSkip`, never protected evidence; each
+  deferral is a `SKIPPED (deferred)` receipt and a debt entry repaid only by a later `PASS`. A
+  loaned gate keeps `quality status` green but never `closable`; an all-deferred gate is
+  `BLOCKED`; `risk` reports open loans and debt that outlived them.
+- **Structured review** (`review start|blue|lens|verdict|status|team|backlog`, `review-pack`,
+  `authorship record|show`): nine lenses in three cost-ordered stages, convened by the profile
+  and shrunk by the attributes affected modules declare; every finding located; the verdict is
+  computed (one error is never outvoted), refused when a convened lens is silent, stale when
+  the tree moves, escalated after three rejected rounds, and a final `ACCEPT` writes the
+  approving receipt with lens coverage that `reviewMode: structured` requires. The reviewer is
+  never the author where authorship was recorded.
+- **Project memory** (`recap`, `invariants`, `sync-check`, `archive`): a budgeted digest and
+  the non-negotiable invariants derived from files and live state, re-injected on the first
+  tool call after a compaction (`postToolUse`); governed code moving without `progress.md`
+  is a finding and blocks the stop hook under `strict`; archiving moves entries whole.
+- **Governance integrity** (`instructions`, `rules-audit`, `skills-lint`, `agents-lint`):
+  instruction files scanned as untrusted input (endpoint override, embedded credential,
+  instruction override, exfiltration, silent execution, hidden characters, gate-disable);
+  every constitution rule classified enforced / prompt-only / phantom / unenforced with
+  phantoms failing; skill frontmatter checked against what the loader reads; nested
+  `AGENTS.md` contracts required where a protected attribute blocks.
+- **Catalog discovery** (`catalog discover [--write]`): modules from the tree, `dependsOn` from
+  real import edges, checks from build manifests, attribute *proposals* with evidence; tiers,
+  forbidden edges, and layers are never guessed.
+- **Release readiness** (`release readiness`): every release condition under the strict floor,
+  `PASS | FAIL | BLOCKED`, CI observed through `gh` or reported `BLOCKED`; trust-boundary
+  fields false by construction; no release action is ever taken.
+- **Exit-code contract**: `0` ok, `1` violation, `2` gate, `3` degraded (never a pass), `4` stale.
+- `quality status` reports `closable`, `blockers`, `assurance`, `review`, and `open_debts`
+  alongside `complete`; `task complete` requires `closable` and a completion control that
+  matches the task's risk; `receipt --lenses` records lens coverage by hand.
+- Session and delegation hooks announce the effective profile, open loan, and unpaid debt.
+- New skills: `assurance-profile`, `fast-lane`, `structured-review`, `release-readiness`,
+  `catalog-discovery`; the `reviewer` agent reports a single lens when delegated one.
+- `tests/assurance.test.mjs`: 21 end-to-end tests for the above through the compiled runtime.
+
+### Changed
+
+- The engine is split from one 5,860-line file into 16 modules with an acyclic import graph
+  (`docs/ARCHITECTURE.md`); runtime parity is checked over the whole tree.
+- `AGENTS.md` and every rule now name the mechanism that enforces them or say `(prompt-only)`;
+  `rules-audit` reports 0 phantoms and 0 unenforced rules for this repository (was 0 enforced
+  of 44).
+- Closing a task under `balanced` (the default) requires an approving review receipt bound to
+  the diff, as in every sibling harness; `rapid` closes low-risk work on a passing gate alone.
+- `preCompact` emits a `user_message` (Cursor's hook is observational) and arms the
+  `postToolUse` re-injection instead of returning context the host ignores.
+- The `rm` deny pattern is anchored to argument boundaries: `rm -rf build/`, `rm dir/*.log`,
+  and `rm .gitignore` ask; `rm -rf /`, `rm -rf "/"`, `rm -rf /*`, `rm -rf ../x`, and any `.git`
+  directory still deny.
+- Skill descriptions trimmed under 220 characters; every request pays for them.
+
 ## [1.1.0] - 2026-08-07
 
 Resilience, integrity, privacy lifecycle, and design-time governance, distilled from a

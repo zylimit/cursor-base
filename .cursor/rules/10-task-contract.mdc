@@ -5,24 +5,19 @@ alwaysApply: true
 
 # Task Contract
 
-Before delegated work, establish:
+Before delegated or multi-step work, establish the envelope and, for anything beyond a one-file
+fix, open the owning task so the scope is enforced rather than remembered (`task start --goal ... --owned ... --risk ...`):
 
-- **Goal**
-- **Scope**
-- **Out of Scope**
-- **Existing Pattern**
-- **Verification**
-- **Escalation**
+- **Goal** · **Scope** · **Out of Scope** · **Existing Pattern** · **Verification** · **Escalation** (prompt-only; `task start` records goal, scope, and risk)
 
-Do not interpret missing scope as permission to widen it.
+- Writes outside the owned paths, and writes to files changed outside the task, are blocked (`preToolUse`).
+- The task's risk floors the assurance profile: medium is at least `balanced`, high is `strict` (`profile show`, `verify-plan`).
+- Do not interpret missing scope as permission to widen it (prompt-only).
+- Delegations receive the envelope, the profile, and the writable scope in their context (`subagentStart`).
 
-Return:
+Return the completion receipt:
 
-- **Status**
-- **Changed**
-- **Verified**
-- **Not verified**
-- **Needs review by**
-- **Evidence**
+- **Status** · **Changed** · **Verified** · **Not verified** · **Needs review by** · **Evidence** (prompt-only)
 
-Only executed checks belong under `Verified`. Use `docs/PROTOCOLS.md` for exact contracts.
+- Only executed checks belong under `Verified`; the `stop` hook follows up when the diff carries no passing receipt, and `task complete` refuses until `quality status` reports `closable`.
+- Exact contracts: `docs/PROTOCOLS.md` (prompt-only).

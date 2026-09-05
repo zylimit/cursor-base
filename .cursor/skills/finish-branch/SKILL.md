@@ -6,10 +6,15 @@ description: Prepares a branch for human handoff by checking scope, affected ver
 # Finish Branch
 
 1. Confirm **Goal / Scope / Out of Scope / Existing Pattern / Verification / Escalation**.
-2. Inspect status and the complete diff for unrelated or unsafe changes.
-3. Run affected verification and record gaps or valid quality waivers.
-4. Obtain read-only review bound to base commit plus diff hash.
-5. Summarize merge readiness and leave commit/push to explicit user instruction.
+2. Inspect status and the complete diff for unrelated or unsafe changes (`review-pack` shows
+   deletions and renames separately).
+3. Run `node scripts/harness.mjs gate`, then `quality status`: `closable` must be true. Its
+   `blockers` name what is missing — a receipt, an unpaid loan, an uncovered attribute.
+4. Obtain the review the effective profile demands: an approving receipt at `balanced`, the
+   structured-review verdict at `strict`.
+5. Record the outcome in `progress.md` (`sync-check` confirms it moved with the code) and, for a
+   release, run `release readiness`.
+6. Summarize merge readiness and leave commit/push to explicit user instruction.
 
 Never automatically commit, push, publish, kill ports, install dependencies, or overwrite user changes.
 

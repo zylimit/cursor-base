@@ -6,10 +6,10 @@ alwaysApply: false
 
 # Governance Assets
 
-- Keep root `AGENTS.md` short and limited to stable invariants.
-- Use focused `.mdc` rules with valid `description`, `globs` when path-specific, and `alwaysApply`.
-- Keep agent roles narrow; mark exploration, impact analysis, debugging, and review read-only.
-- Every agent uses the common task envelope and completion receipt.
-- Keep `SKILL.md` concise. Put detailed workflow guidance in directly linked, one-level-deep references.
-- Use repository-relative POSIX paths and technology-neutral language.
-- Do not add executable skill scripts; invoke only `node scripts/harness.mjs ...` when a deterministic harness action is needed.
+- Keep root `AGENTS.md` short and limited to stable invariants; every rule names the mechanism that enforces it or says `(prompt-only)` (`rules-audit`, `agents-lint`).
+- A rule that names an enforcement point which does not exist is a phantom and fails the audit (`rules-audit`).
+- Use focused `.mdc` rules with a valid `description`, `globs` when path-specific, and `alwaysApply`; keep always-applied rules few, because every request pays for them (prompt-only).
+- Skills use kebab-case names equal to their folder, a description under 220 characters, and lowercase `disable-model-invocation` (`skills-lint`).
+- Agent roles stay narrow; exploration, impact analysis, debugging, and review are `readonly: true` (prompt-only).
+- Instruction files never redirect endpoints, embed credentials, override higher-authority instructions, or argue the agent out of its own verification (`instructions`).
+- Use repository-relative POSIX paths and technology-neutral language; do not add executable skill scripts, only `node scripts/harness.mjs <command>` invocations (prompt-only).

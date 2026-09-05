@@ -13,7 +13,8 @@
       "required": true,
       "attributes": [
         "maintainability"
-      ]
+      ],
+      "allowFastSkip": true
     },
     "runtime-sync": {
       "class": "static",
@@ -97,6 +98,41 @@
         "maintainability",
         "safety"
       ]
+    },
+    "instructions": {
+      "class": "security",
+      "command": "node scripts/harness.mjs instructions",
+      "required": true,
+      "attributes": [
+        "security"
+      ]
+    },
+    "skills-lint": {
+      "class": "static",
+      "command": "node scripts/harness.mjs skills-lint",
+      "required": true,
+      "attributes": [
+        "maintainability"
+      ],
+      "allowFastSkip": true
+    },
+    "agents-lint": {
+      "class": "static",
+      "command": "node scripts/harness.mjs agents-lint",
+      "required": true,
+      "attributes": [
+        "maintainability"
+      ],
+      "allowFastSkip": true
+    },
+    "rules-audit": {
+      "class": "static",
+      "command": "node scripts/harness.mjs rules-audit",
+      "required": true,
+      "attributes": [
+        "maintainability"
+      ],
+      "allowFastSkip": true
     }
   }
 }

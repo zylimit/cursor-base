@@ -79,6 +79,16 @@ function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+function copyTree(from, to) {
+  mkdirSync(to, { recursive: true });
+  for (const entry of readdirSync(from, { withFileTypes: true })) {
+    const source = resolve(from, entry.name);
+    const destination = resolve(to, entry.name);
+    if (entry.isDirectory()) copyTree(source, destination);
+    else if (entry.isFile()) writeFileSync(destination, readFileSync(source));
+  }
+}
+
 function normalizedHash(value) {
   return createHash("sha256").update(value.replace(/\r\n?/g, "\n")).digest("hex");
 }
@@ -156,6 +166,17 @@ test("security hooks allow routine work and gate shell side effects", async (t) 
     ["echo safe && git reset --hard HEAD", "deny"],
     ["git clean -fd", "deny"],
     ["rm -rf .git", "deny"],
+    ["rm -rf src/.git", "deny"],
+    ["rm -rf /", "deny"],
+    ['rm -rf "/"', "deny"],
+    ["rm -rf /*", "deny"],
+    ["rm -rf ../sibling", "deny"],
+    // Recursive or wildcard deletions inside the tree are `ask`, not "obviously destructive":
+    // a root-anchored pattern must not fire on a path that merely contains `/` or `.git`.
+    ["rm -rf build/", "ask"],
+    ["rm -f .cursor/runtime/*.mjs", "ask"],
+    ["rm .gitignore", "ask"],
+    ["rm -rf node_modules/.cache", "ask"],
     ["Remove-Item C:\\workspace\\.git -Recurse -Force", "deny"],
     ["del C:\\workspace\\* /s /q", "deny"],
     ["diskpart /s wipe.txt", "deny"],
@@ -1092,16 +1113,12 @@ test("runtime parity is proven by recompiling the source, not by trusting the ch
   for (const relative of ["tsconfig.json", "package.json"]) {
     writeFileSync(resolve(root, relative), readFileSync(resolve(repositoryRoot, relative)));
   }
-  mkdirSync(resolve(root, "src"), { recursive: true });
-  writeFileSync(
-    resolve(root, "src", "harness.mts"),
-    readFileSync(resolve(repositoryRoot, "src", "harness.mts")),
-  );
+  // The runtime is a module tree, so the whole source and compiled directories travel together.
+  copyTree(resolve(repositoryRoot, "src"), resolve(root, "src"));
+  copyTree(resolve(repositoryRoot, ".cursor", "runtime"), resolve(root, ".cursor", "runtime"));
   symlinkSync(resolve(repositoryRoot, "node_modules"), resolve(root, "node_modules"), "junction");
 
   const runtimePath = resolve(root, ".cursor", "runtime", "harness.mjs");
-  mkdirSync(dirname(runtimePath), { recursive: true });
-  writeFileSync(runtimePath, readFileSync(resolve(repositoryRoot, ".cursor/runtime/harness.mjs")));
 
   const clean = jsonResult(runHarness(["validate", "--sync-only", "--target", root]));
   assert.equal(clean.ok, true);
@@ -1246,6 +1263,9 @@ function gateFixture(t) {
     version: 1,
     modules: [{ id: "app", paths: ["src/**"], dependsOn: [], verification: ["unit"], owners: [] }],
   });
+  // The fixture edits its own governance files on every test, which the default policy treats
+  // as a strict-floor change. Tests that exercise path floors write their own policy.
+  writeJson(resolve(root, "harness", "assurance-policy.json"), { version: 1, floors: { paths: [] } });
   return root;
 }
 
@@ -1507,6 +1527,15 @@ test("task completion is refused until the affected checks have passing receipts
   assert.ok(refused.blocked_by.some((check) => check.id === "unit"));
 
   jsonResult(runHarness(["gate", "--target", root]));
+  // A passing gate is necessary, not sufficient: the balanced profile in force here (the
+  // unmapped harness files raise it to at least balanced) also demands an approving review
+  // receipt bound to this diff before the task may close.
+  const unreviewed = jsonResult(runHarness(["task", "complete", "--target", root]), 2);
+  assert.equal(unreviewed.ok, false);
+  assert.ok(unreviewed.blockers.some((entry) => /review:/.test(entry)), JSON.stringify(unreviewed.blockers));
+  assert.equal(unreviewed.blocked_by.length, 0);
+
+  jsonResult(runHarness(["receipt", "--target", root, "--reviewer", "reviewer", "--decision", "approve"]));
   const completed = jsonResult(runHarness(["task", "complete", "--target", root]));
   assert.equal(completed.ok, true);
   assert.equal(completed.task.status, "complete");
@@ -1527,14 +1556,25 @@ test("shell results and compaction state are recorded for later verification", (
   assert.equal(log.entries[0].exit_code, 1);
   assert.equal(log.entries[1].command.includes("abc123xyz"), false);
 
-  const compact = hook(root, "preCompact", {});
-  assert.match(compact.additional_context, /checks still unverified/);
+  // Cursor's preCompact is observational: the note goes to disk and the user sees a line, and
+  // the first tool call after compaction re-injects the invariants derived from files.
+  const compact = hook(root, "preCompact", { trigger: "auto" });
+  assert.match(compact.user_message, /blocker\(s\)/);
+  assert.equal(compact.additional_context, undefined);
   const note = JSON.parse(readFileSync(resolve(root, ".cursor/harness-state/compaction-note.json"), "utf8"));
   assert.match(note.diff_sha256, /^[a-f0-9]{64}$/);
   assert.ok(note.outstanding_checks.length >= 1);
+  assert.equal(note.assurance.effective, "balanced");
+
+  const reinjected = hook(root, "postToolUse", { tool_name: "Read", tool_input: {} });
+  assert.match(reinjected.additional_context, /Invariants - re-read after any compaction/);
+  assert.match(reinjected.additional_context, /security, safety, privacy are never fast-skipped/);
+  // The marker is consumed: routine tool calls stay silent.
+  assert.deepEqual(hook(root, "postToolUse", { tool_name: "Read", tool_input: {} }), {});
 
   const delegated = hook(root, "subagentStart", {});
   assert.match(delegated.additional_context, /only checks that actually executed/);
+  assert.match(delegated.additional_context, /Assurance profile: balanced/);
 });
 
 test("a degraded observational hook is distinguishable from a satisfied one", (t) => {
@@ -2514,12 +2554,10 @@ test("validate ignores unrelated malformed JSON in a large installed repository"
 test("manifest checks compare every field and recompute the saved digest", (t) => {
   const root = tempRepository(t);
   const runtime = resolve(root, ".cursor", "runtime", "harness.mjs");
-  const source = resolve(root, "src", "harness.mts");
   const script = resolve(root, "scripts", "harness.mjs");
-  for (const path of [runtime, source]) {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, readFileSync(resolve(repositoryRoot, ".cursor", "runtime", "harness.mjs")));
-  }
+  copyTree(resolve(repositoryRoot, ".cursor", "runtime"), resolve(root, ".cursor", "runtime"));
+  // A source tree is present but its compiler is not, so parity must report itself unverifiable.
+  copyTree(resolve(repositoryRoot, "src"), resolve(root, "src"));
   mkdirSync(dirname(script), { recursive: true });
   writeFileSync(
     script,

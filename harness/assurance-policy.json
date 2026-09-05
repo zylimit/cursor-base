@@ -1,0 +1,39 @@
+{
+  "$schema": "./schemas/assurance-policy.schema.json",
+  "version": 1,
+  "default": "balanced",
+  "maxLoanMinutes": 480,
+  "profiles": {},
+  "floors": {
+    "risk": { "low": "rapid", "medium": "balanced", "high": "strict" },
+    "impact": "balanced",
+    "protectedAttributes": "strict",
+    "criticalHighAttributes": "balanced",
+    "paths": [
+      {
+        "id": "governance",
+        "patterns": [
+          ".cursor/**",
+          "AGENTS.md",
+          "harness/**",
+          "scripts/**",
+          "setup.sh",
+          "setup.ps1",
+          ".github/**",
+          "package.json",
+          "package-lock.json",
+          "pnpm-lock.yaml",
+          "yarn.lock"
+        ],
+        "profile": "strict",
+        "reason": "the governance or delivery surface changed"
+      },
+      {
+        "id": "trust-boundary",
+        "patterns": ["**/auth/**", "**/security/**", "**/secrets/**", "**/privacy/**"],
+        "profile": "strict",
+        "reason": "an authentication, secret, security, or privacy path changed"
+      }
+    ]
+  }
+}
