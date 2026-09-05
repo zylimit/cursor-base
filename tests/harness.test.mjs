@@ -27,7 +27,9 @@ const installManifestRelative = join(".cursor", "harness-state", "install-manife
 
 function tempRepository(t, label = "cursor-harness-") {
   const root = mkdtempSync(join(tmpdir(), label));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  // Windows releases directory and file handles a moment after the owning process exits; the
+  // built-in retry turns that lag into a wait instead of an EBUSY that fails a passing test.
+  t.after(() => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
   return root;
 }
 
@@ -2687,6 +2689,24 @@ function pidAlive(pid) {
   }
 }
 
+/** Kills a process and everything it spawned, the way the supervisor itself does. */
+function killProcessTree(pid) {
+  try {
+    if (process.platform === "win32") {
+      spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true, encoding: "utf8" });
+      return;
+    }
+    // Supervised children run in their own process group on POSIX; fall back to the pid alone.
+    try {
+      process.kill(-pid, "SIGKILL");
+    } catch {
+      process.kill(pid, "SIGKILL");
+    }
+  } catch {
+    // Best-effort: the process may already be gone.
+  }
+}
+
 test("quality ledger is hash-chained and tampering fails closed", (t) => {
   const root = gateFixture(t);
   setMatrix(root, {
@@ -2984,13 +3004,7 @@ test("service supervision restarts a killed child and trips the breaker on a cra
       const state = readServiceState(root, name);
       runHarness(["service", "stop", name, "--target", root]);
       for (const pid of [state?.child_pid, state?.supervisor_pid]) {
-        if (pid && pidAlive(pid)) {
-          try {
-            process.kill(pid, "SIGKILL");
-          } catch {
-            // Best-effort cleanup; the stop command is the real mechanism under test.
-          }
-        }
+        if (pid && pidAlive(pid)) killProcessTree(pid);
       }
     }
   });
@@ -3013,8 +3027,11 @@ test("service supervision restarts a killed child and trips the breaker on a cra
   assert.notEqual(duplicate.status, 0);
   assert.match(duplicate.stderr, /already supervised/);
 
-  // A killed child is a crash; the supervisor restarts it with a fresh pid.
-  process.kill(firstChild, "SIGKILL");
+  // A killed child is a crash; the supervisor restarts it with a fresh pid. The recorded pid is
+  // the shell that runs the command, so the whole tree is killed: on Windows, killing only
+  // `cmd.exe` orphans the node process underneath it, which then keeps the fixture directory
+  // as its working directory and the cleanup fails with EBUSY.
+  killProcessTree(firstChild);
   const restarted = await waitFor(
     () => {
       const state = readServiceState(root, "ticker");

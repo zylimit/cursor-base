@@ -168,7 +168,9 @@ section contract.
   (the catalog `budget` section is accepted by the schema for that purpose).
 - `catalog discover` proposes attributes from keyword signals; the proposals are evidence to
   look at, never tiers, and a codebase with unusual vocabulary will get few or none.
-- origin/main's CI run for HEAD (`8017024`) reports `Harness regression=failure` per `gh`; this
-  pre-dates the 2.0 work and was not investigated here.
+- On Windows a `shell: true` child's recorded pid is `cmd.exe`; killing that pid alone orphans
+  the real process. Anything that terminates a supervised child from outside must kill the tree
+  (`taskkill /T`), which is what `killTree` does and what the tests now do. This was the cause
+  of the Windows-only CI failure from 1.1.0 (06e436f) through 2.0.0 (9748a24).
 - The health probe treats any 2xx/3xx as healthy; an endpoint that lies about readiness defeats
   it. Choose probe URLs that actually exercise serving behavior.

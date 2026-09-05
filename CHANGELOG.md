@@ -70,6 +70,13 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   directory still deny.
 - Skill descriptions trimmed under 220 characters; every request pays for them.
 
+### Fixed
+
+- Windows CI had been red since 1.1.0: the service-supervision test killed only the `cmd.exe`
+  that `shell: true` records as the child pid, orphaning the node process beneath it, whose
+  working directory then kept the fixture from being removed (`EBUSY`). The test now kills the
+  process tree the way the supervisor does, and fixture cleanup retries on handle-release lag.
+
 ## [1.1.0] - 2026-08-07
 
 Resilience, integrity, privacy lifecycle, and design-time governance, distilled from a
