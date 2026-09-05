@@ -27,6 +27,7 @@ import {
   posix,
   printJson,
   readJson,
+  splitNulPaths,
   stdinJson,
   targetFrom,
   withStateLock,
@@ -34,7 +35,6 @@ import {
 } from "./core.mjs";
 import type { CliOptions, DiffBinding } from "./core.mjs";
 import { REVIEW_ENGINE_SOURCE, buildVerifyPlan, writeReviewReceipt } from "./quality.mjs";
-import { activeTask } from "./state.mjs";
 
 export const REVIEW_STATE_REL = `${STATE_REL}/review/session.json`;
 
@@ -209,7 +209,12 @@ export function startReview(root: string, options: CliOptions): { ok: boolean; d
   // different base starts the count over, so an unrelated change never inherits an escalation.
   const sameChange = previous?.base_commit === plan.base_commit;
   const lineage = sameChange && previous?.verdict?.verdict === "FIX_REQUIRED" ? [...previous.lineage] : [];
-  if (sameChange && previous?.verdict?.verdict === "FIX_REQUIRED") {
+  // Re-opening the very same diff is not a new round; only a rejected diff counts, once.
+  if (
+    sameChange &&
+    previous?.verdict?.verdict === "FIX_REQUIRED" &&
+    !lineage.some((entry) => entry.diff_sha256 === previous.diff_sha256)
+  ) {
     lineage.push({ at: previous.verdict.at, diff_sha256: previous.diff_sha256, errors: previous.verdict.errors });
   }
   const session: ReviewSession = {
@@ -421,9 +426,11 @@ export function reviewVerdict(root: string, reviewer: string, notes: string): Ve
 
 function changedFiles(root: string, session: ReviewSession): string[] {
   if (!gitAvailable(root)) return [];
-  const result = git(root, ["diff", "--name-only", session.base_commit], true);
-  const untracked = git(root, ["ls-files", "--others", "--exclude-standard"], true);
-  return [...new Set([...result.stdout.split("\n"), ...untracked.stdout.split("\n")].map((line) => line.trim()).filter(Boolean))];
+  // NUL-separated so paths with spaces or non-ASCII bytes match the posix paths authorship records.
+  const args = session.base_commit === "NO_COMMIT" ? ["diff", "--name-only", "-z"] : ["diff", "--name-only", "-z", session.base_commit];
+  const result = git(root, args, true);
+  const untracked = git(root, ["ls-files", "--others", "--exclude-standard", "-z"], true);
+  return [...new Set([...splitNulPaths(result.stdout), ...splitNulPaths(untracked.stdout)].map(posix))];
 }
 
 const BACKLOG_FORBIDDEN = /(security|safety|privacy|pii|secret|credential)/i;

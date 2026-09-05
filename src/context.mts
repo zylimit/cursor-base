@@ -15,29 +15,14 @@ import {
   posix,
   printJson,
   pruneDirectory,
-  sensitivePath,
   sha256,
   targetFrom,
 } from "./core.mjs";
+import { contextDenied } from "./core.mjs";
 import type { CliOptions } from "./core.mjs";
 import { affectedModules, extractImports, requestedPaths, resolveRelativeImport } from "./graph.mjs";
 import { assuranceForImpact } from "./assurance.mjs";
 import { activeTask } from "./state.mjs";
-
-export const CONTEXT_DENIED_DIRECTORIES = [
-  ".git",
-  "node_modules",
-  "vendor",
-  "third_party",
-  "dist",
-  "build",
-  "out",
-  "coverage",
-  ".cache",
-  ".venv",
-  ".next",
-  ".cursor/harness-state",
-];
 
 export const DEFAULT_CONTEXT_BUDGET: Required<ContextBudget> = {
   totalChars: 120_000,
@@ -53,14 +38,6 @@ export interface PackEntry {
   sha256: string;
   contents: string;
   truncated: boolean;
-}
-
-export function contextDenied(path: string): boolean {
-  const candidate = posix(path);
-  if (sensitivePath(candidate)) return true;
-  return CONTEXT_DENIED_DIRECTORIES.some(
-    (directory) => candidate === directory || candidate.startsWith(`${directory}/`),
-  );
 }
 
 export function readForContext(root: string, rel: string, limit: number): PackEntry | null {

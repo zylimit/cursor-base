@@ -5,12 +5,14 @@
 The machine-readable contracts the harness enforces: `module-catalog.json` (what the modules
 are, what they depend on, which attributes they hold), `verification-matrix.json` (which checks
 exist and what they evidence), `assurance-policy.json` (how much evidence a change needs), and
-their JSON schemas. `default-*.json` are the templates the installer starts a repository from.
+their JSON schemas. `default-*.json` are the neutral templates the installer seeds a repository's
+live files from (and, in a git repository, replaces with a discovered catalog and matrix); the
+live files belong to the repository and are never distributed or rewritten by an upgrade.
 
 ## Boundaries
 
-- Edit the non-default files for this repository; the defaults are templates and travel with
-  the harness.
+- Edit the live files for this repository; the defaults are templates and travel with the
+  harness.
 - A module's `attributes` state what a failure would cost. Raising a tier adds evidence a gate
   will demand; lowering one removes it. Neither is a formatting change: record the reason.
 - `allowFastSkip` may be set only on checks that evidence no security, safety, or privacy

@@ -30,12 +30,9 @@ import { feedbackLessons, memoryDrift } from "./memory.mjs";
 import {
   FAIL_STREAK_THRESHOLD,
   consecutiveFailures,
-  gate,
   readQualityLedger,
   readWaivers,
-  receipt,
   verifyLedgerChain,
-  waiver,
 } from "./quality.mjs";
 import type { VerificationReceipt } from "./quality.mjs";
 import { listServiceStateDirs, positiveNumber, readServiceState, synthesizeServiceStatus } from "./services.mjs";

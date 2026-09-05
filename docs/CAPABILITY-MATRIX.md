@@ -16,7 +16,7 @@ The 2.0 refactor followed a line-by-line study of `dsh-base` and `cc-base` and a
 
 | Mechanism | Source | Decision | Where it lives |
 | --- | --- | --- | --- |
-| Assurance profiles on one axis with floors that only raise | `codex-base` (15 controls, 5 floor kinds) | **Adapted** to eight controls and four floor kinds; selection is a request, floors are minimums | `src/assurance.mts`, `docs/ASSURANCE-PROFILES.md` |
+| Assurance profiles on one axis with floors that only raise | `codex-base` (15 controls, 5 floor kinds) | **Adapted** to eight controls and five floor kinds (risk, impact, protected attributes, other critical/high attributes, paths); selection is a request, floors are minimums | `src/assurance.mts`, `docs/ASSURANCE-PROFILES.md` |
 | Fast mode as a repayable loan with pre-declared skippable checks and a protected floor | `dsh-base` (loan), `codex-base` (debt persists past the window) | **Absorbed**, merged: predeclared `allowFastSkip`, protected attributes never deferred, debt repaid only by a later PASS | `fast`, `debt`, `gate` |
 | Boolean fast mode that silences hooks | `cc-base` | **Rejected**: a flag that hides which evidence was skipped is the state that outlives its excuse | — |
 | Structured review: lenses, stages, computed verdict, round cap | `dsh-base` (verdict engine), `cc-base` (stage blocks on errors) | **Absorbed** with attribute-driven lens exclusion and the profile setting the team | `src/review.mts`, `docs/REVIEW.md` |

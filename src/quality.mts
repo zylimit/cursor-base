@@ -21,9 +21,9 @@ import {
   boundedText,
   canonicalJson,
   contentHash,
+  diffStats,
   errorMessage,
   git,
-  gitAvailable,
   gitBase,
   normalizeLf,
   posix,
@@ -40,7 +40,7 @@ import {
 } from "./core.mjs";
 import type { CliOptions, DiffBinding, OptionValue } from "./core.mjs";
 import { affectedModules, requestedPaths } from "./graph.mjs";
-import { parseShellCommand } from "./shell-policy.mjs";
+import { parseShellCommand, requiresShell } from "./shell-policy.mjs";
 import { activeTask } from "./state.mjs";
 import {
   REVIEW_LENSES,
@@ -298,7 +298,7 @@ export function verifyLedgerChain(root: string): LedgerIntegrity {
 export function executeCheck(root: string, check: SelectedCheck, plan: VerifyPlan): VerificationReceipt {
   const command = String(check.command || "").trim();
   const parsed = parseShellCommand(command);
-  const useShell = parsed.segments.length !== 1 || parsed.dynamic;
+  const useShell = requiresShell(parsed);
   const receipt: VerificationReceipt = {
     version: 1,
     kind: "verification",
@@ -860,34 +860,9 @@ export function assessBudget(root: string, plan: VerifyPlan): BudgetAssessment {
     maxNewFiles: positiveOrNull(declared.maxNewFiles),
   };
   const anyDeclared = Object.values(limits).some((value) => value !== null);
-  let changedLines: number | null = null;
-  let newFiles: number | null = null;
-  if (gitAvailable(root) && plan.base_commit !== "NO_GIT") {
-    const tracked = plan.base_commit === "NO_COMMIT"
-      ? { ok: true, stdout: "" }
-      : git(root, ["diff", "--numstat", plan.base_commit, "--"], true);
-    const untracked = git(root, ["ls-files", "--others", "--exclude-standard", "-z"], true);
-    if (tracked.ok && untracked.ok) {
-      changedLines = 0;
-      for (const line of tracked.stdout.split("\n")) {
-        const match = /^(\d+|-)\s+(\d+|-)\s+/.exec(line);
-        if (!match) continue;
-        // Binary files report "-"; they count as a file, not as lines.
-        if (match[1] !== "-") changedLines += Number(match[1]);
-        if (match[2] !== "-") changedLines += Number(match[2]);
-      }
-      const added = untracked.stdout.split("\0").filter(Boolean);
-      newFiles = added.length;
-      for (const path of added) {
-        try {
-          const contents = readFileSync(resolve(root, path));
-          if (!contents.includes(0)) changedLines += contents.toString("utf8").split("\n").length;
-        } catch {
-          // Unreadable or vanished; counted as a file above.
-        }
-      }
-    }
-  }
+  const stats = diffStats(root, plan.base_commit);
+  const changedLines: number | null = stats?.changed_lines ?? null;
+  const newFiles: number | null = stats?.new_files ?? null;
   const measured = {
     changed_files: plan.paths.length,
     changed_lines: changedLines,
@@ -925,6 +900,7 @@ function positiveOrNull(value: unknown): number | null {
 export function acceptingReceipt(
   root: string,
   bound: DiffBinding,
+  options: { source?: string } = {},
 ): { path: string; value: ReviewReceipt } | null {
   const dir = resolve(root, STATE_REL, "receipts");
   if (!existsSync(dir)) return null;
@@ -942,6 +918,7 @@ export function acceptingReceipt(
     if (validateReceipt(value).length > 0) continue;
     if (value.decision !== "approve") continue;
     if (value.diff_sha256 !== bound.diff_sha256 || value.base_commit !== bound.base_commit) continue;
+    if (options.source !== undefined && value.source !== options.source) continue;
     return { path: posix(relative(root, resolve(dir, name))), value };
   }
   return null;
@@ -952,28 +929,27 @@ function reviewRequirement(root: string, plan: VerifyPlan): ReviewRequirement {
   if (mode === "none") {
     return { mode, satisfied: true, receipt: null, missing_lenses: [], reason: "The effective profile requires no review receipt." };
   }
-  const accepting = acceptingReceipt(root, plan);
-  if (!accepting) {
-    return {
-      mode,
-      satisfied: false,
-      receipt: null,
-      missing_lenses: mode === "structured" ? convenedForModules(root, plan.affected_modules, plan.assurance.controls).convened : [],
-      reason: "no approving review receipt is bound to the current diff",
-    };
-  }
   if (mode === "receipt") {
+    const accepting = acceptingReceipt(root, plan);
+    if (!accepting) {
+      return { mode, satisfied: false, receipt: null, missing_lenses: [], reason: "no approving review receipt is bound to the current diff" };
+    }
     return { mode, satisfied: true, receipt: accepting.path, missing_lenses: [], reason: `Approved by ${accepting.value.reviewer}.` };
   }
-  // Structured review is computed, not asserted: only a receipt the review engine wrote counts.
-  // A hand-written receipt may record lens coverage as a claim, but it cannot satisfy this mode.
-  if (accepting.value.source !== REVIEW_ENGINE_SOURCE) {
+  // Structured review is computed, not asserted: only a receipt the review engine wrote counts,
+  // and the newest such receipt is the one consulted, so a hand-written approval recorded later
+  // neither satisfies the mode nor hides the engine's verdict.
+  const accepting = acceptingReceipt(root, plan, { source: REVIEW_ENGINE_SOURCE });
+  if (!accepting) {
+    const handWritten = acceptingReceipt(root, plan);
     return {
       mode,
       satisfied: false,
-      receipt: accepting.path,
+      receipt: handWritten?.path ?? null,
       missing_lenses: convenedForModules(root, plan.affected_modules, plan.assurance.controls).convened,
-      reason: "the approving receipt was written by hand, not by the review engine; structured review needs a computed verdict (`review verdict`)",
+      reason: handWritten
+        ? "the approving receipt was written by hand, not by the review engine; structured review needs a computed verdict (`review verdict`)"
+        : "no approving review receipt is bound to the current diff",
     };
   }
   const recorded = new Set(Array.isArray(accepting.value.lenses) ? (accepting.value.lenses as string[]) : []);
@@ -1288,7 +1264,13 @@ export function receipt(positional: string[], options: CliOptions): void {
           value.base_commit === "NO_COMMIT" || value.base_commit === "NO_GIT"
             ? binding(root)
             : binding(root, value.base_commit);
-        if (value.base_commit !== current.base_commit || value.base_commit !== defaultBase) {
+        // A receipt may be bound to HEAD or to an earlier commit the review covered as a range;
+        // any other base no longer describes this tree.
+        const inHistory =
+          value.base_commit === defaultBase ||
+          (/^[0-9a-f]{40}$/.test(String(value.base_commit)) &&
+            git(root, ["merge-base", "--is-ancestor", String(value.base_commit), defaultBase], true).ok);
+        if (value.base_commit !== current.base_commit || !inHistory) {
           errors.push("Receipt base commit is stale.");
         }
         if (value.diff_sha256 !== current.diff_sha256) {

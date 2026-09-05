@@ -29,5 +29,6 @@ they execute nothing.
 ## Verification
 
 `node scripts/harness.mjs instructions`, `rules-audit`, `skills-lint`, `agents-lint`,
-`adr-check`, `feedback lint`; `sync-check` after governed code changes. All of them run under
-`node scripts/harness.mjs gate` for this module.
+`adr-check`, `feedback lint` all run under `node scripts/harness.mjs gate` for this module.
+`sync-check` is not a gate check: after governed code changes it is run directly, its drift is
+reported by `recap` and `risk`, and it blocks the stop hook only under `strict`.

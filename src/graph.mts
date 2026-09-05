@@ -644,30 +644,48 @@ export function discoverCatalog(root: string, depth = 2) {
   };
 }
 
+/** True when the live file is absent or still byte-identical to its installed template. */
+export function isUneditedTemplate(root: string, live: string, template: string): boolean {
+  const livePath = resolve(root, live);
+  const templatePath = resolve(root, template);
+  if (!existsSync(livePath)) return true;
+  if (!existsSync(templatePath)) return false;
+  return normalizeLf(readFileSync(livePath, "utf8")) === normalizeLf(readFileSync(templatePath, "utf8"));
+}
+
+/**
+ * Persists a discovered catalog and matrix. The one rule every caller shares: a file someone
+ * edited is never overwritten; the draft lands beside it as `*.draft.json` for a merge. Each
+ * file is judged on its own, so an edited matrix survives a fresh catalog and vice versa.
+ */
+export function writeDiscoveredCatalog(
+  root: string,
+  result: { draft: ModuleCatalog; matrix: { version: number; checks: Record<string, unknown> } },
+): string[] {
+  const written: string[] = [];
+  const targets: Array<[string, string, string, unknown]> = [
+    ["harness/module-catalog.json", "harness/default-module-catalog.json", "./schemas/module-catalog.schema.json", result.draft],
+    ["harness/verification-matrix.json", "harness/default-verification-matrix.json", "./schemas/verification-matrix.schema.json", result.matrix],
+  ];
+  for (const [live, template, schema, value] of targets) {
+    const target = isUneditedTemplate(root, live, template) ? live : live.replace(/\.json$/, ".draft.json");
+    writeJson(resolve(root, target), { $schema: schema, ...(value as Record<string, unknown>) });
+    written.push(target);
+  }
+  return written;
+}
+
 export function catalogDiscover(options: CliOptions): void {
   const root = targetFrom(options);
   const result = discoverCatalog(root, options.depth === undefined ? 2 : Number(options.depth));
-  if (!result.ok) {
+  if (!result.ok || !result.draft || !result.matrix) {
     printJson({ command: "catalog discover", target: root, ...result });
     process.exitCode = EXIT.DEGRADED;
     return;
   }
-  const catalogPath = resolve(root, "harness/module-catalog.json");
-  const matrixPath = resolve(root, "harness/verification-matrix.json");
-  const defaultPath = resolve(root, "harness/default-module-catalog.json");
-  const catalogDefault =
-    existsSync(catalogPath) &&
-    existsSync(defaultPath) &&
-    normalizeLf(readFileSync(catalogPath, "utf8")) === normalizeLf(readFileSync(defaultPath, "utf8"));
-  const written: string[] = [];
-  if (boolOption(options, "write")) {
-    // A catalog someone edited is never overwritten; the draft lands beside it for a merge.
-    const catalogTarget = !existsSync(catalogPath) || catalogDefault ? catalogPath : resolve(root, "harness/module-catalog.draft.json");
-    const matrixTarget = !existsSync(matrixPath) || catalogDefault ? matrixPath : resolve(root, "harness/verification-matrix.draft.json");
-    writeJson(catalogTarget, { $schema: "./schemas/module-catalog.schema.json", ...result.draft });
-    writeJson(matrixTarget, { $schema: "./schemas/verification-matrix.schema.json", ...result.matrix });
-    written.push(posix(relative(root, catalogTarget)), posix(relative(root, matrixTarget)));
-  }
+  const written: string[] = boolOption(options, "write")
+    ? writeDiscoveredCatalog(root, { draft: result.draft, matrix: result.matrix })
+    : [];
   printJson({
     command: "catalog discover",
     target: root,

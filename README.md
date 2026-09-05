@@ -25,6 +25,11 @@ Clone this repository, preview the merge, then install into an explicit target:
 
 The installer preserves existing files and writes conflicting framework content as `*.cursor-harness-new`. It does not install dependencies, modify user-level Cursor settings, commit, or push.
 
+The target's own contracts (`harness/module-catalog.json`, `verification-matrix.json`,
+`assurance-policy.json`) are seeded from neutral templates when absent and, in a committed git
+repository, the catalog and matrix are then proposed from the target's tree and real imports
+(`--no-discover` / `-NoDiscover` keeps the template). They are never rewritten by an upgrade.
+
 ## Develop and verify the harness
 
 ```sh

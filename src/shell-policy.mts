@@ -24,9 +24,22 @@ export interface ShellSegment {
 
 export interface ShellParse {
   segments: ShellSegment[];
-  /** True when substitution or globbing means the literal tokens do not describe the real call. */
+  /** True when command substitution (`$(...)`, `${...}`, backticks) means the tokens do not describe the real call. */
   dynamic: boolean;
+  /**
+   * True when an unquoted token carries something only a shell can resolve: a variable, a
+   * glob, brace or tilde expansion, or a redirection. Such a command must run through a shell;
+   * spawning it directly would pass `$PORT` or `*.js` to the program literally.
+   */
+  expands: boolean;
 }
+
+/** True when the command cannot be spawned as one program with literal arguments. */
+export function requiresShell(parse: ShellParse): boolean {
+  return parse.segments.length !== 1 || parse.dynamic || parse.expands || parse.segments[0].rawTokens.length === 0;
+}
+
+const SHELL_EXPANSION = new Set(["$", "*", "?", "[", "~", "{", "}", "<", ">", "%"]);
 
 // Wrappers that pass their tail through to another program. Classification has to look past them,
 // otherwise `sudo rm -rf /` is only ever seen as a `sudo` call.
@@ -88,6 +101,7 @@ export function parseShellCommand(value: string): ShellParse {
   let hasCurrent = false;
   let quote: '"' | "'" | null = null;
   let dynamic = false;
+  let expands = false;
   let pendingPipe = false;
 
   const pushToken = () => {
@@ -154,10 +168,12 @@ export function parseShellCommand(value: string): ShellParse {
     }
     if (char === "$" && (value[index + 1] === "(" || value[index + 1] === "{")) {
       dynamic = true;
+      expands = true;
       current += char;
       hasCurrent = true;
       continue;
     }
+    if (SHELL_EXPANSION.has(char)) expands = true;
     if (char === ";" || char === "\n" || char === "&" || char === "|") {
       const doubled = (char === "&" || char === "|") && value[index + 1] === char;
       pushSegment(char === "|" && !doubled);
@@ -172,7 +188,7 @@ export function parseShellCommand(value: string): ShellParse {
     hasCurrent = true;
   }
   pushSegment(false);
-  return { segments, dynamic };
+  return { segments, dynamic, expands };
 }
 
 export function toSegment(tokens: string[]): Omit<ShellSegment, "pipedFrom" | "rawTokens"> {
@@ -416,7 +432,7 @@ export function shellDecision(command: unknown, root?: string): HookOutput {
     // Root, root wildcard, parent traversal, or the .git directory. Anchored to argument
     // boundaries so `rm -rf build/`, `rm dir/*.log`, and `rm .gitignore` are recursive or plain
     // deletions that ask, not "obviously destructive" ones that deny.
-    /\b(rm|rmdir)\b[^;&|]*(--no-preserve-root|(?:^|\s)["']?\/["']?(?=\s*(?:[;&|)]|$))|(?:^|\s)["']?\/\*|(?:^|\s|[\\/])\.\.(?:[\\/]|\s|$)|(?:^|\s|[\\/])\.git(?:[\\/]|\s|$))/i,
+    /\b(rm|rmdir)\b[^;&|]*(--no-preserve-root|(?:^|\s)["']?\/["']?(?=[\s;&|)]|$)|(?:^|\s)["']?\/\*|(?:^|\s|[\\/])\.\.(?:[\\/]|\s|$)|(?:^|\s|[\\/])\.git(?:[\\/]|\s|$))/i,
     /\b(remove-item|del|erase)\b[^;&|]*(\*|\.\.[\\/]|\.git)[^;&|]*(-recurse|-force|\/s|\/q)/i,
     /\bremove-item\b[^;&|]*\b[a-z]:[\\/]["']?\s+[^;&|]*(-recurse|-force)/i,
     /\b(reg\s+delete|bcdedit)\b/i,

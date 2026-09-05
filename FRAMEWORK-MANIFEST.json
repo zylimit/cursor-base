@@ -105,23 +105,23 @@
     },
     {
       "path": ".cursor/runtime/cli.mjs",
-      "sha256": "fc8c01bb8b8f693548ab2e5656cf8a510a6708b75aa99b98ccfd815470144d12",
-      "bytes": 9986
+      "sha256": "a1c93355c835999534456b76cf0bca756443ac153e1b500504b7037ddbcfde89",
+      "bytes": 10077
     },
     {
       "path": ".cursor/runtime/context.mjs",
-      "sha256": "6d6874ed68ce8bd63aa5d4899caf8d4632ed2acca5493523eb42a576f056334f",
-      "bytes": 9499
+      "sha256": "bb61994ce96d3ef6ae4cdc7b1810243e59100e1bafdbcd46692b5e06ed4f0339",
+      "bytes": 9040
     },
     {
       "path": ".cursor/runtime/core.mjs",
-      "sha256": "00de948193dafaf76039e18580e4263a0ca13f6f08215a56257df726a370bc66",
-      "bytes": 28450
+      "sha256": "008c21446442dc20a7948e0f73c3920190d0c3f3bc5fe27e456ed1299329f59a",
+      "bytes": 31666
     },
     {
       "path": ".cursor/runtime/graph.mjs",
-      "sha256": "a7e423853eaa7f8a2918689a12a949a53bfb38188c8a4ca2cfc9d5e253f27900",
-      "bytes": 32840
+      "sha256": "51f1055276577640dbc512f58f4d8b262a6816b3fba18378cf9ab42e1d924646",
+      "bytes": 33292
     },
     {
       "path": ".cursor/runtime/harness.mjs",
@@ -130,13 +130,13 @@
     },
     {
       "path": ".cursor/runtime/hooks.mjs",
-      "sha256": "15d905f4852d701fdf70d166237445019dd968aa89b3f687b80aa04eeb35b318",
-      "bytes": 20595
+      "sha256": "e360e00a8b6d65c061a1222976ae0863e5c0e67490afa3ea38e420fa5708984b",
+      "bytes": 20897
     },
     {
       "path": ".cursor/runtime/install.mjs",
-      "sha256": "40241fbf734adfbac63d9b080712e7fbaf8969112468f119672d0c0a2b3d144d",
-      "bytes": 28811
+      "sha256": "1ed5a36cd511b8f09645ab726a2c8344469610e2fc55f1a8e4052d14e6a23ab0",
+      "bytes": 29425
     },
     {
       "path": ".cursor/runtime/memory.mjs",
@@ -145,38 +145,38 @@
     },
     {
       "path": ".cursor/runtime/ops.mjs",
-      "sha256": "4bde20431d65c2ae0666cb1b1d5603ba0b4b89a6c0d836cc01ff7170f8605741",
-      "bytes": 16113
+      "sha256": "957bad70ab5fc5804724a6f6f0b2c963457956fd2b21ac4c59429e9749f7ed75",
+      "bytes": 16090
     },
     {
       "path": ".cursor/runtime/quality.mjs",
-      "sha256": "d1fff63b2c4e1d2d092be7940cd4d27bc2d80ffd0f04d49c6da67e0a8c51a791",
-      "bytes": 57193
+      "sha256": "378fd8c0ef1fa0a66ecd5dcc793ee75b2105ac243c2696c7f16fc3f98b54b49f",
+      "bytes": 56525
     },
     {
       "path": ".cursor/runtime/release.mjs",
-      "sha256": "f0ea338d2f5f87036b8099d1d1ccc37160bbee7396057189d1d84e7078938b46",
-      "bytes": 10559
+      "sha256": "55614357a24451d96f3047dfa3d0318399518376564af84fda6c1913665e0586",
+      "bytes": 10978
     },
     {
       "path": ".cursor/runtime/review.mjs",
-      "sha256": "1e559499ae19b2019c55a094ad08ce50396255a17faa3eb8ef12a5369b4a9104",
-      "bytes": 28856
+      "sha256": "16661398febc0869dcd63db584a4d7b30c26a88efd5b99d7aca44e30e9381071",
+      "bytes": 29191
     },
     {
       "path": ".cursor/runtime/scan.mjs",
-      "sha256": "9aa5fb3f343c2fbc6329a9801b2222f0acc2a54bb146eecb4172dab4dbda1307",
-      "bytes": 37783
+      "sha256": "53d920ac8013f410562e38c3329bfa9c41309192bfbb0bd1e156ba0226762058",
+      "bytes": 37751
     },
     {
       "path": ".cursor/runtime/services.mjs",
-      "sha256": "d54e0900fa92bbacb0028ce12a11caa62033d5cb6a1f8297386fca79c630a141",
-      "bytes": 24003
+      "sha256": "eb341db20391524fcd54a29b644a499085e0874dd96e7f27a33026f2fe5cacde",
+      "bytes": 24176
     },
     {
       "path": ".cursor/runtime/shell-policy.mjs",
-      "sha256": "06aabee39124efaf07996ceb5df6aba8b1f5aa724ff99937c02d7afda2c91c7f",
-      "bytes": 22426
+      "sha256": "794611f4571c7d71c0ee2f5a76b0e6041f5751a954e091de2725bb4e03da3742",
+      "bytes": 22880
     },
     {
       "path": ".cursor/runtime/state.mjs",
@@ -220,8 +220,8 @@
     },
     {
       "path": ".cursor/skills/catalog-discovery/SKILL.md",
-      "sha256": "8eca9e50d2f508e23834bae147c3fb345d098fcb670439e4a1897c43d01f26ac",
-      "bytes": 1236
+      "sha256": "608b8e5bea22e4349ab84eeb9b924c2d14dcddf37d35ca3505df81d1d3a12dff",
+      "bytes": 1491
     },
     {
       "path": ".cursor/skills/code-review/REFERENCE.md",
@@ -365,28 +365,23 @@
     },
     {
       "path": "harness/AGENTS.md",
-      "sha256": "b803dca67fc60f5a106d0fd252b8228147bbd457102f35e1c82ab851edc5af03",
-      "bytes": 1685
+      "sha256": "d585f2d763d37bf9be0178916852de40e82a064537074430503d93bf1f1178df",
+      "bytes": 1866
     },
     {
-      "path": "harness/assurance-policy.json",
-      "sha256": "d5a9f345960e557c2710e238d04b0b39cd1594ec44651b642b4d498a9ef9e872",
-      "bytes": 1046
+      "path": "harness/default-assurance-policy.json",
+      "sha256": "2023a702adfd80b343fe02d425e93d20b858207874f94d4023797c37c7fb7064",
+      "bytes": 1118
     },
     {
       "path": "harness/default-module-catalog.json",
-      "sha256": "9e3daad9d7203eeb1c644fa5a4e86db8dce5889591dac25b5dd3824f9062ef78",
-      "bytes": 3521
+      "sha256": "4a52c50aeff48791ba78ea0cc1bbf0ab39079956e57832c837a94925984288ff",
+      "bytes": 1153
     },
     {
       "path": "harness/default-verification-matrix.json",
-      "sha256": "36a2ca4867d5a83e71fb3a2079709f5ac89fdb4c11a796a4c13e0ab6558a553b",
-      "bytes": 3101
-    },
-    {
-      "path": "harness/module-catalog.json",
-      "sha256": "9e3daad9d7203eeb1c644fa5a4e86db8dce5889591dac25b5dd3824f9062ef78",
-      "bytes": 3521
+      "sha256": "cd05e8810d947e2deb0d22a2999680f66e2346a865ca8d661d19ad0971f99110",
+      "bytes": 93
     },
     {
       "path": "harness/schemas/assurance-policy.schema.json",
@@ -429,15 +424,10 @@
       "bytes": 84
     },
     {
-      "path": "harness/verification-matrix.json",
-      "sha256": "36a2ca4867d5a83e71fb3a2079709f5ac89fdb4c11a796a4c13e0ab6558a553b",
-      "bytes": 3101
-    },
-    {
       "path": "scripts/harness.mjs",
       "sha256": "e69889e6953d6cea654b2c5cf189a9268792a101a419bdf2d93c0353d0fbfd77",
       "bytes": 185
     }
   ],
-  "digest": "6c53aab6705b413d64f07eb2a6337f1aae9d482f10953d1a6fbfe3c643e504fe"
+  "digest": "8989da0d7944eaa71a26563710cee992c8ec5333ad419859f0191a70329397f8"
 }

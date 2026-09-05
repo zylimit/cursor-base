@@ -7,12 +7,13 @@ import { homedir, tmpdir } from "node:os";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { POLICY_REL, effectiveSelection, isProtectedCheck, loadPolicy, openDebts, readLoan, resolveAssurance } from "./assurance.mjs";
 import { RISK_LEVELS, matrix, validateCatalog } from "./catalog.mjs";
-import { discoverCatalog } from "./graph.mjs";
+import { discoverCatalog, writeDiscoveredCatalog } from "./graph.mjs";
 import type { RiskLevel } from "./catalog.mjs";
 import {
   EVENTS,
   HARNESS_ROOT,
   INSTALL_MANIFEST_REL,
+  LIVE_CONTRACTS,
   SECURITY_EVENTS,
   SOURCE_MANIFEST_REL,
   VERSION,
@@ -230,22 +231,34 @@ export function installLike(action: string, options: CliOptions): void {
     }
   }
 
-  // A fresh install ships the template catalog, which describes this harness, not the target.
-  // When the target is a git repository, the module map is proposed from its own tree and real
-  // import edges instead, so the first gate governs the right modules and no tier is inherited
-  // from a repository the target has never seen. An edited catalog is never touched.
+  // The live contracts are the target's own files. They are seeded from the neutral templates
+  // when absent and never distributed, so nothing about this repository's module map or risk
+  // posture reaches a target; an existing live file is left exactly as it is.
+  let seededCatalog = false;
+  for (const [live, template] of LIVE_CONTRACTS) {
+    const destination = safeManagedPath(target, live);
+    if (existsSync(destination)) continue;
+    const source = resolve(HARNESS_ROOT, template);
+    if (!existsSync(source)) continue;
+    operations.push({ path: live, action: "seed" });
+    if (!dryRun) copyNormalized(source, destination);
+    if (live === "harness/module-catalog.json") seededCatalog = true;
+  }
+
+  // A seeded catalog describes nothing yet. When the target is a git repository, the module map
+  // is proposed from its own tree and real import edges instead, so the first gate governs the
+  // right modules; a catalog someone edited is never touched.
   let catalogNote: Record<string, unknown> = { source: "template" };
-  const freshCatalog = operations.some((entry) => entry.path === "harness/module-catalog.json" && entry.action === "create");
-  if (action === "install" && freshCatalog && !boolOption(options, "no-discover")) {
+  if (action === "install" && seededCatalog && !boolOption(options, "no-discover")) {
     try {
       const proposal = discoverCatalog(target);
       if (proposal.ok && proposal.draft && proposal.matrix) {
-        if (!dryRun) {
-          writeJson(safeManagedPath(target, "harness/module-catalog.json"), { $schema: "./schemas/module-catalog.schema.json", ...proposal.draft });
-          writeJson(safeManagedPath(target, "harness/verification-matrix.json"), { $schema: "./schemas/verification-matrix.schema.json", ...proposal.matrix });
-        }
+        // The shared writer judges each file on its own: an edited matrix that the copy step
+        // preserved behind a sidecar receives a draft beside it, never an overwrite.
+        const written = dryRun ? [] : writeDiscoveredCatalog(target, { draft: proposal.draft, matrix: proposal.matrix });
         catalogNote = {
           source: "discovered",
+          written,
           modules: proposal.draft.modules.map((module) => module.id),
           checks: Object.keys(proposal.matrix.checks),
           still_unmapped: proposal.still_unmapped_count,
@@ -253,7 +266,7 @@ export function installLike(action: string, options: CliOptions): void {
           next: "review harness/module-catalog.json, decide attributes and forbidden edges, then run `node scripts/harness.mjs catalog lint`",
         };
       } else {
-        catalogNote = { source: "template", reason: proposal.reason ?? "discovery proposed nothing", next: "run `node scripts/harness.mjs catalog discover --write` once the repository is committed" };
+        catalogNote = { source: "template", reason: proposal.reason ?? "discovery proposed nothing", next: "run `node scripts/harness.mjs catalog discover --write` once the repository is committed, or edit harness/module-catalog.json" };
       }
     } catch (error) {
       catalogNote = { source: "template", reason: `discovery failed: ${errorMessage(error)}` };

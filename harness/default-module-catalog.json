@@ -4,165 +4,54 @@
   "globalPaths": [
     "package.json",
     "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
     "tsconfig.json",
-    ".gitattributes",
+    "go.mod",
+    "go.sum",
+    "Cargo.toml",
+    "Cargo.lock",
+    "pyproject.toml",
+    "poetry.lock",
+    "requirements.txt",
     ".gitignore",
-    ".github/workflows/**",
-    "FRAMEWORK-MANIFEST.json"
+    ".gitattributes"
   ],
   "ignored": [
     {
       "paths": [
-        "LICENSE",
-        "SECURITY.md",
-        "CHANGELOG.md",
-        ".env.example"
+        ".cursor/**",
+        ".cursorignore",
+        ".cursorindexingignore",
+        "harness/**",
+        "scripts/harness.mjs",
+        "AGENTS.md",
+        "FRAMEWORK-MANIFEST.json"
       ],
-      "reason": "Legal, disclosure, and example files carry no executable behavior."
+      "reason": "Harness assets; governed by validate and the manifest check rather than by impact."
+    },
+    {
+      "paths": [
+        "progress.md",
+        "progress.archive.md",
+        "README.md",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "LICENSE",
+        "docs/**"
+      ],
+      "reason": "Prose and project memory carry no executable behavior."
     }
   ],
-  "contextPack": {
-    "totalChars": 120000,
-    "fileChars": 20000,
-    "diffChars": 40000,
-    "maxFiles": 40
-  },
   "modules": [
     {
-      "id": "governance",
+      "id": "app",
       "paths": [
-        "AGENTS.md",
-        "README.md",
-        "CONTRIBUTING.md",
-        ".cursor/rules/**",
-        ".cursor/agents/**",
-        ".cursor/skills/**",
-        "docs/**",
-        "progress.md"
+        "src/**"
       ],
       "dependsOn": [],
-      "verification": [
-        "validate",
-        "fitness",
-        "adr-check",
-        "feedback-lint",
-        "instructions",
-        "skills-lint",
-        "agents-lint",
-        "rules-audit"
-      ],
-      "owners": [],
-      "attributes": {
-        "maintainability": "high",
-        "security": {
-          "tier": "minimal",
-          "reason": "Documentation and policy assets execute nothing."
-        }
-      },
-      "layer": "governance",
-      "forbiddenDependencies": [
-        "runtime",
-        "distribution",
-        "tests"
-      ]
-    },
-    {
-      "id": "runtime",
-      "paths": [
-        "src/**",
-        ".cursor/runtime/**",
-        ".cursor/hooks.json",
-        ".cursor/cli.json",
-        ".cursor/sandbox.json",
-        ".cursor/worktrees.json",
-        ".cursor/harness-state/**",
-        ".cursorignore",
-        ".cursorindexingignore"
-      ],
-      "dependsOn": [
-        "governance"
-      ],
-      "shared": true,
-      "verification": [
-        "runtime-sync",
-        "validate",
-        "node-test",
-        "fitness"
-      ],
-      "owners": [],
-      "attributes": {
-        "security": "critical",
-        "reliability": "critical",
-        "privacy": "high",
-        "resilience": "high",
-        "safety": "high",
-        "availability": {
-          "tier": "none",
-          "reason": "A local CLI has no service to keep available."
-        }
-      },
-      "layer": "runtime",
-      "forbiddenDependencies": [
-        "distribution",
-        "tests"
-      ]
-    },
-    {
-      "id": "tests",
-      "paths": [
-        "tests/**"
-      ],
-      "dependsOn": [
-        "runtime"
-      ],
-      "verification": [
-        "node-test",
-        "fitness"
-      ],
-      "owners": [],
-      "attributes": {
-        "reliability": "high",
-        "security": {
-          "tier": "low",
-          "reason": "Test fixtures are synthetic and never reach production."
-        }
-      },
-      "layer": "tests"
-    },
-    {
-      "id": "distribution",
-      "paths": [
-        "scripts/**",
-        "setup.ps1",
-        "setup.sh",
-        "harness/**"
-      ],
-      "dependsOn": [
-        "runtime",
-        "governance"
-      ],
-      "verification": [
-        "runtime-sync",
-        "validate",
-        "doctor",
-        "manifest-check",
-        "catalog-lint",
-        "arch-check",
-        "fitness"
-      ],
-      "owners": [],
-      "attributes": {
-        "security": "critical",
-        "safety": "high",
-        "reliability": "high"
-      },
-      "layer": "distribution"
+      "verification": [],
+      "owners": []
     }
-  ],
-  "layers": [
-    "distribution",
-    "tests",
-    "runtime",
-    "governance"
   ]
 }

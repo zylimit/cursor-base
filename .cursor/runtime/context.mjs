@@ -3,36 +3,17 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { catalog, moduleDirectories } from "./catalog.mjs";
-import { STATE_REL, binding, boolOption, canonicalDiffText, canonicalJson, normalizeLf, posix, printJson, pruneDirectory, sensitivePath, sha256, targetFrom, } from "./core.mjs";
+import { STATE_REL, binding, boolOption, canonicalDiffText, canonicalJson, normalizeLf, posix, printJson, pruneDirectory, sha256, targetFrom, } from "./core.mjs";
+import { contextDenied } from "./core.mjs";
 import { affectedModules, extractImports, requestedPaths, resolveRelativeImport } from "./graph.mjs";
 import { assuranceForImpact } from "./assurance.mjs";
 import { activeTask } from "./state.mjs";
-export const CONTEXT_DENIED_DIRECTORIES = [
-    ".git",
-    "node_modules",
-    "vendor",
-    "third_party",
-    "dist",
-    "build",
-    "out",
-    "coverage",
-    ".cache",
-    ".venv",
-    ".next",
-    ".cursor/harness-state",
-];
 export const DEFAULT_CONTEXT_BUDGET = {
     totalChars: 120_000,
     fileChars: 20_000,
     diffChars: 40_000,
     maxFiles: 40,
 };
-export function contextDenied(path) {
-    const candidate = posix(path);
-    if (sensitivePath(candidate))
-        return true;
-    return CONTEXT_DENIED_DIRECTORIES.some((directory) => candidate === directory || candidate.startsWith(`${directory}/`));
-}
 export function readForContext(root, rel, limit) {
     const absolute = resolve(root, rel);
     if (!existsSync(absolute))

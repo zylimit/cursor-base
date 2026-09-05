@@ -3,8 +3,7 @@
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { TIER_RANK, catalog, matrix, moduleDirectories, moduleForPath, normalizeRequirement } from "./catalog.mjs";
-import { contextDenied } from "./context.mjs";
-import { EVENTS, EXIT, HARNESS_ROOT, boolOption, boundedText, git, gitAvailable, matchesPath, normalizeLf, parseFrontmatter, posix, printJson, readJson, redactSecrets, splitNulPaths, targetFrom, walkFiles, whichCommand, writeJson, } from "./core.mjs";
+import { EVENTS, EXIT, HARNESS_ROOT, boolOption, boundedText, contextDenied, git, gitAvailable, matchesPath, normalizeLf, parseFrontmatter, posix, printJson, readJson, redactSecrets, splitNulPaths, targetFrom, walkFiles, whichCommand, writeJson, } from "./core.mjs";
 import { SOURCE_EXTENSIONS, requestedPaths } from "./graph.mjs";
 /** Suppression marker, placed on the offending line or the line above it. */
 export const FITNESS_IGNORE = "harness-fitness:ignore";

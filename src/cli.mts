@@ -47,7 +47,7 @@ Commands:
   validate           Validate configuration, catalogs, and runtime parity
   test               Run the deterministic Node test suite
   manifest           Print the LF-normalized SHA-256 source manifest
-  install            Install safely into a repository
+  install            Install safely; seeds the live contracts and, in a git repository, discovers the catalog (--no-discover keeps the template)
   upgrade            Upgrade managed files without overwriting user changes
   uninstall          Remove only unchanged managed files
   repo-map           Print declared module and dependency boundaries

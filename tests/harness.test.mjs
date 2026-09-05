@@ -188,6 +188,9 @@ test("security hooks allow routine work and gate shell side effects", async (t) 
     ["echo done && reboot", "deny"],
     ["rm -rf / && echo ok", "deny"],
     ["rm -rf /; ls", "deny"],
+    ["rm -rf / /tmp", "deny"],
+    ["rm / -rf", "deny"],
+    ["rm -rf / 2>/dev/null", "deny"],
     // Machine commands are recognized in command position only; prose that mentions them is not one.
     ["echo 'skips the shutdown handler'", "allow"],
     ["git commit -m 'stop: run the shutdown handler before exit'", "ask"],
@@ -655,6 +658,8 @@ test("unborn repositories bind staged, unstaged, and untracked changes and rejec
 
 test("waivers require all fields, reject expiry, and cannot bypass safety", (t) => {
   const root = tempRepository(t);
+  // The neutral template matrix declares no checks; a waiver must name one that exists.
+  setMatrix(root, { validate: { class: "static", command: "node scripts/harness.mjs validate", required: true } });
   const future = new Date(Date.now() + 86_400_000).toISOString();
   const expired = new Date(Date.now() - 86_400_000).toISOString();
 
@@ -1244,8 +1249,10 @@ test("structural validation never counts as project verification", (t) => {
   const edited = resolve(root, "src", "payment.js");
   hook(root, "afterFileEdit", { file_path: edited });
 
+  // The seeded template maps src/** to a module with no check yet, so the diff is unverifiable
+  // in a different way than a missing receipt; either way the turn does not end quietly.
   const blocked = hook(root, "stop", { status: "completed", loop_count: 0 });
-  assert.match(blocked.followup_message, /no passing verification receipt/);
+  assert.match(blocked.followup_message, /no passing verification receipt|no check wired for app/);
 
   const full = jsonResult(runHarness(["validate", "--target", root]));
   assert.equal(full.check_type, "full");
@@ -1253,7 +1260,7 @@ test("structural validation never counts as project verification", (t) => {
 
   // Structural validation must leave the completion gate exactly where it was.
   const stillBlocked = hook(root, "stop", { status: "completed", loop_count: 0 });
-  assert.match(stillBlocked.followup_message, /no passing verification receipt/);
+  assert.match(stillBlocked.followup_message, /no passing verification receipt|no check wired for app/);
 
   const quality = jsonResult(runHarness(["quality", "status", "--target", root]), 2);
   assert.equal(quality.complete, false);
@@ -2498,6 +2505,7 @@ test("repo-map and help expose the declared boundaries", (t) => {
 test("waiver check validates a stored waiver and rejects a tampered one", (t) => {
   const root = tempRepository(t);
   jsonResult(runHarness(["install", "--target", root]));
+  setMatrix(root, { validate: { class: "static", command: "node scripts/harness.mjs validate", required: true } });
   const expiry = new Date(Date.now() + 86_400_000).toISOString();
   const created = jsonResult(
     runHarness([

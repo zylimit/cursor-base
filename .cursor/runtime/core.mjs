@@ -279,6 +279,51 @@ export function changedPaths(cwd, base) {
     const tracked = splitNulPaths(result.stdout).filter(excludeState);
     return [...new Set([...tracked, ...untrackedPaths(cwd)])].sort();
 }
+/**
+ * Size of the change against `base`: added plus removed lines for tracked files (binary files
+ * count as a file, not as lines) and every line of each untracked file, with the same scoping
+ * and state exclusion as `changedPaths`, so the two always describe the same set. Null when Git
+ * cannot answer; a guess would be reported as a measurement.
+ */
+export function diffStats(cwd, base) {
+    if (!gitAvailable(cwd) || base === "NO_GIT")
+        return null;
+    const excludeState = (path) => path !== STATE_REL && !path.startsWith(`${STATE_REL}/`);
+    let changedLines = 0;
+    if (base !== "NO_COMMIT") {
+        const result = git(cwd, ["diff", "--numstat", "-z", "--relative", base, "--", "."], true);
+        if (!result.ok)
+            return null;
+        // `-z` terminates each record with NUL; renames add the two paths as further NUL records.
+        for (const record of result.stdout.split("\0")) {
+            const match = /^(\d+|-)\t(\d+|-)\t(.*)$/.exec(record);
+            if (!match || !excludeState(posix(match[3])))
+                continue;
+            if (match[1] !== "-")
+                changedLines += Number(match[1]);
+            if (match[2] !== "-")
+                changedLines += Number(match[2]);
+        }
+    }
+    let untracked;
+    try {
+        untracked = untrackedPaths(cwd);
+    }
+    catch {
+        return null;
+    }
+    for (const path of untracked) {
+        try {
+            const contents = readFileSync(resolve(cwd, path));
+            if (!contents.includes(0))
+                changedLines += contents.toString("utf8").split("\n").length;
+        }
+        catch {
+            // Unreadable or vanished; it still counts as a new file.
+        }
+    }
+    return { changed_lines: changedLines, new_files: untracked.length };
+}
 export const DIFF_EXCLUDE = `:(exclude)${STATE_REL}/**`;
 export function diffArgumentSets(base) {
     const tail = ["--", ".", DIFF_EXCLUDE];
@@ -499,10 +544,22 @@ export function walkFiles(root, current = root, excludeTests = false) {
     }
     return files;
 }
+/**
+ * The live contract files belong to the repository that runs the harness. This repository's own
+ * copies describe this repository; the installer seeds a target's from the `default-*` templates
+ * (or from discovery) and never distributes these.
+ */
+export const LIVE_CONTRACTS = [
+    ["harness/module-catalog.json", "harness/default-module-catalog.json"],
+    ["harness/verification-matrix.json", "harness/default-verification-matrix.json"],
+    ["harness/assurance-policy.json", "harness/default-assurance-policy.json"],
+];
 export function isInstallable(root, absolute) {
     const rel = posix(relative(root, absolute));
     if (INSTALL_ROOT_FILES.has(rel))
         return true;
+    if (LIVE_CONTRACTS.some(([live]) => live === rel))
+        return false;
     if (rel.startsWith("harness/"))
         return true;
     if (!rel.startsWith(".cursor/"))
@@ -658,6 +715,32 @@ export function sensitivePath(filePath) {
     // Matches the directory itself as well as anything under it, since a trailing separator is
     // absent when the path names the directory.
     return /(^|\/)(\.ssh|\.aws|\.azure|\.gnupg|\.kube|\.docker)(\/|$)/.test(normalized);
+}
+/**
+ * Directories no scanner or context pack reads: generated output, vendored code, caches, and
+ * the harness's own state. One vocabulary for "not source", shared by context packs, fitness,
+ * and anything else that walks the tree for content.
+ */
+export const CONTEXT_DENIED_DIRECTORIES = [
+    ".git",
+    "node_modules",
+    "vendor",
+    "third_party",
+    "dist",
+    "build",
+    "out",
+    "coverage",
+    ".cache",
+    ".venv",
+    ".next",
+    ".cursor/harness-state",
+];
+/** True for secret-bearing paths and for anything under a denied directory. */
+export function contextDenied(path) {
+    const candidate = posix(path);
+    if (sensitivePath(candidate))
+        return true;
+    return CONTEXT_DENIED_DIRECTORIES.some((directory) => candidate === directory || candidate.startsWith(`${directory}/`));
 }
 export async function stdinJson() {
     let input = "";

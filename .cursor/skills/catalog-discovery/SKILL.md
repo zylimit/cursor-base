@@ -5,6 +5,10 @@ description: Bootstraps or repairs the module catalog and verification matrix fr
 
 # Catalog Discovery
 
+A fresh `install` into a committed git repository already runs discovery and writes the result
+(`catalog.source: "discovered"`); use this skill to preview first, to redo it after the tree
+changed shape, or when the install reported `source: "template"`.
+
 1. Preview: `node scripts/harness.mjs catalog discover`. Read `proposed_modules`, `real_edges`,
    `detected_commands`, `attribute_proposals`, and `needs_decision`.
 2. Decide what the engine refused to guess: attribute tiers (from what a failure would cost),

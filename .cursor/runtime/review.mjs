@@ -14,9 +14,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { REVIEW_LENSES, REVIEW_STAGES, convenedForModules } from "./assurance.mjs";
 import { catalog } from "./catalog.mjs";
-import { EXIT, STATE_REL, binding, boolOption, git, gitAvailable, gitBase, posix, printJson, readJson, stdinJson, targetFrom, withStateLock, writeJson, } from "./core.mjs";
+import { EXIT, STATE_REL, binding, boolOption, git, gitAvailable, gitBase, posix, printJson, readJson, splitNulPaths, stdinJson, targetFrom, withStateLock, writeJson, } from "./core.mjs";
 import { REVIEW_ENGINE_SOURCE, buildVerifyPlan, writeReviewReceipt } from "./quality.mjs";
-import { activeTask } from "./state.mjs";
 export const REVIEW_STATE_REL = `${STATE_REL}/review/session.json`;
 export const AUTHORSHIP_REL = `${STATE_REL}/authorship.json`;
 export const DEFAULT_MAX_ROUNDS = 3;
@@ -145,7 +144,10 @@ export function startReview(root, options) {
     // different base starts the count over, so an unrelated change never inherits an escalation.
     const sameChange = previous?.base_commit === plan.base_commit;
     const lineage = sameChange && previous?.verdict?.verdict === "FIX_REQUIRED" ? [...previous.lineage] : [];
-    if (sameChange && previous?.verdict?.verdict === "FIX_REQUIRED") {
+    // Re-opening the very same diff is not a new round; only a rejected diff counts, once.
+    if (sameChange &&
+        previous?.verdict?.verdict === "FIX_REQUIRED" &&
+        !lineage.some((entry) => entry.diff_sha256 === previous.diff_sha256)) {
         lineage.push({ at: previous.verdict.at, diff_sha256: previous.diff_sha256, errors: previous.verdict.errors });
     }
     const session = {
@@ -324,9 +326,11 @@ export function reviewVerdict(root, reviewer, notes) {
 function changedFiles(root, session) {
     if (!gitAvailable(root))
         return [];
-    const result = git(root, ["diff", "--name-only", session.base_commit], true);
-    const untracked = git(root, ["ls-files", "--others", "--exclude-standard"], true);
-    return [...new Set([...result.stdout.split("\n"), ...untracked.stdout.split("\n")].map((line) => line.trim()).filter(Boolean))];
+    // NUL-separated so paths with spaces or non-ASCII bytes match the posix paths authorship records.
+    const args = session.base_commit === "NO_COMMIT" ? ["diff", "--name-only", "-z"] : ["diff", "--name-only", "-z", session.base_commit];
+    const result = git(root, args, true);
+    const untracked = git(root, ["ls-files", "--others", "--exclude-standard", "-z"], true);
+    return [...new Set([...splitNulPaths(result.stdout), ...splitNulPaths(untracked.stdout)].map(posix))];
 }
 const BACKLOG_FORBIDDEN = /(security|safety|privacy|pii|secret|credential)/i;
 export function backlogAdd(root, payload) {

@@ -2,7 +2,8 @@
 param(
     [Parameter(Position = 0)]
     [string]$Target = ".",
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$NoDiscover
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,6 +16,9 @@ $arguments = @(
 )
 if ($DryRun) {
     $arguments += "--dry-run"
+}
+if ($NoDiscover) {
+    $arguments += "--no-discover"
 }
 
 & node @arguments

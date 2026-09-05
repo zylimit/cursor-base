@@ -6,7 +6,7 @@ import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import { relative, resolve } from "node:path";
 import { STATE_REL, isWithin, posix, printJson, readJson, targetFrom, whichCommand, writeJson } from "./core.mjs";
-import { parseShellCommand } from "./shell-policy.mjs";
+import { parseShellCommand, requiresShell } from "./shell-policy.mjs";
 // ============================== Service supervision ==============================
 // A development-time guardian for long-running services: crash restart with exponential
 // backoff, a restart-storm breaker that fails visibly instead of hammering the machine, and an
@@ -231,8 +231,9 @@ export async function serviceSupervise(root, name) {
         // killing that pid alone leaves the real process running with the repository as its cwd.
         // Pipelines, chains, and substitutions still need the shell.
         const parsed = parseShellCommand(definition.command);
-        const program = parsed.segments.length === 1 && !parsed.dynamic ? parsed.segments[0].rawTokens[0] : undefined;
-        const resolved = program ? whichCommand(program) : null;
+        const program = requiresShell(parsed) ? undefined : parsed.segments[0].rawTokens[0];
+        // A relative program resolves against the service's own cwd, where its node_modules live.
+        const resolved = program ? whichCommand(program.includes("/") || program.includes("\\") ? resolve(definition.cwd, program) : program) : null;
         // `.cmd`/`.bat` wrappers (npm, npx, yarn on Windows) cannot be spawned without a shell.
         const direct = Boolean(resolved) && !/\.(cmd|bat)$/i.test(resolved ?? "");
         const options = {

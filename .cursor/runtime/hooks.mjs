@@ -258,7 +258,8 @@ export async function handleHookEvent(event, payload, root) {
             ...current,
             active_task: task,
             assurance: assessment.assurance,
-            affected_modules: plan.modules,
+            affected_modules: plan.affected_modules,
+            plan_modules: plan.modules,
             outstanding_checks: assessment.checks.filter((check) => !check.acceptable),
             blockers: assessment.blockers,
             changed_paths: changedPaths(root, current.base_commit).slice(0, 200),
@@ -270,7 +271,7 @@ export async function handleHookEvent(event, payload, root) {
         });
         output = {
             user_message: `Harness state was saved to ${posix(relative(root, notePath))} before compaction: base commit ${current.base_commit}, ` +
-                `${plan.modules.length} affected modules, ${assessment.blockers.length} blocker(s). The invariants will be re-injected after the next tool call.`,
+                `${plan.affected_modules.length} affected modules, ${assessment.blockers.length} blocker(s). The invariants will be re-injected after the next tool call.`,
         };
     }
     else if (event === "postToolUse") {
@@ -328,6 +329,9 @@ export async function handleHookEvent(event, payload, root) {
                     .map((entry) => `${entry.module}/${entry.attribute} (${entry.tier})`);
                 if (outstanding.length > 0) {
                     parts.push(`no passing verification receipt for: ${outstanding.join(", ")}`);
+                }
+                if (plan.checks.length === 0 && plan.modules.length > 0) {
+                    parts.push(`no check wired for ${plan.modules.join(", ")}; nothing about this change can be verified until the matrix names one`);
                 }
                 if (gapsBlock && gaps.length > 0) {
                     parts.push(`no evidence for required quality attributes: ${gaps.join(", ")}`);

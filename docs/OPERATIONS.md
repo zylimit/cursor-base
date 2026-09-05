@@ -81,7 +81,7 @@ node scripts/harness.mjs instructions     # instruction files as untrusted input
 node scripts/harness.mjs rules-audit      # enforced / prompt-only / phantom / unenforced rules
 node scripts/harness.mjs skills-lint      # frontmatter the loader can read
 node scripts/harness.mjs agents-lint      # nested AGENTS.md where a protected attribute blocks
-node scripts/harness.mjs catalog discover # propose a catalog and matrix; --write to save
+node scripts/harness.mjs catalog discover # propose a catalog and matrix; --write to save (a fresh install does this itself)
 ```
 
 ## Release

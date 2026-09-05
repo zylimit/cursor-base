@@ -96,6 +96,22 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   `install` into a committed repository discovers the target's catalog instead of shipping this
   repository's (`--no-discover` keeps the template); the reviewer agent's read-only relay
   protocol is documented.
+- From round 2 of the same review (two errors, ten warnings): the rm-root deny pattern anchors
+  on an argument boundary, so a root deletion followed by more arguments or a redirection is
+  denied; a service or check command with an unquoted variable, glob, brace, tilde, or
+  redirection runs through the shell again (`requiresShell`) instead of receiving them literally;
+  the live contracts (`harness/module-catalog.json`, `verification-matrix.json`,
+  `assurance-policy.json`) are no longer distributed — a target's are seeded from neutral
+  `default-*` templates (a single `app` module over `src/**`, no checks, no tiers) and then
+  discovered, so this repository's risk posture never reaches a target; structured review reads
+  the newest engine receipt rather than the newest approval of any source; re-opening an
+  unchanged diff no longer counts a round; authorship paths are NUL-separated; the installer and
+  `catalog discover` share one writer that never overwrites an edited file; `diffStats` in core
+  measures the budget with the same scoping as `changedPaths`; the denied-directory predicate
+  lives in core; `receipt check` accepts a range base that is an ancestor of HEAD; the stop hook
+  reports a plan with no checks; the compaction note records the affected closure; `release
+  readiness` names optional conditions it could not evaluate instead of claiming every condition
+  holds; `setup.ps1 -NoDiscover`; install-time discovery documented where adopters read.
 
 ### Fixed
 

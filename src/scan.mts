@@ -5,13 +5,13 @@ import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { TIER_RANK, catalog, matrix, moduleDirectories, moduleForPath, normalizeRequirement } from "./catalog.mjs";
 import type { AttributeTier, ModuleDefinition, QualityAttribute } from "./catalog.mjs";
-import { contextDenied } from "./context.mjs";
 import {
   EVENTS,
   EXIT,
   HARNESS_ROOT,
   boolOption,
   boundedText,
+  contextDenied,
   git,
   gitAvailable,
   matchesPath,

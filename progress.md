@@ -57,7 +57,14 @@ section contract.
   untrusted input scanned by a security-class check that is never deferrable.
 
 - 2026-09-05 The engine is split into 18 modules plus an entry point, with an acyclic import
-  graph; `core` imports only Node built-ins; a test asserts both. Rejected: keeping one 5,860-line file — it had outgrown navigation and
+  graph; `core` imports only Node built-ins; a test asserts both.
+
+- 2026-09-05 The live contracts are the target's, not ours. `harness/module-catalog.json`,
+  `verification-matrix.json`, and `assurance-policy.json` are excluded from distribution; a
+  target's are seeded from neutral `default-*` templates and then discovered from its own tree.
+  Rejected: keeping this repository's catalog as the installed template — it shipped
+  `security: critical` on `src/**` and `shared: true` to every target, which is exactly the
+  guessed tier `catalog discover` refuses to make. Rejected: keeping one 5,860-line file — it had outgrown navigation and
   made ownership of a change unreadable.
 
 - 2026-08-07 Waivers defer only checks that could not run (`MISSING`/`BLOCKED`/`SKIPPED`), bound
@@ -97,6 +104,11 @@ section contract.
 
 ## Done
 
+- 2.0.0 follow-ups (2026-09-05, commits 7cd02d5..): Windows CI fixed at the root (service tree
+  kill, stop through the flag, direct spawn), blast-radius budget, nested module contracts,
+  authorship hook, 1.x → 2.0 upgrade notes, range reviews, install-time catalog discovery with
+  neutral templates and live contracts that are never distributed, and every error the
+  structured self-review found in rounds 1 and 2 (see CHANGELOG "Fixed").
 - 2.0.0 (2026-09-05), after a line-by-line study of dsh-base and cc-base and a review of
   codex-base (`docs/CAPABILITY-MATRIX.md` records every accept/adapt/reject):
   - Engine split into 18 modules plus the entry (`docs/ARCHITECTURE.md`); parity over the whole tree.
@@ -138,8 +150,12 @@ section contract.
 
 ## In progress
 
-- None. 2.0.0 is implemented and verified locally; it is uncommitted and awaits the user's review
-  and an independent model review (the user said other models will re-review).
+- Structured self-review of 2.0.0 (`review start --base 8017024`), run by this session with one
+  reviewer subagent per lens because the other models were unavailable. Round 1: 5 errors, all
+  fixed (05ff9ab). Round 2: 2 errors (rm-root anchor, direct spawn with shell expansions) plus
+  template/self-catalog separation and the other warnings, fixed in the following commit. Round
+  3 is the last before the engine escalates; stages 2 (testing) and 3 (privacy, reliability,
+  resilience, security) still have to report once stage 1 is clean.
 
 ## Not doing
 

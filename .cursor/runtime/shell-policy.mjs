@@ -3,6 +3,11 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { posix, sensitivePath } from "./core.mjs";
+/** True when the command cannot be spawned as one program with literal arguments. */
+export function requiresShell(parse) {
+    return parse.segments.length !== 1 || parse.dynamic || parse.expands || parse.segments[0].rawTokens.length === 0;
+}
+const SHELL_EXPANSION = new Set(["$", "*", "?", "[", "~", "{", "}", "<", ">", "%"]);
 // Wrappers that pass their tail through to another program. Classification has to look past them,
 // otherwise `sudo rm -rf /` is only ever seen as a `sudo` call.
 // The value is how many non-flag arguments the wrapper consumes before the real program.
@@ -58,6 +63,7 @@ export function parseShellCommand(value) {
     let hasCurrent = false;
     let quote = null;
     let dynamic = false;
+    let expands = false;
     let pendingPipe = false;
     const pushToken = () => {
         if (hasCurrent) {
@@ -127,10 +133,13 @@ export function parseShellCommand(value) {
         }
         if (char === "$" && (value[index + 1] === "(" || value[index + 1] === "{")) {
             dynamic = true;
+            expands = true;
             current += char;
             hasCurrent = true;
             continue;
         }
+        if (SHELL_EXPANSION.has(char))
+            expands = true;
         if (char === ";" || char === "\n" || char === "&" || char === "|") {
             const doubled = (char === "&" || char === "|") && value[index + 1] === char;
             pushSegment(char === "|" && !doubled);
@@ -146,7 +155,7 @@ export function parseShellCommand(value) {
         hasCurrent = true;
     }
     pushSegment(false);
-    return { segments, dynamic };
+    return { segments, dynamic, expands };
 }
 export function toSegment(tokens) {
     let index = 0;
@@ -377,7 +386,7 @@ export function shellDecision(command, root) {
         // Root, root wildcard, parent traversal, or the .git directory. Anchored to argument
         // boundaries so `rm -rf build/`, `rm dir/*.log`, and `rm .gitignore` are recursive or plain
         // deletions that ask, not "obviously destructive" ones that deny.
-        /\b(rm|rmdir)\b[^;&|]*(--no-preserve-root|(?:^|\s)["']?\/["']?(?=\s*(?:[;&|)]|$))|(?:^|\s)["']?\/\*|(?:^|\s|[\\/])\.\.(?:[\\/]|\s|$)|(?:^|\s|[\\/])\.git(?:[\\/]|\s|$))/i,
+        /\b(rm|rmdir)\b[^;&|]*(--no-preserve-root|(?:^|\s)["']?\/["']?(?=[\s;&|)]|$)|(?:^|\s)["']?\/\*|(?:^|\s|[\\/])\.\.(?:[\\/]|\s|$)|(?:^|\s|[\\/])\.git(?:[\\/]|\s|$))/i,
         /\b(remove-item|del|erase)\b[^;&|]*(\*|\.\.[\\/]|\.git)[^;&|]*(-recurse|-force|\/s|\/q)/i,
         /\bremove-item\b[^;&|]*\b[a-z]:[\\/]["']?\s+[^;&|]*(-recurse|-force)/i,
         /\b(reg\s+delete|bcdedit)\b/i,

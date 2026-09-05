@@ -147,12 +147,15 @@ export function releaseCommand(positional, options) {
     const result = releaseReadiness(root, options);
     const failing = result.conditions.filter((condition) => condition.status === "FAIL");
     const blocked = result.conditions.filter((condition) => condition.status === "BLOCKED" && condition.required);
+    const unobserved = result.conditions.filter((condition) => condition.status === "BLOCKED" && !condition.required);
     printJson({
         command: "release readiness",
         target: root,
         ...result,
         note: result.ready
-            ? "Every condition holds. Releasing is still the user's decision and action."
+            ? unobserved.length
+                ? `Every required condition holds; ${unobserved.length} optional condition(s) could not be evaluated (${unobserved.map((condition) => condition.id).join(", ")}), so the proof is incomplete there. Releasing is still the user's decision and action.`
+                : "Every condition holds. Releasing is still the user's decision and action."
             : `${failing.length} condition(s) fail and ${blocked.length} required condition(s) could not be checked.`,
     });
     if (!result.ready)

@@ -16,11 +16,22 @@ Clone `cursor-base`, create the target repository, then run the installer with a
 
 Review every `*.cursor-harness-new` sidecar before replacing an existing project file. The installer never commits, pushes, installs dependencies, or changes user-level Cursor settings.
 
+What the installer writes for the target's own contracts: `harness/module-catalog.json`,
+`harness/verification-matrix.json`, and `harness/assurance-policy.json` are the target's files,
+never this repository's. When absent they are seeded from the neutral `harness/default-*.json`
+templates; when the target is a committed git repository, the catalog and matrix are then
+proposed from its own tree, real import edges, and build manifests (`catalog.source:
+"discovered"` in the output, with `needs_decision` listing what was deliberately not guessed —
+attribute tiers, forbidden edges, layers). Pass `--no-discover` (`setup.ps1 -NoDiscover`) to keep
+the template. An existing live file is never touched, on install or on upgrade.
+
 ## Existing repository
 
 1. Capture the current Git status and preserve unrelated work.
 2. Run a dry-run and review create/preserve operations.
-3. Install, then customize `harness/module-catalog.json` and `harness/verification-matrix.json`.
+3. Install, then review the discovered `harness/module-catalog.json` and
+   `harness/verification-matrix.json` (or run `catalog discover --write` after committing) and
+   decide attributes, forbidden edges, and layers.
 4. Add nested `AGENTS.md` files and path-scoped rules only where a subsystem needs stronger local policy.
 5. Run `node scripts/harness.mjs validate`, `doctor`, and the affected verification plan.
 6. Review project hooks as executable code before trusting the workspace.
@@ -51,9 +62,15 @@ What changes for a repository that already runs the harness:
   compaction), and `validate` requires exactly one hook per event. If your `hooks.json` was
   modified, `upgrade` leaves it in place and writes `hooks.json.cursor-harness-new` beside it;
   merge the `postToolUse` entry by hand.
-- **New contract file.** `harness/assurance-policy.json` is installed with the defaults. Every
-  field is optional; delete it to run on built-in defaults, or edit it to add named profiles,
-  raise floors, or change the path floors (`docs/ASSURANCE-PROFILES.md`).
+- **New contract file.** `harness/assurance-policy.json` is seeded from
+  `harness/default-assurance-policy.json` when absent (the built-in defaults). Every field is
+  optional; delete it to run on built-in defaults, or edit it to add named profiles, raise
+  floors, or change the path floors (`docs/ASSURANCE-PROFILES.md`).
+- **Live contracts are yours.** `harness/module-catalog.json`, `verification-matrix.json`, and
+  `assurance-policy.json` are no longer part of the distributed file set: `upgrade` never
+  rewrites them and `uninstall` leaves them in place. A 1.x install carried this repository's
+  own module map (with `security: critical` on `src/**`); if yours still matches that template,
+  run `catalog discover --write` to replace it with a map of your repository.
 - **Matrix and catalog fields.** Checks may declare `allowFastSkip` (deferrable under a fast
   loan; never for security, safety, or privacy evidence). The catalog accepts `memory`,
   `budget`, and `review` sections; none is required.

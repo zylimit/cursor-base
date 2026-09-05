@@ -5,7 +5,7 @@ import { effectiveSelection, loadPolicy, openDebts, readLoan } from "./assurance
 import { catalog } from "./catalog.mjs";
 import { EVENTS, STATE_REL, binding, boolOption, boundedHead, errorMessage, posix, printJson, redactSecrets, targetFrom, } from "./core.mjs";
 import { feedbackLessons, memoryDrift } from "./memory.mjs";
-import { FAIL_STREAK_THRESHOLD, consecutiveFailures, gate, readQualityLedger, readWaivers, receipt, verifyLedgerChain, waiver, } from "./quality.mjs";
+import { FAIL_STREAK_THRESHOLD, consecutiveFailures, readQualityLedger, readWaivers, verifyLedgerChain, } from "./quality.mjs";
 import { listServiceStateDirs, positiveNumber, readServiceState, synthesizeServiceStatus } from "./services.mjs";
 import { activeTask } from "./state.mjs";
 export const STALE_TASK_HOURS = 72;
