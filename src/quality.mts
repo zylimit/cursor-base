@@ -45,7 +45,7 @@ import { activeTask } from "./state.mjs";
 import {
   REVIEW_LENSES,
   assuranceForImpact,
-  convenedLenses,
+  convenedForModules,
   isProtectedCheck,
   openDebts,
   readLoan,
@@ -65,6 +65,8 @@ export interface VerifyPlan extends DiffBinding {
   modules: string[];
   /** Modules the changed paths belong to directly, before dependents and profile widening. */
   direct_modules: string[];
+  /** The impact closure (direct modules plus dependents), independent of profile widening. */
+  affected_modules: string[];
   /** The risk level that widened this plan, from the active task or an explicit --risk. */
   task_risk: RiskLevel | null;
   /** The assurance profile in force for this change, with every floor that raised it. */
@@ -152,6 +154,7 @@ export function buildVerifyPlan(root: string, positional: string[], options: Cli
     expansion_reasons: impact.expansion_reasons,
     modules,
     direct_modules: impact.direct,
+    affected_modules: impact.affected.map((module) => module.id),
     task_risk: taskRisk,
     assurance,
     checks: selected,
@@ -781,8 +784,15 @@ export function assessQuality(root: string, plan: VerifyPlan): QualityAssessment
   const blockingGaps = attributes.filter(
     (entry) => entry.enforcement === "block" && !entry.covered && !entry.deferred,
   );
+  // Governed modules changed but none of them selects a check: nothing was verified, and the
+  // gate says BLOCKED for the same plan. Changes that reach no module (ignored paths only) have
+  // nothing to verify and are not penalised for it.
+  const unverifiable = plan.checks.length === 0 && plan.modules.length > 0;
   const complete =
-    integrity.ok && checks.every((check) => check.acceptable) && (!gapsBlock || blockingGaps.length === 0);
+    integrity.ok &&
+    !unverifiable &&
+    checks.every((check) => check.acceptable) &&
+    (!gapsBlock || blockingGaps.length === 0);
 
   const review = reviewRequirement(root, plan);
   const budget = assessBudget(root, plan);
@@ -790,6 +800,7 @@ export function assessQuality(root: string, plan: VerifyPlan): QualityAssessment
   const loaned = checks.filter((check) => check.deferred);
   const blockers: string[] = [];
   if (!integrity.ok) blockers.push(`ledger integrity: ${integrity.reason}`);
+  if (unverifiable) blockers.push(`the verification plan selected no checks for ${plan.modules.join(", ")}; wire a check in the matrix before claiming anything is verified`);
   for (const check of checks) if (!check.acceptable) blockers.push(`check ${check.id} is ${check.status}`);
   if (gapsBlock) for (const gap of blockingGaps) blockers.push(`attribute ${gap.module}/${gap.attribute} (${gap.tier}) is uncovered`);
   else for (const gap of blockingGaps) blockers.push(`advisory: attribute ${gap.module}/${gap.attribute} (${gap.tier}) is uncovered`);
@@ -947,19 +958,26 @@ function reviewRequirement(root: string, plan: VerifyPlan): ReviewRequirement {
       mode,
       satisfied: false,
       receipt: null,
-      missing_lenses: mode === "structured"
-        ? convenedLenses(plan.assurance.controls, catalog(root).modules.filter((module) => plan.modules.includes(module.id))).convened
-        : [],
+      missing_lenses: mode === "structured" ? convenedForModules(root, plan.affected_modules, plan.assurance.controls).convened : [],
       reason: "no approving review receipt is bound to the current diff",
     };
   }
   if (mode === "receipt") {
     return { mode, satisfied: true, receipt: accepting.path, missing_lenses: [], reason: `Approved by ${accepting.value.reviewer}.` };
   }
+  // Structured review is computed, not asserted: only a receipt the review engine wrote counts.
+  // A hand-written receipt may record lens coverage as a claim, but it cannot satisfy this mode.
+  if (accepting.value.source !== REVIEW_ENGINE_SOURCE) {
+    return {
+      mode,
+      satisfied: false,
+      receipt: accepting.path,
+      missing_lenses: convenedForModules(root, plan.affected_modules, plan.assurance.controls).convened,
+      reason: "the approving receipt was written by hand, not by the review engine; structured review needs a computed verdict (`review verdict`)",
+    };
+  }
   const recorded = new Set(Array.isArray(accepting.value.lenses) ? (accepting.value.lenses as string[]) : []);
-  const definition = catalog(root);
-  const affected = definition.modules.filter((module) => plan.modules.includes(module.id));
-  const missing = convenedLenses(plan.assurance.controls, affected).convened.filter((lens) => !recorded.has(lens));
+  const missing = convenedForModules(root, plan.affected_modules, plan.assurance.controls).convened.filter((lens) => !recorded.has(lens));
   return {
     mode,
     satisfied: missing.length === 0,
@@ -971,6 +989,9 @@ function reviewRequirement(root: string, plan: VerifyPlan): ReviewRequirement {
         : `the approving receipt records no coverage for lens(es) ${missing.join(", ")}; a verdict reached without structured disagreement is consensus`,
   };
 }
+
+/** Marker the review engine writes into the receipts it produces. */
+export const REVIEW_ENGINE_SOURCE = "review-engine";
 
 export function gate(positional: string[], options: CliOptions): void {
   const root = targetFrom(options);
@@ -1307,6 +1328,8 @@ export function receipt(positional: string[], options: CliOptions): void {
 
 export interface ReceiptRequest {
   base?: OptionValue;
+  /** Set only by the review engine; a hand-written receipt never carries it. */
+  source?: string;
   scope: string[];
   exclusions?: string[];
   reviewer: string;
@@ -1336,6 +1359,7 @@ export function writeReviewReceipt(root: string, request: ReceiptRequest): { pat
     if (unknown.length) throw new Error(`Unknown review lens(es): ${unknown.join(", ")}.`);
     value.lenses = [...new Set(request.lenses)].sort();
   }
+  if (request.source) value.source = request.source;
   if (!["approve", "comment", "request-changes"].includes(value.decision)) {
     throw new Error("receipt --decision must be approve, comment, or request-changes.");
   }

@@ -13,7 +13,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { REVIEW_LENSES, REVIEW_STAGES, convenedLenses } from "./assurance.mjs";
+import { REVIEW_LENSES, REVIEW_STAGES, convenedForModules } from "./assurance.mjs";
 import type { ReviewLens } from "./assurance.mjs";
 import { catalog } from "./catalog.mjs";
 import {
@@ -33,7 +33,7 @@ import {
   writeJson,
 } from "./core.mjs";
 import type { CliOptions, DiffBinding } from "./core.mjs";
-import { buildVerifyPlan, writeReviewReceipt } from "./quality.mjs";
+import { REVIEW_ENGINE_SOURCE, buildVerifyPlan, writeReviewReceipt } from "./quality.mjs";
 import { activeTask } from "./state.mjs";
 
 export const REVIEW_STATE_REL = `${STATE_REL}/review/session.json`;
@@ -202,12 +202,14 @@ export function authorsOf(root: string, paths: string[], base?: string): string[
 export function startReview(root: string, options: CliOptions): { ok: boolean; degraded?: boolean; reason?: string; session?: ReviewSession; plan?: ReturnType<typeof buildVerifyPlan> } {
   const plan = buildVerifyPlan(root, [], options);
   if (plan.paths.length === 0) return { ok: false, degraded: true, reason: "no change is under review: the working tree matches the base" };
-  const definition = catalog(root);
-  const affected = definition.modules.filter((module) => plan.modules.includes(module.id));
-  const team = convenedLenses(plan.assurance.controls, affected);
+  const team = convenedForModules(root, plan.affected_modules, plan.assurance.controls);
   const previous = readSession(root);
-  const lineage = previous?.lineage ? [...previous.lineage] : [];
-  if (previous?.verdict?.verdict === "FIX_REQUIRED") {
+  // Rounds count rejections of the same change under revision: the previous session must have
+  // opened on the same base and ended in FIX_REQUIRED. An ACCEPT, an abandoned session, or a
+  // different base starts the count over, so an unrelated change never inherits an escalation.
+  const sameChange = previous?.base_commit === plan.base_commit;
+  const lineage = sameChange && previous?.verdict?.verdict === "FIX_REQUIRED" ? [...previous.lineage] : [];
+  if (sameChange && previous?.verdict?.verdict === "FIX_REQUIRED") {
     lineage.push({ at: previous.verdict.at, diff_sha256: previous.diff_sha256, errors: previous.verdict.errors });
   }
   const session: ReviewSession = {
@@ -216,7 +218,7 @@ export function startReview(root: string, options: CliOptions): { ok: boolean; d
     diff_sha256: plan.diff_sha256,
     started_at: new Date().toISOString(),
     scope: String(options.scope ?? "working tree"),
-    modules: plan.modules,
+    modules: plan.affected_modules,
     required_lenses: team.convened,
     excluded_lenses: team.excluded,
     lineage,
@@ -378,6 +380,7 @@ export function reviewVerdict(root: string, reviewer: string, notes: string): Ve
   if (verdict === "ACCEPT" && final) {
     const written = writeReviewReceipt(root, {
       base: current.base_commit === "NO_COMMIT" || current.base_commit === "NO_GIT" ? undefined : current.base_commit,
+      source: REVIEW_ENGINE_SOURCE,
       scope: current.modules.length ? current.modules : ["."],
       reviewer,
       decision: "approve",
@@ -626,13 +629,12 @@ export async function reviewCommand(positional: string[], options: CliOptions): 
 
   if (subcommand === "team") {
     const plan = buildVerifyPlan(root, [], options);
-    const definition = catalog(root);
-    const team = convenedLenses(plan.assurance.controls, definition.modules.filter((module) => plan.modules.includes(module.id)));
+    const team = convenedForModules(root, plan.affected_modules, plan.assurance.controls);
     printJson({
       command: "review team",
       target: root,
       assurance: plan.assurance.effective,
-      modules: plan.modules,
+      modules: plan.affected_modules,
       convened: team.convened.map((lens) => ({ lens, stage: REVIEW_LENSES[lens].stage, stage_name: REVIEW_STAGES[REVIEW_LENSES[lens].stage] })),
       not_convened: team.excluded,
     });

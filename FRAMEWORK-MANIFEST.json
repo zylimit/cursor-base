@@ -25,8 +25,8 @@
     },
     {
       "path": ".cursor/agents/reviewer.md",
-      "sha256": "6e3df6e699b74bf42a2e951966659450f9efe40fe8147ba495db286b5d9aee9d",
-      "bytes": 1858
+      "sha256": "282c17877b756509a8c534d7439f860facb0b07873267d26ac3d1d3a3f579cec",
+      "bytes": 2046
     },
     {
       "path": ".cursor/agents/tester.md",
@@ -95,13 +95,13 @@
     },
     {
       "path": ".cursor/runtime/assurance.mjs",
-      "sha256": "d1b83b12735271c2635e7126c4ff45d9af2479378e074de23c1ace8b8207c2c6",
-      "bytes": 31835
+      "sha256": "6abc7a6a059e2400fb658d906a8d0b1a992d631f506254791f93b85296793cae",
+      "bytes": 33058
     },
     {
       "path": ".cursor/runtime/catalog.mjs",
-      "sha256": "f60676329299dec73fc86de571a34b270c77bdb2e66bfcd0a720dddfcc152f06",
-      "bytes": 12590
+      "sha256": "f089924d33af1759e6f47f865f363924c2699844926a3e15b26e87922b3f2cb7",
+      "bytes": 13721
     },
     {
       "path": ".cursor/runtime/cli.mjs",
@@ -110,8 +110,8 @@
     },
     {
       "path": ".cursor/runtime/context.mjs",
-      "sha256": "ed74183e7c8b5ead583b15e65f13fa9f1f27bff66ac0686b63f7880002d9ab1e",
-      "bytes": 6952
+      "sha256": "6d6874ed68ce8bd63aa5d4899caf8d4632ed2acca5493523eb42a576f056334f",
+      "bytes": 9499
     },
     {
       "path": ".cursor/runtime/core.mjs",
@@ -120,8 +120,8 @@
     },
     {
       "path": ".cursor/runtime/graph.mjs",
-      "sha256": "b5b9fbe11eb26448be3827cacf4d9d157fe2e2ea5e8021562b4baf2dbcef3042",
-      "bytes": 32809
+      "sha256": "a7e423853eaa7f8a2918689a12a949a53bfb38188c8a4ca2cfc9d5e253f27900",
+      "bytes": 32840
     },
     {
       "path": ".cursor/runtime/harness.mjs",
@@ -130,28 +130,28 @@
     },
     {
       "path": ".cursor/runtime/hooks.mjs",
-      "sha256": "1a8f1a9ee66368dd0cb92dc2959406fffba81160a09ac424fede62e9ad178209",
-      "bytes": 20698
+      "sha256": "15d905f4852d701fdf70d166237445019dd968aa89b3f687b80aa04eeb35b318",
+      "bytes": 20595
     },
     {
       "path": ".cursor/runtime/install.mjs",
-      "sha256": "71c5bc6d1ec7417ccb93a6b686dbf4eef83b58ccde92e284bd813f1c23d7073c",
-      "bytes": 26631
+      "sha256": "40241fbf734adfbac63d9b080712e7fbaf8969112468f119672d0c0a2b3d144d",
+      "bytes": 28811
     },
     {
       "path": ".cursor/runtime/memory.mjs",
-      "sha256": "be8c064912b4ecb0dcd6993b9d14facbcb16602d6360a5b7deecb24639b1d1c8",
-      "bytes": 21030
+      "sha256": "e087157ac740d3b87d6d0bc09f10c336fca11e2ff37c75eb89a44c1d42ae70bb",
+      "bytes": 23160
     },
     {
       "path": ".cursor/runtime/ops.mjs",
-      "sha256": "706b2c4e04cac54f057633ace3fe13dcf536eeeafd2e1f41037b08000ed0411e",
-      "bytes": 15791
+      "sha256": "4bde20431d65c2ae0666cb1b1d5603ba0b4b89a6c0d836cc01ff7170f8605741",
+      "bytes": 16113
     },
     {
       "path": ".cursor/runtime/quality.mjs",
-      "sha256": "4031eb6a0e023ceedbb18631f2202a5ee4d8f83ab159a122af13a541a82760f2",
-      "bytes": 55921
+      "sha256": "d1fff63b2c4e1d2d092be7940cd4d27bc2d80ffd0f04d49c6da67e0a8c51a791",
+      "bytes": 57193
     },
     {
       "path": ".cursor/runtime/release.mjs",
@@ -160,13 +160,13 @@
     },
     {
       "path": ".cursor/runtime/review.mjs",
-      "sha256": "5e66d57ebabc4d315c07329c6492b5752e6b7e1e1c18dcb8409081ed6167d785",
-      "bytes": 28547
+      "sha256": "1e559499ae19b2019c55a094ad08ce50396255a17faa3eb8ef12a5369b4a9104",
+      "bytes": 28856
     },
     {
       "path": ".cursor/runtime/scan.mjs",
-      "sha256": "64930605d92c3ddbc9e096cdb2afc877596f86f1cd3bc0c7d8d65b5b05146813",
-      "bytes": 38682
+      "sha256": "9aa5fb3f343c2fbc6329a9801b2222f0acc2a54bb146eecb4172dab4dbda1307",
+      "bytes": 37783
     },
     {
       "path": ".cursor/runtime/services.mjs",
@@ -175,8 +175,8 @@
     },
     {
       "path": ".cursor/runtime/shell-policy.mjs",
-      "sha256": "fea969648e5e9059f1f36470daeb40a1406c5b8a62b14161547869d04e4cb736",
-      "bytes": 22370
+      "sha256": "06aabee39124efaf07996ceb5df6aba8b1f5aa724ff99937c02d7afda2c91c7f",
+      "bytes": 22426
     },
     {
       "path": ".cursor/runtime/state.mjs",
@@ -185,8 +185,8 @@
     },
     {
       "path": ".cursor/runtime/task.mjs",
-      "sha256": "b6d03062dd5d0f20408ecfe485aee169c9466717fa37dd9e8b77c523226c865a",
-      "bytes": 6871
+      "sha256": "91dc8da3f036396c85df3e731b0f82cb7156597dfba948d75356b575b90de5b0",
+      "bytes": 6865
     },
     {
       "path": ".cursor/sandbox.json",
@@ -280,8 +280,8 @@
     },
     {
       "path": ".cursor/skills/project-memory/REFERENCE.md",
-      "sha256": "df79d1a6b315f74c2b085835a1f42e077f02d8c55d419f9e8c4d96d019077975",
-      "bytes": 1729
+      "sha256": "4db81edf182ab49f4b8def2e2a7e4d1d3bfeaac03fafe696a5c6bacefddfe1f8",
+      "bytes": 2167
     },
     {
       "path": ".cursor/skills/project-memory/SKILL.md",
@@ -335,8 +335,8 @@
     },
     {
       "path": ".cursor/skills/structured-review/SKILL.md",
-      "sha256": "b0f5fa679e06a07abe4a957948dc675c379eef63dad56a153530085f2160770b",
-      "bytes": 1695
+      "sha256": "0cb683028e8cfe5693731240f9734898317abc63c7ceebb00c9fbadfc89fa5ca",
+      "bytes": 1798
     },
     {
       "path": ".cursor/worktrees.json",
@@ -439,5 +439,5 @@
       "bytes": 185
     }
   ],
-  "digest": "47ff678cfca672b7afd81545088606679b40516e56bea0a8b525b70ca01a1c8a"
+  "digest": "6c53aab6705b413d64f07eb2a6337f1aae9d482f10953d1a6fbfe3c643e504fe"
 }

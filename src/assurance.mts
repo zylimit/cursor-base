@@ -21,6 +21,9 @@ import {
   STATE_REL,
   boolOption,
   canonicalJson,
+  changedPaths,
+  gitAvailable,
+  gitBase,
   matchesPath,
   printJson,
   readJson,
@@ -30,6 +33,7 @@ import {
   writeJson,
 } from "./core.mjs";
 import type { CliOptions } from "./core.mjs";
+import { affectedModules } from "./graph.mjs";
 import type { ImpactResult } from "./graph.mjs";
 import { activeTask } from "./state.mjs";
 
@@ -602,6 +606,19 @@ export function convenedLenses(
   return { convened: convened.sort(), excluded };
 }
 
+/**
+ * The single entry point review and completion share: lenses convened for the modules a change
+ * actually reaches (the impact closure, never the plan's widened module set).
+ */
+export function convenedForModules(
+  root: string,
+  moduleIds: string[],
+  controls: AssuranceControls,
+): ReturnType<typeof convenedLenses> {
+  const wanted = new Set(moduleIds);
+  return convenedLenses(controls, catalog(root).modules.filter((module) => wanted.has(module.id)));
+}
+
 // ---------------------------------------------------------------------------------------
 // Fast loan and evidence debt
 // ---------------------------------------------------------------------------------------
@@ -641,6 +658,17 @@ export function openLoan(root: string, request: { minutes: number; reason: strin
   const reason = String(request.reason || "").trim();
   if (!reason) {
     throw new Error("A fast loan requires --reason: it is a dated loan against evidence, and an undated loan is never repaid.");
+  }
+  // The profile in force for the current change decides whether a loan may open at all. A loan
+  // that opens under strict and then defers nothing would read as speed and deliver confusion.
+  const task = activeTask(root);
+  const impact = affectedModules(root, gitAvailable(root) ? changedPaths(root, gitBase(root)) : [], gitAvailable(root));
+  const resolved = assuranceForImpact(root, impact, task?.risk ?? null);
+  if (resolved.controls.deferral === "none") {
+    const floors = resolved.floors.map((floor) => floor.source).join(", ");
+    throw new Error(
+      `The effective assurance profile is ${resolved.effective}${floors ? ` (raised by ${floors})` : ""}, which forbids deferral; a fast loan cannot open under it.`,
+    );
   }
   const requested = Number(request.minutes);
   if (!Number.isInteger(requested) || requested < 1) throw new Error("--minutes must be a positive integer.");

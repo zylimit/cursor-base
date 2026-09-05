@@ -56,8 +56,8 @@ section contract.
 - 2026-09-05 Instruction files (`AGENTS.md`, rules, skills, agents, `.cursorrules`) are
   untrusted input scanned by a security-class check that is never deferrable.
 
-- 2026-09-05 The engine is split into 16 modules with an acyclic import graph; `core` imports
-  only Node built-ins. Rejected: keeping one 5,860-line file — it had outgrown navigation and
+- 2026-09-05 The engine is split into 18 modules plus an entry point, with an acyclic import
+  graph; `core` imports only Node built-ins; a test asserts both. Rejected: keeping one 5,860-line file — it had outgrown navigation and
   made ownership of a change unreadable.
 
 - 2026-08-07 Waivers defer only checks that could not run (`MISSING`/`BLOCKED`/`SKIPPED`), bound
@@ -99,7 +99,7 @@ section contract.
 
 - 2.0.0 (2026-09-05), after a line-by-line study of dsh-base and cc-base and a review of
   codex-base (`docs/CAPABILITY-MATRIX.md` records every accept/adapt/reject):
-  - Engine split into 16 modules (`docs/ARCHITECTURE.md`); parity over the whole tree.
+  - Engine split into 18 modules plus the entry (`docs/ARCHITECTURE.md`); parity over the whole tree.
   - `assurance`: profiles, controls, floors, policy compilation with hard minima, selection per
     project/task, fast loan + evidence debt, lens convening; wired into plan hash, gate,
     assessment (`closable`, `blockers`, `review`, `open_debts`), task completion, hooks, risk.

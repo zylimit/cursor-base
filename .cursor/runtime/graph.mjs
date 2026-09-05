@@ -611,8 +611,10 @@ export function catalogDiscover(options) {
     }
     const catalogPath = resolve(root, "harness/module-catalog.json");
     const matrixPath = resolve(root, "harness/verification-matrix.json");
-    const catalogDefault = existsSync(resolve(root, "harness/default-module-catalog.json"))
-        && normalizeLf(readFileSync(catalogPath, "utf8")) === normalizeLf(readFileSync(resolve(root, "harness/default-module-catalog.json"), "utf8"));
+    const defaultPath = resolve(root, "harness/default-module-catalog.json");
+    const catalogDefault = existsSync(catalogPath) &&
+        existsSync(defaultPath) &&
+        normalizeLf(readFileSync(catalogPath, "utf8")) === normalizeLf(readFileSync(defaultPath, "utf8"));
     const written = [];
     if (boolOption(options, "write")) {
         // A catalog someone edited is never overwritten; the draft lands beside it for a merge.

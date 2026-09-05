@@ -44,18 +44,26 @@ Input contracts (stdin JSON):
 
 - One `error` finding anywhere → `FIX_REQUIRED`. It is never outvoted by clean lenses.
 - Any lens `unable` → `NEEDS_MORE_EVIDENCE`.
-- A convened lens of the open stage has not reported → the verdict is refused (exit 1), not guessed.
+- A convened lens of the open stage has not reported → the verdict is refused (exit 1), not
+  guessed — unless another lens already found an `error` or declared itself `unable`, in which
+  case the outcome is already decided and the verdict says so without waiting.
 - Blue has not reported → refused.
 - Otherwise `ACCEPT`. When every convened stage has passed the verdict is final and writes an
   approving review receipt bound to the diff, with `lenses` recorded, into
   `.cursor/harness-state/receipts/`. That receipt is what `reviewMode: structured` requires for
   completion.
 
-The session binds `base_commit` and `diff_sha256` at `review start`. Any change to the working
-tree makes it stale (exit 4): re-open the review and re-run the lenses on the new diff. Each
-`FIX_REQUIRED` verdict counts a round; at `review.maxRounds` (default 3) the verdict sets
-`escalate: true` and says to stop, because another round cannot tell whether the change or the
-standard is wrong.
+The session binds `base_commit` and `diff_sha256` at `review start` (`--base <ref>` reviews a
+commit range; the session then stays fresh against that range). Any change to the reviewed tree
+makes it stale (exit 4): re-open the review and re-run the lenses on the new diff. Each
+`FIX_REQUIRED` verdict on the same change (same base) counts a round; an `ACCEPT` or a review
+opened on a different base starts the count over. At `review.maxRounds` (default 3) the verdict
+sets `escalate: true` and says to stop, because another round cannot tell whether the change or
+the standard is wrong.
+
+A final `ACCEPT` writes its receipt with `source: "review-engine"`. `reviewMode: structured` is
+satisfied only by such a receipt; `receipt --lenses` records a coverage claim by hand and does
+not count, so "computed, not asserted" holds structurally.
 
 ## Independence
 
@@ -64,6 +72,12 @@ The reviewer is never the author. `afterFileEdit` records which conversation edi
 author of the diff cannot carry an `ACCEPT`. When no identity was recorded the verdict reports
 `authorship_enforced: false` and says so, rather than pretending it checked. On this host the
 recorded identity is a claim about who edited, not an authenticated one.
+
+Reviewer subagents are `readonly`, so they cannot run `review lens` themselves: each returns its
+findings JSON and the orchestrating agent submits it with
+`review lens <lens> --agent <delegation id>`. The `--agent` value is therefore the orchestrator's
+claim about who reviewed; the engine enforces independence against the recorded authors, and the
+receipt names the reviewer that submitted the verdict.
 
 ## Backlog
 

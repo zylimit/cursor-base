@@ -14,7 +14,8 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { catalog, normalizeRequirement } from "./catalog.mjs";
-import { EXIT, STATE_REL, boolOption, canonicalJson, matchesPath, printJson, readJson, sha256, targetFrom, withStateLock, writeJson, } from "./core.mjs";
+import { EXIT, STATE_REL, boolOption, canonicalJson, changedPaths, gitAvailable, gitBase, matchesPath, printJson, readJson, sha256, targetFrom, withStateLock, writeJson, } from "./core.mjs";
+import { affectedModules } from "./graph.mjs";
 import { activeTask } from "./state.mjs";
 // ---------------------------------------------------------------------------------------
 // Vocabulary
@@ -466,6 +467,14 @@ export function convenedLenses(controls, modules) {
     }
     return { convened: convened.sort(), excluded };
 }
+/**
+ * The single entry point review and completion share: lenses convened for the modules a change
+ * actually reaches (the impact closure, never the plan's widened module set).
+ */
+export function convenedForModules(root, moduleIds, controls) {
+    const wanted = new Set(moduleIds);
+    return convenedLenses(controls, catalog(root).modules.filter((module) => wanted.has(module.id)));
+}
 // ---------------------------------------------------------------------------------------
 // Fast loan and evidence debt
 // ---------------------------------------------------------------------------------------
@@ -487,6 +496,15 @@ export function openLoan(root, request) {
     const reason = String(request.reason || "").trim();
     if (!reason) {
         throw new Error("A fast loan requires --reason: it is a dated loan against evidence, and an undated loan is never repaid.");
+    }
+    // The profile in force for the current change decides whether a loan may open at all. A loan
+    // that opens under strict and then defers nothing would read as speed and deliver confusion.
+    const task = activeTask(root);
+    const impact = affectedModules(root, gitAvailable(root) ? changedPaths(root, gitBase(root)) : [], gitAvailable(root));
+    const resolved = assuranceForImpact(root, impact, task?.risk ?? null);
+    if (resolved.controls.deferral === "none") {
+        const floors = resolved.floors.map((floor) => floor.source).join(", ");
+        throw new Error(`The effective assurance profile is ${resolved.effective}${floors ? ` (raised by ${floors})` : ""}, which forbids deferral; a fast loan cannot open under it.`);
     }
     const requested = Number(request.minutes);
     if (!Number.isInteger(requested) || requested < 1)

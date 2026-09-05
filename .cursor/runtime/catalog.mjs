@@ -291,3 +291,28 @@ export function validateCatalog(value, label, errors) {
         }
     }
 }
+/**
+ * Directories a module contract could live in: the literal prefix of each path pattern before
+ * its first wildcard, root-level files excluded. A module confined to one directory has one
+ * candidate; a module spanning several has several, and any one of them holding an AGENTS.md
+ * counts, because Cursor loads the nested file wherever the work happens.
+ */
+export function moduleDirectories(module) {
+    const prefixes = module.paths.map((pattern) => {
+        const solid = [];
+        for (const segment of (module.root ? `${module.root}/${pattern}` : pattern).split("/")) {
+            if (/[*?{]/.test(segment))
+                break;
+            solid.push(segment);
+        }
+        if (solid.length && /\.[A-Za-z0-9]{1,8}$/.test(solid[solid.length - 1]))
+            solid.pop();
+        return solid.join("/");
+    });
+    return [...new Set(prefixes.filter(Boolean))];
+}
+/** The single directory a module contract would live in, or null when the module spans several. */
+export function moduleDirectory(module) {
+    const unique = moduleDirectories(module);
+    return unique.length === 1 ? unique[0] : null;
+}

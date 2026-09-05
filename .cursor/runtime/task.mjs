@@ -96,7 +96,7 @@ export function taskCommand(positional, options) {
             if (!task)
                 throw new Error("No task is active.");
             if (subcommand === "complete") {
-                // Assessed before the lock is taken in the caller below; kept here only to read state.
+                // Assessed above, before the lock was taken; inside the lock only state is read.
                 const assessment = completionAssessment;
                 // The profile's completion control says what a passing gate may close. A rapid gate may
                 // close low-risk work; medium and high risk demand at least a delivery-capable profile.

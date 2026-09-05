@@ -2,9 +2,11 @@
 // printed to the transcript.
 import { existsSync, lstatSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { catalog } from "./catalog.mjs";
+import { catalog, moduleDirectories } from "./catalog.mjs";
 import { STATE_REL, binding, boolOption, canonicalDiffText, canonicalJson, normalizeLf, posix, printJson, pruneDirectory, sensitivePath, sha256, targetFrom, } from "./core.mjs";
-import { affectedModules, requestedPaths } from "./graph.mjs";
+import { affectedModules, extractImports, requestedPaths, resolveRelativeImport } from "./graph.mjs";
+import { assuranceForImpact } from "./assurance.mjs";
+import { activeTask } from "./state.mjs";
 export const CONTEXT_DENIED_DIRECTORIES = [
     ".git",
     "node_modules",
@@ -71,16 +73,59 @@ export function contextPack(positional, options) {
     const request = requestedPaths(root, positional, options);
     const impact = affectedModules(root, request.paths, !request.explicit);
     const bound = binding(root, options.base);
+    // The assurance profile's `contextDepth` decides how far beyond the changed files the pack
+    // reaches: `changed` packs the change itself, `affected` adds the contracts of every module
+    // the change reaches, `conservative` also follows the changed files' imports one hop. The
+    // budget still bounds everything; depth changes what is offered to it, not its size.
+    const assurance = assuranceForImpact(root, impact, activeTask(root)?.risk ?? null, {
+        selection: options.profile === undefined ? undefined : String(options.profile),
+    });
+    const depth = assurance.controls.contextDepth;
+    const depthRank = ["changed", "affected", "conservative"].indexOf(depth);
+    const directIds = new Set(impact.direct);
+    const contractModules = depthRank >= 1 ? impact.affected : impact.affected.filter((module) => directIds.has(module.id));
     const omitted = [];
     const candidates = [];
-    // Priority 1: each affected module's own summary, which is the cheapest way to explain a
-    // subsystem without reading its source.
-    for (const module of impact.affected) {
+    // Priority 1: each module's own summary and nested contract, which is the cheapest way to
+    // explain a subsystem without reading its source.
+    for (const module of contractModules) {
         const base = (module.root || "").replace(/\/+$/, "");
-        const capsule = base ? `${base}/MODULE-CAPSULE.md` : `${module.id}/MODULE-CAPSULE.md`;
-        const entry = readForContext(root, capsule, budget.fileChars);
-        if (entry)
-            candidates.push({ ...entry, priority: 1 });
+        const roots = new Set([base || module.id, ...moduleDirectories(module)]);
+        for (const directory of roots) {
+            for (const name of ["MODULE-CAPSULE.md", "AGENTS.md"]) {
+                const entry = readForContext(root, `${directory}/${name}`, budget.fileChars);
+                if (entry && !candidates.some((existing) => existing.path === entry.path))
+                    candidates.push({ ...entry, priority: 1 });
+            }
+        }
+    }
+    // Priority 4 (conservative only): files the changed files import, one hop, inside the
+    // repository and outside the deny list. These are what a reviewer opens next.
+    if (depthRank >= 2) {
+        for (const path of impact.paths) {
+            const absolute = resolve(root, path);
+            if (contextDenied(path) || !existsSync(absolute))
+                continue;
+            let contents;
+            try {
+                contents = readFileSync(absolute, "utf8");
+            }
+            catch {
+                continue;
+            }
+            for (const specifier of extractImports(path, contents)) {
+                if (!specifier.startsWith("."))
+                    continue;
+                const resolved = resolveRelativeImport(root, path, specifier);
+                if (!resolved || contextDenied(resolved) || impact.paths.includes(resolved))
+                    continue;
+                if (candidates.some((existing) => existing.path === resolved))
+                    continue;
+                const entry = readForContext(root, resolved, budget.fileChars);
+                if (entry)
+                    candidates.push({ ...entry, priority: 4 });
+            }
+        }
     }
     // Priority 2: the changed files themselves, which is what the task is actually about.
     for (const path of impact.paths) {
@@ -156,6 +201,7 @@ export function contextPack(positional, options) {
         ...bound,
         modules: impact.affected.map((module) => module.id),
         expanded_to_all: impact.expanded_to_all,
+        assurance: { effective: assurance.effective, context_depth: depth },
         budget,
         used_chars: used,
         pack_sha256: packHash,

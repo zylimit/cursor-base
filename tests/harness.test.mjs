@@ -184,7 +184,10 @@ test("security hooks allow routine work and gate shell side effects", async (t) 
     ["diskpart /s wipe.txt", "deny"],
     ["shutdown -h now", "deny"],
     ["sudo shutdown -r +1", "deny"],
+    ["sudo -u root shutdown -h now", "deny"],
     ["echo done && reboot", "deny"],
+    ["rm -rf / && echo ok", "deny"],
+    ["rm -rf /; ls", "deny"],
     // Machine commands are recognized in command position only; prose that mentions them is not one.
     ["echo 'skips the shutdown handler'", "allow"],
     ["git commit -m 'stop: run the shutdown handler before exit'", "ask"],

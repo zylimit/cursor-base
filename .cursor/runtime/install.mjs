@@ -6,6 +6,7 @@ import { homedir, tmpdir } from "node:os";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { POLICY_REL, effectiveSelection, isProtectedCheck, loadPolicy, openDebts, readLoan, resolveAssurance } from "./assurance.mjs";
 import { RISK_LEVELS, matrix, validateCatalog } from "./catalog.mjs";
+import { discoverCatalog } from "./graph.mjs";
 import { EVENTS, HARNESS_ROOT, INSTALL_MANIFEST_REL, SECURITY_EVENTS, SOURCE_MANIFEST_REL, VERSION, boolOption, copyNormalized, errorMessage, fileHash, git, gitAvailable, isHarnessSourceRoot, isWithin, normalizeLf, posix, printJson, readJson, run, sha256, snapshotFiles, targetFrom, walkFiles, writeJson, } from "./core.mjs";
 import { feedbackLessons } from "./memory.mjs";
 import { verifyLedgerChain } from "./quality.mjs";
@@ -170,6 +171,37 @@ export function installLike(action, options) {
             }
         }
     }
+    // A fresh install ships the template catalog, which describes this harness, not the target.
+    // When the target is a git repository, the module map is proposed from its own tree and real
+    // import edges instead, so the first gate governs the right modules and no tier is inherited
+    // from a repository the target has never seen. An edited catalog is never touched.
+    let catalogNote = { source: "template" };
+    const freshCatalog = operations.some((entry) => entry.path === "harness/module-catalog.json" && entry.action === "create");
+    if (action === "install" && freshCatalog && !boolOption(options, "no-discover")) {
+        try {
+            const proposal = discoverCatalog(target);
+            if (proposal.ok && proposal.draft && proposal.matrix) {
+                if (!dryRun) {
+                    writeJson(safeManagedPath(target, "harness/module-catalog.json"), { $schema: "./schemas/module-catalog.schema.json", ...proposal.draft });
+                    writeJson(safeManagedPath(target, "harness/verification-matrix.json"), { $schema: "./schemas/verification-matrix.schema.json", ...proposal.matrix });
+                }
+                catalogNote = {
+                    source: "discovered",
+                    modules: proposal.draft.modules.map((module) => module.id),
+                    checks: Object.keys(proposal.matrix.checks),
+                    still_unmapped: proposal.still_unmapped_count,
+                    needs_decision: proposal.needs_decision.map((entry) => entry.field),
+                    next: "review harness/module-catalog.json, decide attributes and forbidden edges, then run `node scripts/harness.mjs catalog lint`",
+                };
+            }
+            else {
+                catalogNote = { source: "template", reason: proposal.reason ?? "discovery proposed nothing", next: "run `node scripts/harness.mjs catalog discover --write` once the repository is committed" };
+            }
+        }
+        catch (error) {
+            catalogNote = { source: "template", reason: `discovery failed: ${errorMessage(error)}` };
+        }
+    }
     if (!dryRun) {
         writeJson(oldPath, {
             ...manifest,
@@ -177,7 +209,7 @@ export function installLike(action, options) {
             source: HARNESS_ROOT,
         });
     }
-    printJson({ command: action, target, dry_run: dryRun, operations });
+    printJson({ command: action, target, dry_run: dryRun, operations, catalog: catalogNote });
 }
 export function uninstall(options) {
     const target = targetFrom(options);

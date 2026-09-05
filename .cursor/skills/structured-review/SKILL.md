@@ -11,9 +11,10 @@ description: Runs the staged multi-lens review whose verdict the harness compute
 3. Blue states what was verified, with evidence, as JSON on stdin:
    `node scripts/harness.mjs review blue` ← `{"claims":[{"claim":"...","evidence":"..."}]}`.
 4. Delegate one `reviewer` subagent per convened lens of the open stage, in parallel, each told
-   its lens and given the pack path. Each reports with
-   `node scripts/harness.mjs review lens <lens> --agent <id>` ← `{"findings":[...]}`; every
-   finding carries `severity` and a `file:line` location or a reproduction.
+   its lens and given the pack path. Reviewers are read-only, so each returns its findings JSON
+   and you submit it: `node scripts/harness.mjs review lens <lens> --agent <delegation id>` ←
+   `{"findings":[...]}`. Every finding carries `severity` and a `file:line` location or a
+   reproduction; the engine rejects the rest.
 5. When a stage is clean the response says the next stage opened; repeat step 4 until every
    convened lens has reported, then `node scripts/harness.mjs review verdict --reviewer <name>`.
 6. `FIX_REQUIRED`: fix the located errors, then re-open on the new diff. `NEEDS_MORE_EVIDENCE`:

@@ -11,7 +11,7 @@ import { relative, resolve } from "node:path";
 import { openDebts, readLoan } from "./assurance.mjs";
 import { catalog, classifyPath } from "./catalog.mjs";
 import { EXIT, boolOption, changedPaths, errorMessage, git, gitAvailable, gitBase, parseFrontmatter, posix, printJson, targetFrom, } from "./core.mjs";
-import { readQualityLedger, verifyLedgerChain } from "./quality.mjs";
+import { buildVerifyPlan, readQualityLedger, verifyLedgerChain } from "./quality.mjs";
 import { activeTask } from "./state.mjs";
 export const MEMORY_DEFAULTS = Object.freeze({
     ledger: "progress.md",
@@ -139,8 +139,12 @@ export function recap(root, budget = null) {
         if (lines.length)
             blocks.push(`## ${title}\n${lines.join("\n")}`);
     };
+    // Governed code that moved without the ledger is reported here under `memorySync: warn`
+    // and stronger; `off` stays silent. The stop hook adds a block only under `block`.
+    const drift = memoryDrift(root);
     push("Position", [
         `- branch ${live.branch || "unknown"} at ${live.base}, ${live.dirty} changed path(s) against the base`,
+        ...(drift ? [`- MEMORY BEHIND CODE: ${drift}`] : []),
         `- active task: ${live.task ? `${live.task.id} (${live.task.risk} risk) - ${live.task.goal}` : "none"}`,
         `- last gate: ${live.gate ? `${live.gate.status} at ${live.gate.at} over [${live.gate.checks.join(", ")}]${live.gate.deferred ? " (fast loan)" : ""}` : "never run"}`,
         `- fast loan: ${live.loan.active ? `OPEN until ${live.loan.loan?.expires_at} (${live.loan.loan?.reason})` : "closed"}; open evidence debts: ${live.debts.length}`,
@@ -172,6 +176,26 @@ export function recap(root, budget = null) {
         health: ledgerHealth(root),
         text,
     };
+}
+/**
+ * One line when governed code changed without the ledger and the effective profile says to
+ * report it; null otherwise. Shared by recap and the risk scan so `memorySync: warn` has one
+ * meaning everywhere.
+ */
+export function memoryDrift(root) {
+    if (!gitAvailable(root))
+        return null;
+    try {
+        const plan = buildVerifyPlan(root, [], {});
+        if (plan.assurance.controls.memorySync === "off")
+            return null;
+        const sync = syncCheck(root, changedPaths(root, plan.base_commit));
+        const behind = sync.findings.find((finding) => finding.code === "MEMORY_BEHIND_CODE");
+        return behind ? `${behind.message}${behind.sample?.length ? ` (${behind.sample.slice(0, 3).join(", ")})` : ""}` : null;
+    }
+    catch {
+        return null;
+    }
 }
 // ============================== invariants ==============================
 const LAWS = [
@@ -259,19 +283,18 @@ export function archiveLedger(root, apply) {
     if (!existsSync(path))
         return { ok: false, degraded: true, reason: `no ledger at ${config.ledger}` };
     const text = readFileSync(path, "utf8");
-    const sections = parseLedger(text);
+    const lines = text.split("\n");
+    // Entries are located by line index inside their own section, never by text, so a retained
+    // entry that happens to share a line with an archived one is untouched.
     const plan = [];
-    const moving = new Map();
+    const moving = [];
     for (const [name, keep] of [["Done", config.keepDone], ["Notes", config.keepNotes]]) {
-        const section = sectionNamed(sections, name);
-        if (!section)
-            continue;
-        const entries = ledgerEntries(section);
-        if (entries.length <= keep)
+        const ranges = entryRanges(lines, name);
+        if (ranges.length <= keep)
             continue;
         // Newest-first is the section contract, so the tail holds the oldest entries.
-        moving.set(name, entries.slice(keep));
-        plan.push({ section: name, total: entries.length, keep, moving: entries.length - keep });
+        moving.push({ section: name, ranges: ranges.slice(keep) });
+        plan.push({ section: name, total: ranges.length, keep, moving: ranges.length - keep });
     }
     const total = plan.reduce((sum, entry) => sum + entry.moving, 0);
     if (total === 0)
@@ -285,32 +308,54 @@ export function archiveLedger(root, apply) {
         archive = "# Archived project memory\n\nAppend-only. An archived entry is never rewritten; a correction is a new entry in the live ledger.\n";
     }
     archive += `\n## Archived ${stamp}\n`;
-    for (const [name, entries] of moving) {
-        archive += `\n### ${name}\n\n${entries.map((entry) => entry.join("\n")).join("\n")}\n`;
+    for (const group of moving) {
+        const entries = group.ranges.map(([start, end]) => lines.slice(start, end + 1).join("\n"));
+        archive += `\n### ${group.section}\n\n${entries.join("\n")}\n`;
     }
     // Archive first, ledger second: a crash between the two leaves entries present in both files,
     // which is recoverable; the reverse order would lose them.
     writeFileSync(archivePath, archive, "utf8");
-    const movedLines = new Set();
-    for (const entries of moving.values())
-        for (const entry of entries)
-            for (const line of entry)
-                movedLines.add(line);
-    const pointer = `- Older entries are in [${config.archive}](${config.archive}).`;
+    const removed = new Set();
+    const pointerAt = new Map();
+    for (const group of moving) {
+        for (const [start, end] of group.ranges)
+            for (let index = start; index <= end; index += 1)
+                removed.add(index);
+        pointerAt.set(group.ranges[0][0], `- Older ${group.section} entries are in [${config.archive}](${config.archive}).`);
+    }
     const output = [];
-    let placed = false;
-    for (const line of text.split("\n")) {
-        if (movedLines.has(line)) {
-            if (!placed) {
-                output.push(pointer);
-                placed = true;
-            }
-            continue;
-        }
-        output.push(line);
+    for (let index = 0; index < lines.length; index += 1) {
+        const pointer = pointerAt.get(index);
+        if (pointer)
+            output.push(pointer);
+        if (!removed.has(index))
+            output.push(lines[index]);
     }
     writeFileSync(path, output.join("\n"), "utf8");
     return { ok: true, applied: true, moved: total, plan, archive: config.archive, health: ledgerHealth(root) };
+}
+/** Line ranges `[start, end]` of each entry (bullet plus indented continuation) in a `## ` section. */
+export function entryRanges(lines, sectionName) {
+    const lower = sectionName.toLowerCase();
+    let inSection = false;
+    const ranges = [];
+    for (let index = 0; index < lines.length; index += 1) {
+        const line = lines[index];
+        const heading = /^##\s+(.+?)\s*$/.exec(line);
+        if (heading) {
+            if (inSection)
+                break;
+            inSection = heading[1].toLowerCase().startsWith(lower);
+            continue;
+        }
+        if (!inSection)
+            continue;
+        if (/^-\s+\S/.test(line))
+            ranges.push([index, index]);
+        else if (ranges.length > 0 && /^\s+\S/.test(line))
+            ranges[ranges.length - 1][1] = index;
+    }
+    return ranges;
 }
 // ============================== CLI ==============================
 export function recapCommand(options) {

@@ -16,6 +16,9 @@ Keep `progress.md` at the repository root with these sections:
 ## Risks           Known hazards and unverified areas.
 ```
 
+Two optional sections are understood as well: `## TODO` (prioritised next steps; `recap` lists
+the `P0`/`P1` items) and `## Notes` (observations, newest first; archived like `Done`).
+
 `Decisions` is the section that is most often skipped and most expensive to lose. A recovered
 session can read `Done` and see what happened, but without `Decisions` it cannot tell why, so it
 re-litigates settled questions or silently violates a constraint.

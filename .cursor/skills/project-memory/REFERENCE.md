@@ -10,6 +10,8 @@
 | In progress | Started work and where it stopped | Rewrite as work moves |
 | Not doing | Declined proposals and why | Append |
 | Risks | Known hazards and unverified areas | Rewrite as risks close |
+| TODO (optional) | Prioritised next steps; `P0`/`P1` items surface in `recap` | Rewrite as work is picked up |
+| Notes (optional) | Observations that fit nowhere else, newest first | Append; archived like Done |
 
 ## Entry shape
 
@@ -30,9 +32,11 @@ settled.
 
 ## Archiving
 
-When `Done` passes roughly 100 entries, move the oldest into `progress.archive.md` unchanged and
-leave a pointer. An unbounded file slows every recovery, which is exactly when reading speed
-matters most.
+`node scripts/harness.mjs archive --apply` moves the oldest `Done` entries beyond `keepDone`
+(default 40; `keepNotes` 30 for the optional Notes section) into `progress.archive.md` whole and
+leaves a pointer; `recap` reports when the ledger is over its byte or entry budget. The limits
+live under `memory` in `harness/module-catalog.json`. An unbounded file slows every recovery,
+which is exactly when reading speed matters most.
 
 ## What the harness records instead
 

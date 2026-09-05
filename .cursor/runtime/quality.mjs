@@ -8,7 +8,7 @@ import { STATE_REL, binding, boolOption, boundedText, canonicalJson, contentHash
 import { affectedModules, requestedPaths } from "./graph.mjs";
 import { parseShellCommand } from "./shell-policy.mjs";
 import { activeTask } from "./state.mjs";
-import { REVIEW_LENSES, assuranceForImpact, convenedLenses, isProtectedCheck, openDebts, readLoan, recordDebts, settleDebts, } from "./assurance.mjs";
+import { REVIEW_LENSES, assuranceForImpact, convenedForModules, isProtectedCheck, openDebts, readLoan, recordDebts, settleDebts, } from "./assurance.mjs";
 export function buildVerifyPlan(root, positional, options) {
     const request = requestedPaths(root, positional, options);
     const impact = affectedModules(root, request.paths, !request.explicit);
@@ -89,6 +89,7 @@ export function buildVerifyPlan(root, positional, options) {
         expansion_reasons: impact.expansion_reasons,
         modules,
         direct_modules: impact.direct,
+        affected_modules: impact.affected.map((module) => module.id),
         task_risk: taskRisk,
         assurance,
         checks: selected,
@@ -552,7 +553,14 @@ export function assessQuality(root, plan) {
     // strict, so advisory never reaches security, safety, or privacy.
     const gapsBlock = plan.assurance.controls.attributeGaps === "blocking";
     const blockingGaps = attributes.filter((entry) => entry.enforcement === "block" && !entry.covered && !entry.deferred);
-    const complete = integrity.ok && checks.every((check) => check.acceptable) && (!gapsBlock || blockingGaps.length === 0);
+    // Governed modules changed but none of them selects a check: nothing was verified, and the
+    // gate says BLOCKED for the same plan. Changes that reach no module (ignored paths only) have
+    // nothing to verify and are not penalised for it.
+    const unverifiable = plan.checks.length === 0 && plan.modules.length > 0;
+    const complete = integrity.ok &&
+        !unverifiable &&
+        checks.every((check) => check.acceptable) &&
+        (!gapsBlock || blockingGaps.length === 0);
     const review = reviewRequirement(root, plan);
     const budget = assessBudget(root, plan);
     const debts = openDebts(root);
@@ -560,6 +568,8 @@ export function assessQuality(root, plan) {
     const blockers = [];
     if (!integrity.ok)
         blockers.push(`ledger integrity: ${integrity.reason}`);
+    if (unverifiable)
+        blockers.push(`the verification plan selected no checks for ${plan.modules.join(", ")}; wire a check in the matrix before claiming anything is verified`);
     for (const check of checks)
         if (!check.acceptable)
             blockers.push(`check ${check.id} is ${check.status}`);
@@ -719,19 +729,26 @@ function reviewRequirement(root, plan) {
             mode,
             satisfied: false,
             receipt: null,
-            missing_lenses: mode === "structured"
-                ? convenedLenses(plan.assurance.controls, catalog(root).modules.filter((module) => plan.modules.includes(module.id))).convened
-                : [],
+            missing_lenses: mode === "structured" ? convenedForModules(root, plan.affected_modules, plan.assurance.controls).convened : [],
             reason: "no approving review receipt is bound to the current diff",
         };
     }
     if (mode === "receipt") {
         return { mode, satisfied: true, receipt: accepting.path, missing_lenses: [], reason: `Approved by ${accepting.value.reviewer}.` };
     }
+    // Structured review is computed, not asserted: only a receipt the review engine wrote counts.
+    // A hand-written receipt may record lens coverage as a claim, but it cannot satisfy this mode.
+    if (accepting.value.source !== REVIEW_ENGINE_SOURCE) {
+        return {
+            mode,
+            satisfied: false,
+            receipt: accepting.path,
+            missing_lenses: convenedForModules(root, plan.affected_modules, plan.assurance.controls).convened,
+            reason: "the approving receipt was written by hand, not by the review engine; structured review needs a computed verdict (`review verdict`)",
+        };
+    }
     const recorded = new Set(Array.isArray(accepting.value.lenses) ? accepting.value.lenses : []);
-    const definition = catalog(root);
-    const affected = definition.modules.filter((module) => plan.modules.includes(module.id));
-    const missing = convenedLenses(plan.assurance.controls, affected).convened.filter((lens) => !recorded.has(lens));
+    const missing = convenedForModules(root, plan.affected_modules, plan.assurance.controls).convened.filter((lens) => !recorded.has(lens));
     return {
         mode,
         satisfied: missing.length === 0,
@@ -742,6 +759,8 @@ function reviewRequirement(root, plan) {
             : `the approving receipt records no coverage for lens(es) ${missing.join(", ")}; a verdict reached without structured disagreement is consensus`,
     };
 }
+/** Marker the review engine writes into the receipts it produces. */
+export const REVIEW_ENGINE_SOURCE = "review-engine";
 export function gate(positional, options) {
     const root = targetFrom(options);
     const plan = buildVerifyPlan(root, [], options);
@@ -1076,6 +1095,8 @@ export function writeReviewReceipt(root, request) {
             throw new Error(`Unknown review lens(es): ${unknown.join(", ")}.`);
         value.lenses = [...new Set(request.lenses)].sort();
     }
+    if (request.source)
+        value.source = request.source;
     if (!["approve", "comment", "request-changes"].includes(value.decision)) {
         throw new Error("receipt --decision must be approve, comment, or request-changes.");
     }

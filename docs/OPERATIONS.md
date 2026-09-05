@@ -61,8 +61,9 @@ node scripts/harness.mjs review lens correctness --agent <id> < findings.json
 node scripts/harness.mjs review verdict --reviewer <name>
 ```
 
-Delegate one `reviewer` subagent per convened lens of the open stage; the verdict is computed
-from what they recorded. Rules and input contracts: `docs/REVIEW.md`.
+Delegate one `reviewer` subagent per convened lens of the open stage; each returns findings
+JSON (reviewers are read-only) and the orchestrator submits it with `review lens ... --agent`.
+The verdict is computed from what was recorded. Rules and input contracts: `docs/REVIEW.md`.
 
 ## Memory
 

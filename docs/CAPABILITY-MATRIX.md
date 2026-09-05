@@ -31,7 +31,7 @@ The 2.0 refactor followed a line-by-line study of `dsh-base` and `cc-base` and a
 | Catalog discovery from tree, real imports, and manifests, refusing to guess tiers | `dsh-base`, `cc-base` (`init`) | **Absorbed** | `catalog discover` |
 | Release readiness with hard-false trust-boundary fields | `cc-base`, `codex-base` | **Absorbed**; CI observed through `gh`, `BLOCKED` when unobservable | `release readiness` |
 | Exit-code contract 0/1/2/3/4 | `dsh-base` | **Absorbed** | `core.EXIT` |
-| Engine split into cohesive modules with an acyclic graph | `cc-base`, `dsh-base` | **Absorbed** (16 modules) | `src/*.mts` |
+| Engine split into cohesive modules with an acyclic graph | `cc-base`, `dsh-base` | **Absorbed** (18 modules plus the entry; the graph is asserted by a test) | `src/*.mts` |
 | Nine-phase operating model with four sign-off gates | `dsh-base` | **Rejected** as fixed process; the profile decides what a change needs | — |
 | Cross-worktree path leases | `codex-base` | **Rejected** again: ownership is per task; advisory leases without an integration owner reintroduce parallel writes | — |
 | Auto-push, auto-tag, auto-deploy on green | `cc-base` (trust-boundary discussion) | **Rejected**; readiness reports and stops | — |

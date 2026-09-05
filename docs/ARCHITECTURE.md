@@ -35,8 +35,9 @@ rapid profile safe to offer.
 5. **Executable checks** — `scripts/harness.mjs` is the single entrypoint. Behavior is written
    in `src/*.mts` and compiled to the checked-in `.cursor/runtime/*.mjs`, so hooks and installed
    repositories need no build step while parity stays machine-verifiable (`runtime-sync`).
-6. **Evidence contracts** — task envelopes, completion receipts, review receipts, waivers, fast
-   loans, and evidence debt are diff-bound records. The quality ledger is hash-chained; the plan
+6. **Evidence contracts** — task envelopes, completion receipts, review receipts, waivers, and
+   evidence debt are diff-bound records; a fast loan is time-bound (a window with a reason), and
+   the debts it creates are the diff-bound part. The quality ledger is hash-chained; the plan
    hash carries the module set, the risk, and the effective assurance controls.
 7. **Memory across boundaries** — `progress.md` is the ledger that survives; `recap` and
    `invariants` derive state from files, never from a summary, and the first tool call after a
@@ -47,28 +48,30 @@ rapid profile safe to offer.
 
 ## Engine modules
 
-The engine is a set of small modules with an acyclic import graph; every module may import
-`core`, and nothing imports `cli`.
+The engine is eighteen modules plus the entry point `src/harness.mts`, with an acyclic import
+graph: every module may import `core`, `core` imports only Node built-ins, and only the entry
+point imports `cli`. `tests/assurance.test.mjs` asserts all three properties on every run.
 
 | Module | Owns |
 | --- | --- |
-| `core` | repository discovery, atomic state IO, hashing, globs, git, the canonical diff binding, secret redaction, hook vocabulary, exit codes |
-| `catalog` | module catalog loading and lint, path classification, attribute vocabulary, verification matrix |
+| `core` | repository discovery, atomic state IO, hashing, globs, git, the canonical diff binding, secret redaction, hook vocabulary, exit codes, argument parsing |
+| `catalog` | module catalog loading and lint, path classification, module contract directories, attribute vocabulary, verification matrix |
 | `graph` | impact closure, real import edges, architecture check, catalog discovery |
 | `state` | task state read side |
 | `assurance` | profiles, controls, floors, policy compilation, selection, fast loans, evidence debt, lens convening |
 | `quality` | verification plan, check execution, hash-chained ledger, attribute coverage, waivers, review receipts, the assessment |
 | `task` | task envelope command and write preflight |
-| `context` | budgeted context packs |
+| `context` | budgeted context packs whose reach follows the profile's `contextDepth` |
 | `review` | structured review sessions, stages, verdicts, authorship, review packs |
 | `memory` | recap, invariants, sync-check, archive, feedback corpus |
 | `scan` | fitness rules, adapters, ADR check, instruction-file scan, skills lint, agents lint, rules audit |
 | `services` | development service supervision |
 | `ops` | hook ledger, gate audit, risk scan, retention |
 | `release` | release readiness (report only) |
-| `install` | install/upgrade/uninstall, manifests, runtime parity, validate, doctor |
+| `shell-policy` | the capability axis: shell parsing and wrapper stripping, git classification, credential exposure, allow/ask/deny decisions for shell and MCP calls, read-only tool vocabulary |
+| `install` | install/upgrade/uninstall (with catalog discovery on a fresh install), manifests, runtime parity, validate, doctor |
 | `hooks` | Cursor hook event handling |
-| `cli` | argument parsing and the command table |
+| `cli` | the command table and usage text |
 
 ## Exit-code contract
 

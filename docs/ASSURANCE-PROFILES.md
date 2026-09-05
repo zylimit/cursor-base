@@ -25,9 +25,9 @@ lattice when the policy compiles).
 | `deferral` | `loan` → `none` | Whether an open fast loan may defer `allowFastSkip` checks |
 | `reviewMode` | `none` → `receipt` → `structured` | What closing a task needs: nothing, an approving diff-bound receipt, or a receipt with lens coverage from the review engine |
 | `attributeGaps` | `advisory` → `blocking` | Whether uncovered critical/high attribute gaps block completion or are only reported |
-| `memorySync` | `off` → `warn` → `block` | Whether governed code changing without `progress.md` is ignored, reported by `recap`/`risk`, or blocks the stop hook |
+| `memorySync` | `off` → `warn` → `block` | Whether governed code changing without `progress.md` is ignored, reported (`recap` prints a MEMORY BEHIND CODE line and `risk` files `memory-behind-code`, which the session banner surfaces), or additionally blocks the stop hook |
 | `budget` | `off` → `warn` → `block` | Whether exceeding the catalog's blast-radius `budget` (changed files, changed lines, modules touched, new files) is ignored, reported as advisory, or blocks completion and the stop hook |
-| `contextDepth` | `changed` → `affected` → `conservative` | How much of the repository a context pack pulls in |
+| `contextDepth` | `changed` → `affected` → `conservative` | How far `context-pack` reaches: the changed files and their own module contracts; plus the contracts of every module the change reaches; plus one hop of the changed files' imports |
 | `completion` | `forbidden` → `low-risk` → `delivery` → `release-capable` | The strongest work a passing gate under this profile may close |
 | `reviewLenses` | set; a superset is stronger | Lenses a structured review convenes before attribute exclusions |
 
@@ -103,8 +103,10 @@ node scripts/harness.mjs gate          # a fresh PASS of each deferred check rep
 node scripts/harness.mjs debt list
 ```
 
-Four conditions must all hold for a check to be deferred: a loan is open, the effective profile's
-`deferral` is `loan` (strict forbids it), the matrix marked the check `allowFastSkip` in advance,
+`fast on` refuses to open when the profile in force for the current change forbids deferral
+(`strict`), naming the floors that raised it. Four conditions must all hold for a check to be
+deferred: a loan is open, the effective profile's `deferral` is `loan`, the matrix marked the
+check `allowFastSkip` in advance,
 and the check does not evidence security, safety, or privacy (`validate` rejects a matrix that
 marks such a check deferrable). A gate in which every check was deferred is `BLOCKED`, because
 nothing ran. A loaned gate satisfies `quality status` (`complete: true`) so the agent is not

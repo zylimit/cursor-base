@@ -4,7 +4,7 @@
 // what an installed repository runs.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
@@ -85,6 +85,43 @@ function edit(root, rel, contents) {
   mkdirSync(dirname(resolve(root, rel)), { recursive: true });
   writeFileSync(resolve(root, rel), contents, "utf8");
 }
+
+// ---------------------------------------------------------------------------------------------
+// Engine structure
+// ---------------------------------------------------------------------------------------------
+
+test("the engine import graph is acyclic, core imports only Node built-ins, and only the entry imports cli", () => {
+  const sourceDir = resolve(repositoryRoot, "src");
+  const modules = new Map();
+  for (const name of readdirSync(sourceDir).filter((entry) => entry.endsWith(".mts"))) {
+    const id = name.replace(/\.mts$/, "");
+    const text = readFileSync(resolve(sourceDir, name), "utf8");
+    const local = [...text.matchAll(/^import[^;]*?from\s+"\.\/([a-z-]+)\.mjs";/gms)].map((match) => match[1]);
+    const builtins = [...text.matchAll(/^import[^;]*?from\s+"([^"]+)";/gms)].map((match) => match[1]).filter((spec) => !spec.startsWith("./"));
+    modules.set(id, { local: [...new Set(local)], builtins });
+  }
+  assert.ok(modules.size >= 16, `expected the split engine, found ${modules.size} modules`);
+  assert.deepEqual(modules.get("core").local, [], "core must not import another engine module");
+  assert.ok(modules.get("core").builtins.every((spec) => spec.startsWith("node:")), "core may import Node built-ins only");
+  for (const [id, entry] of modules) {
+    if (id === "harness") continue;
+    assert.ok(!entry.local.includes("cli"), `${id} imports cli; only the entry point may`);
+    assert.ok(entry.builtins.every((spec) => spec.startsWith("node:")), `${id} imports a non-builtin package: ${entry.builtins.join(", ")}`);
+  }
+  // Depth-first cycle detection over the local edges.
+  const state = new Map();
+  const stack = [];
+  const visit = (id) => {
+    if (state.get(id) === 2) return;
+    if (state.get(id) === 1) throw new Error(`import cycle: ${[...stack, id].join(" -> ")}`);
+    state.set(id, 1);
+    stack.push(id);
+    for (const next of modules.get(id)?.local ?? []) visit(next);
+    stack.pop();
+    state.set(id, 2);
+  };
+  for (const id of modules.keys()) visit(id);
+});
 
 // ---------------------------------------------------------------------------------------------
 // Profiles
@@ -650,6 +687,190 @@ test("rules-audit separates enforced, prompt-only, phantom, and unenforced rules
   assert.equal(audit.counts.phantom, 1);
   assert.equal(audit.counts.unenforced, 2);
   assert.match(audit.phantoms[0].phantoms[0], /no-such-command/);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Round-2 fixes from the structured self-review
+// ---------------------------------------------------------------------------------------------
+
+test("review rounds count rejections of the same change only; an ACCEPT or a new base resets them", (t) => {
+  const root = fixture(t);
+  const reject = () => {
+    jsonResult(runHarness(["review", "start", "--target", root]));
+    jsonResult(runHarness(["review", "blue", "--target", root], { input: { claims: [{ claim: "x", evidence: "y" }] } }));
+    jsonResult(runHarness(["review", "lens", "correctness", "--agent", "r", "--target", root], { input: { findings: [{ severity: "error", location: "src/app.js:1", summary: "bug" }] } }));
+    return jsonResult(runHarness(["review", "verdict", "--target", root]), 2);
+  };
+  edit(root, "src/app.js", "export const one = 2;\n");
+  assert.equal(reject().round, 1);
+  edit(root, "src/app.js", "export const one = 3;\n");
+  assert.equal(reject().round, 2);
+  // Accept on the third revision.
+  edit(root, "src/app.js", "export const one = 4;\n");
+  jsonResult(runHarness(["review", "start", "--target", root]));
+  jsonResult(runHarness(["review", "blue", "--target", root], { input: { claims: [{ claim: "x", evidence: "y" }] } }));
+  jsonResult(runHarness(["review", "lens", "correctness", "--agent", "r", "--target", root], { input: { findings: [] } }));
+  const accepted = jsonResult(runHarness(["review", "verdict", "--target", root]));
+  assert.equal(accepted.verdict, "ACCEPT");
+  assert.equal(accepted.round, 3);
+  // An unrelated change afterwards starts at round 1; the earlier rejections are not inherited.
+  edit(root, "src/other.js", "export const other = 1;\n");
+  const fresh = jsonResult(runHarness(["review", "start", "--target", root]));
+  assert.equal(fresh.round, 1);
+  const rejected = reject();
+  assert.equal(rejected.round, 1);
+  assert.equal(rejected.escalate, false);
+});
+
+test("archive removes entries by position, so a retained entry sharing a line of text is untouched", (t) => {
+  const root = fixture(t);
+  edit(root, "progress.md", "# Progress\n\n## Pinned\n\n- Keep it small.\n\n## Done\n\n- 2026-09-02 shipped Y\n  - evidence: gate PASS\n- 2026-09-01 shipped X\n  - evidence: gate PASS\n\n## Risks\n\n- none\n");
+  writeJson(resolve(root, "harness", "module-catalog.json"), {
+    version: 1,
+    memory: { keepDone: 1 },
+    modules: [{ id: "app", paths: ["src/**"], dependsOn: [], verification: ["unit", "lint"], owners: [] }],
+  });
+  const applied = jsonResult(runHarness(["archive", "--apply", "--target", root]));
+  assert.equal(applied.moved, 1);
+  const ledger = readFileSync(resolve(root, "progress.md"), "utf8");
+  assert.match(ledger, /- 2026-09-02 shipped Y\n  - evidence: gate PASS\n/);
+  assert.doesNotMatch(ledger, /shipped X/);
+  assert.match(ledger, /Older Done entries are in/);
+  const archive = readFileSync(resolve(root, "progress.archive.md"), "utf8");
+  assert.match(archive, /- 2026-09-01 shipped X\n  - evidence: gate PASS/);
+  assert.doesNotMatch(archive, /shipped Y/);
+});
+
+test("contextDepth decides how far the context pack reaches beyond the changed files", (t) => {
+  const root = fixture(t, {
+    catalog: {
+      version: 1,
+      modules: [
+        { id: "app", paths: ["src/**"], dependsOn: ["lib"], verification: ["unit"], owners: [] },
+        { id: "lib", paths: ["lib/**"], dependsOn: [], verification: ["unit"], owners: [] },
+      ],
+    },
+  });
+  edit(root, "lib/util.js", "export const util = 1;\n");
+  edit(root, "lib/AGENTS.md", "# lib\n\n## Purpose\n\nx\n\n## Boundaries\n\nx\n\n## Invariants\n\nx\n\n## Verification\n\nunit\n");
+  edit(root, "src/AGENTS.md", "# app\n\n## Purpose\n\nx\n\n## Boundaries\n\nx\n\n## Invariants\n\nx\n\n## Verification\n\nunit\n");
+  git(root, ["add", "-A"]);
+  git(root, ["commit", "--quiet", "-m", "lib"]);
+  edit(root, "lib/util.js", "import { one } from '../src/app.js';\nexport const util = one;\n");
+
+  const paths = (result) => result.included.map((entry) => entry.path);
+  jsonResult(runHarness(["profile", "set", "rapid", "--target", root]));
+  const changed = jsonResult(runHarness(["context-pack", "--dry-run", "--target", root]));
+  assert.equal(changed.assurance.context_depth, "changed");
+  assert.ok(paths(changed).includes("lib/util.js"));
+  assert.ok(paths(changed).includes("lib/AGENTS.md"), "the changed module's own contract");
+  assert.ok(!paths(changed).includes("src/AGENTS.md"), "dependents are not pulled in at depth changed");
+
+  jsonResult(runHarness(["profile", "set", "balanced", "--target", root]));
+  const affected = jsonResult(runHarness(["context-pack", "--dry-run", "--target", root]));
+  assert.equal(affected.assurance.context_depth, "affected");
+  assert.ok(paths(affected).includes("src/AGENTS.md"), "the dependent module's contract joins at depth affected");
+  assert.ok(!paths(affected).includes("src/app.js"));
+
+  jsonResult(runHarness(["profile", "set", "strict", "--target", root]));
+  const conservative = jsonResult(runHarness(["context-pack", "--dry-run", "--target", root]));
+  assert.equal(conservative.assurance.context_depth, "conservative");
+  assert.ok(paths(conservative).includes("src/app.js"), "one hop of imports joins at depth conservative");
+});
+
+test("memorySync warn reports drift through recap and risk; off stays silent; strict blocks", (t) => {
+  const root = fixture(t);
+  edit(root, "src/app.js", "export const one = 2;\n");
+  const recap = jsonResult(runHarness(["recap", "--target", root]));
+  assert.match(recap.text, /MEMORY BEHIND CODE/);
+  const risk = jsonResult(runHarness(["risk", "--target", root]));
+  assert.ok(risk.findings.some((finding) => finding.id === "memory-behind-code"));
+
+  jsonResult(runHarness(["profile", "set", "explore", "--target", root]));
+  assert.doesNotMatch(jsonResult(runHarness(["recap", "--target", root])).text, /MEMORY BEHIND CODE/);
+  assert.ok(!jsonResult(runHarness(["risk", "--target", root])).findings.some((finding) => finding.id === "memory-behind-code"));
+});
+
+test("a fast loan cannot open under a profile that forbids deferral", (t) => {
+  const root = fixture(t);
+  edit(root, "src/app.js", "export const one = 2;\n");
+  jsonResult(runHarness(["profile", "set", "strict", "--target", root]));
+  const refused = runHarness(["fast", "on", "--minutes", "10", "--reason", "x", "--target", root]);
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr, /strict.*forbids deferral/);
+  assert.equal(jsonResult(runHarness(["fast", "status", "--target", root])).active, false);
+});
+
+test("structured review is satisfied only by a receipt the engine wrote", (t) => {
+  const root = fixture(t, {
+    catalog: { version: 1, modules: [{ id: "app", paths: ["src/**"], dependsOn: [], verification: ["unit", "lint"], owners: [], attributes: { security: "high" } }] },
+  });
+  edit(root, "src/app.js", "export const one = 2;\n");
+  jsonResult(runHarness(["receipt", "--reviewer", "hand", "--decision", "approve", "--lenses", "correctness,security", "--target", root]));
+  const status = jsonResult(runHarness(["quality", "status", "--target", root]), 2);
+  assert.equal(status.review.mode, "structured");
+  assert.equal(status.review.satisfied, false);
+  assert.match(status.review.reason, /written by hand/);
+});
+
+test("governed modules that select no check are not complete", (t) => {
+  const root = fixture(t, {
+    catalog: { version: 1, modules: [{ id: "app", paths: ["src/**"], dependsOn: [], verification: [], owners: [] }] },
+  });
+  edit(root, "src/app.js", "export const one = 2;\n");
+  const status = jsonResult(runHarness(["quality", "status", "--target", root]), 2);
+  assert.equal(status.complete, false);
+  assert.ok(status.blockers.some((entry) => /selected no checks for app/.test(entry)));
+  // A change that reaches no module has nothing to verify and is not penalised.
+  writeJson(resolve(root, "harness", "module-catalog.json"), {
+    version: 1,
+    ignored: [{ paths: ["src/**", "harness/**"], reason: "test" }],
+    modules: [{ id: "other", paths: ["lib/**"], dependsOn: [], verification: ["unit"], owners: [] }],
+  });
+  const nothing = jsonResult(runHarness(["quality", "status", "--target", root]));
+  assert.equal(nothing.complete, true);
+  assert.deepEqual(nothing.checks, []);
+});
+
+test("a byte-order mark is not a hidden character and does not break skill frontmatter", (t) => {
+  const root = fixture(t);
+  edit(root, ".cursor/rules/bom.mdc", "\uFEFF---\ndescription: bom\n---\n- Run `node scripts/harness.mjs gate` first.\n");
+  edit(root, ".cursor/skills/bom-skill/SKILL.md", "\uFEFF---\nname: bom-skill\ndescription: Has a BOM.\n---\n# BOM\n");
+  git(root, ["add", "-A"]);
+  assert.equal(jsonResult(runHarness(["instructions", "--staged", "--target", root])).ok, true);
+  const skills = jsonResult(runHarness(["skills-lint", "--target", root]));
+  assert.ok(!skills.findings.some((finding) => finding.file.includes("bom-skill")));
+});
+
+test("a fresh install into a committed repository discovers its catalog instead of shipping the template", (t) => {
+  const root = tempRepository(t);
+  git(root, ["init", "--quiet"]);
+  git(root, ["config", "user.email", "harness@example.invalid"]);
+  git(root, ["config", "user.name", "Harness"]);
+  edit(root, "package.json", JSON.stringify({ name: "demo", scripts: { test: "node --test" } }));
+  edit(root, "src/core/a.js", "export const a = 1;\n");
+  edit(root, "src/core/b.js", "export const b = 1;\n");
+  git(root, ["add", "-A"]);
+  git(root, ["commit", "--quiet", "-m", "seed"]);
+  const installed = jsonResult(runHarness(["install", "--target", root]));
+  assert.equal(installed.catalog.source, "discovered");
+  assert.deepEqual(installed.catalog.modules, ["core"]);
+  const catalog = JSON.parse(readFileSync(resolve(root, "harness/module-catalog.json"), "utf8"));
+  assert.equal(catalog.modules[0].attributes, undefined, "no tier is inherited from the harness's own catalog");
+  assert.equal(jsonResult(runHarness(["catalog", "lint", "--target", root])).ok, true);
+  // `discover` on a repository whose live catalog is absent must not crash.
+  rmSync(resolve(root, "harness/module-catalog.json"));
+  assert.equal(jsonResult(runHarness(["catalog", "discover", "--target", root])).ok, true);
+
+  const other = tempRepository(t);
+  git(other, ["init", "--quiet"]);
+  git(other, ["config", "user.email", "harness@example.invalid"]);
+  git(other, ["config", "user.name", "Harness"]);
+  edit(other, "src/x.js", "export const x = 1;\n");
+  git(other, ["add", "-A"]);
+  git(other, ["commit", "--quiet", "-m", "seed"]);
+  const kept = jsonResult(runHarness(["install", "--no-discover", "--target", other]));
+  assert.equal(kept.catalog.source, "template");
 });
 
 // ---------------------------------------------------------------------------------------------

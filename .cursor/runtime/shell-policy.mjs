@@ -370,14 +370,14 @@ export function shellDecision(command, root) {
         /\bgit\s+(reset\s+--hard|clean\s+(?:--force|-[a-z]*f[a-z]*)|checkout\s+--)\b/i,
         // Machine-level commands are recognized in command position only, so a commit message or
         // an echo that merely mentions "shutdown" is not read as a shutdown.
-        /(^|[;&|(]\s*|\b(?:sudo|doas|timeout\s+\d+|nice|nohup|env)\s+)(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
+        /(^|[;&|(]\s*|\b(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+|\b(?:timeout\s+\d+|nice|nohup|env)\s+)(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
         /\bformat\s+[a-z]:/i,
         /\bdd\b[^;&|]*(\bof=\/dev\/|\bof=\\\\\.\\physicaldrive)/i,
         /\b(drop|truncate)\s+(database|schema)\b/i,
         // Root, root wildcard, parent traversal, or the .git directory. Anchored to argument
         // boundaries so `rm -rf build/`, `rm dir/*.log`, and `rm .gitignore` are recursive or plain
         // deletions that ask, not "obviously destructive" ones that deny.
-        /\b(rm|rmdir)\b[^;&|]*(--no-preserve-root|(?:^|\s)["']?\/["']?\s*$|(?:^|\s)["']?\/\*|(?:^|\s|[\\/])\.\.(?:[\\/]|\s|$)|(?:^|\s|[\\/])\.git(?:[\\/]|\s|$))/i,
+        /\b(rm|rmdir)\b[^;&|]*(--no-preserve-root|(?:^|\s)["']?\/["']?(?=\s*(?:[;&|)]|$))|(?:^|\s)["']?\/\*|(?:^|\s|[\\/])\.\.(?:[\\/]|\s|$)|(?:^|\s|[\\/])\.git(?:[\\/]|\s|$))/i,
         /\b(remove-item|del|erase)\b[^;&|]*(\*|\.\.[\\/]|\.git)[^;&|]*(-recurse|-force|\/s|\/q)/i,
         /\bremove-item\b[^;&|]*\b[a-z]:[\\/]["']?\s+[^;&|]*(-recurse|-force)/i,
         /\b(reg\s+delete|bcdedit)\b/i,

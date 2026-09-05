@@ -59,12 +59,13 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
 - Session and delegation hooks announce the effective profile, open loan, and unpaid debt.
 - New skills: `assurance-profile`, `fast-lane`, `structured-review`, `release-readiness`,
   `catalog-discovery`; the `reviewer` agent reports a single lens when delegated one.
-- `tests/assurance.test.mjs`: 21 end-to-end tests for the above through the compiled runtime.
+- `tests/assurance.test.mjs`: end-to-end tests for the above through the compiled runtime.
 
 ### Changed
 
-- The engine is split from one 5,860-line file into 16 modules with an acyclic import graph
-  (`docs/ARCHITECTURE.md`); runtime parity is checked over the whole tree.
+- The engine is split from one 5,860-line file into 18 modules plus an entry point, with an
+  acyclic import graph that a test asserts (`docs/ARCHITECTURE.md`); runtime parity is checked
+  over the whole tree.
 - `AGENTS.md` and every rule now name the mechanism that enforces them or say `(prompt-only)`;
   `rules-audit` reports 0 phantoms and 0 unenforced rules for this repository (was 0 enforced
   of 44).
@@ -82,6 +83,19 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
 - A review opened with `review start --base <ref>` stays fresh against that range instead of
   going stale against HEAD, writes its receipt bound to that base, and counts authorship
   recorded anywhere inside the range.
+- From the structured self-review of 2.0.0 (three lens reports, five errors): review rounds
+  reset on an `ACCEPT` or a new base instead of accumulating across unrelated changes;
+  `archive` removes entries by position, never by text; `contextDepth` now drives how far
+  `context-pack` reaches; lenses are convened from the impact closure, not from the plan's
+  widened module set, through one shared function; `memorySync: warn` reports drift through
+  `recap` and `risk`; `fast on` refuses under a profile that forbids deferral; only an
+  engine-written receipt (`source: "review-engine"`) satisfies structured review; a plan that
+  reaches modules but selects no check is not `complete`; a root deletion followed by another
+  command and a machine command behind `sudo` options are denied; a UTF-8 BOM is not a hidden
+  character; `catalog discover` no longer crashes when only the template catalog exists; a fresh
+  `install` into a committed repository discovers the target's catalog instead of shipping this
+  repository's (`--no-discover` keeps the template); the reviewer agent's read-only relay
+  protocol is documented.
 
 ### Fixed
 

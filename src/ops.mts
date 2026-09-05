@@ -26,7 +26,7 @@ import {
   targetFrom,
 } from "./core.mjs";
 import type { CliOptions, HookPayload } from "./core.mjs";
-import { feedbackLessons } from "./memory.mjs";
+import { feedbackLessons, memoryDrift } from "./memory.mjs";
 import {
   FAIL_STREAK_THRESHOLD,
   consecutiveFailures,
@@ -76,6 +76,15 @@ export function riskScan(root: string): RiskFinding[] {
         message: `Task ${task.id} has been active for ${Math.round(ageHours)}h. Complete, cancel, or re-scope it; a stale scope blocks writes it no longer describes.`,
       });
     }
+  }
+
+  const drift = memoryDrift(root);
+  if (drift) {
+    findings.push({
+      severity: "medium",
+      id: "memory-behind-code",
+      message: `${drift} Record the change in project memory (see the project-memory skill) or the next session cannot resume from it.`,
+    });
   }
 
   // Borrowed evidence decays into forgotten evidence unless something keeps saying so.

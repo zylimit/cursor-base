@@ -127,7 +127,8 @@ For operating policy, see [docs/GOVERNANCE.md](docs/GOVERNANCE.md). For the stru
 - Security, safety, and privacy evidence is never deferred or waived; `validate` rejects a matrix
   that says otherwise.
 - Quality waivers require owner, reason, exact scope, compensation, and expiry.
-- Review receipts, verification receipts, loans, and debts are bound to a base commit and diff hash.
+- Review receipts, verification receipts, and evidence debts are bound to a base commit and diff
+  hash; a fast loan is a dated window with a reason, and only the debts it creates bind to a diff.
 - The harness never automatically pushes, tags, publishes, kills a port, or overwrites user changes;
   `release readiness` reports and stops.
 - Windows sandboxing reduces risk but is not an absolute boundary.

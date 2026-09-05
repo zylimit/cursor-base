@@ -7,7 +7,7 @@ import { invariants, syncCheck } from "./memory.mjs";
 import { recordAuthorship } from "./review.mjs";
 import { EVENTS, SECURITY_EVENTS, STATE_REL, binding, boundedHead, boundedText, changedPaths, errorMessage, posix, printJson, readJson, redactSecrets, sensitivePath, stdinJson, targetFrom, withStateLock, writeJson, } from "./core.mjs";
 import { appendLedger, riskScan } from "./ops.mjs";
-import { QUALITY_LEDGER_REL, assessQuality, buildVerifyPlan, quality } from "./quality.mjs";
+import { QUALITY_LEDGER_REL, assessQuality, buildVerifyPlan } from "./quality.mjs";
 import { READ_ONLY_TOOLS, decision, mcpDecision, shellDecision, toolPaths } from "./shell-policy.mjs";
 import { TASKS_REL, activeTask } from "./state.mjs";
 import { preflightTaskWrite, recordTaskWrite } from "./task.mjs";
@@ -45,35 +45,6 @@ export async function hook(event, options) {
         });
         return;
     }
-    /** Moves unparseable state files aside so the next run rebuilds them instead of failing forever. */
-    function quarantineCorruptState(root) {
-        const moved = [];
-        const candidates = [
-            QUALITY_LEDGER_REL,
-            TASKS_REL,
-            `${STATE_REL}/quality.json`,
-            `${STATE_REL}/baseline.json`,
-        ];
-        for (const relativePath of candidates) {
-            const absolute = resolve(root, relativePath);
-            if (!existsSync(absolute))
-                continue;
-            try {
-                readJson(absolute);
-            }
-            catch {
-                const parked = `${absolute}.corrupt-${Date.now()}`;
-                try {
-                    renameSync(absolute, parked);
-                    moved.push(posix(relative(root, parked)));
-                }
-                catch {
-                    continue;
-                }
-            }
-        }
-        return moved;
-    }
     // The decision reaches the host before the audit record is written. An unwritable state
     // directory must not discard the hook's output, which carries the permission verdict.
     printJson(output);
@@ -83,6 +54,35 @@ export async function hook(event, options) {
     catch (error) {
         process.stderr.write(`harness: could not record the hook ledger: ${errorMessage(error)}\n`);
     }
+}
+/** Moves unparseable state files aside so the next run rebuilds them instead of failing forever. */
+export function quarantineCorruptState(root) {
+    const moved = [];
+    const candidates = [
+        QUALITY_LEDGER_REL,
+        TASKS_REL,
+        `${STATE_REL}/quality.json`,
+        `${STATE_REL}/baseline.json`,
+    ];
+    for (const relativePath of candidates) {
+        const absolute = resolve(root, relativePath);
+        if (!existsSync(absolute))
+            continue;
+        try {
+            readJson(absolute);
+        }
+        catch {
+            const parked = `${absolute}.corrupt-${Date.now()}`;
+            try {
+                renameSync(absolute, parked);
+                moved.push(posix(relative(root, parked)));
+            }
+            catch {
+                continue;
+            }
+        }
+    }
+    return moved;
 }
 export async function handleHookEvent(event, payload, root) {
     let output = {};
@@ -181,17 +181,17 @@ export async function handleHookEvent(event, payload, root) {
         const editedFile = payload.file_path ? posix(relative(root, payload.file_path)) : null;
         withStateLock(root, "quality", () => {
             const qualityPath = resolve(root, STATE_REL, "quality.json");
-            const quality = existsSync(qualityPath) ? readJson(qualityPath) : {};
+            const qualityState = existsSync(qualityPath) ? readJson(qualityPath) : {};
             const baselinePath = resolve(root, STATE_REL, "baseline.json");
             const baseline = existsSync(baselinePath) ? readJson(baselinePath) : null;
             writeJson(qualityPath, {
-                ...quality,
+                ...qualityState,
                 pending_diff_sha256: current.diff_sha256,
                 edited_at: new Date().toISOString(),
                 session_baseline_diff_sha256: baseline?.diff_sha256 || null,
                 preexisting_changed_paths: baseline?.changed_paths || [],
                 session_edited_files: [
-                    ...new Set([...(quality.session_edited_files || []), editedFile].filter(Boolean)),
+                    ...new Set([...(qualityState.session_edited_files || []), editedFile].filter(Boolean)),
                 ],
             });
         });

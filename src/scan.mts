@@ -1,9 +1,9 @@
-// Static scanners: built-in fitness rules, curated external adapters, and the ADR enforcement
-// audit.
+// Static scanners: built-in fitness rules, curated external adapters, the ADR enforcement audit,
+// the instruction-file scan, skills lint, module contract lint, and the rules audit.
 
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { TIER_RANK, catalog, matrix, moduleForPath, normalizeRequirement } from "./catalog.mjs";
+import { TIER_RANK, catalog, matrix, moduleDirectories, moduleForPath, normalizeRequirement } from "./catalog.mjs";
 import type { AttributeTier, ModuleDefinition, QualityAttribute } from "./catalog.mjs";
 import { contextDenied } from "./context.mjs";
 import {
@@ -509,7 +509,8 @@ export function scanInstructions(root: string, files: string[]): InstructionFind
     try {
       const raw = readFileSync(absolute);
       if (raw.length > 1024 * 1024 || raw.includes(0)) continue;
-      text = normalizeLf(raw.toString("utf8"));
+      // A UTF-8 byte-order mark is an encoding artefact, not a hidden character.
+      text = normalizeLf(raw.toString("utf8").replace(/^\uFEFF/, ""));
     } catch {
       continue;
     }
@@ -587,7 +588,7 @@ export function skillsLint(root: string): { skills: Array<{ name: string; file: 
         findings.push({ file: `${skillRoot}/${entry.name}`, severity: "error", code: "NO_SKILL_MD", message: "skill directory has no SKILL.md; the loader discovers only <root>/<name>/SKILL.md" });
         continue;
       }
-      const text = readFileSync(absolute, "utf8");
+      const text = readFileSync(absolute, "utf8").replace(/^\uFEFF/, "");
       const normalized = normalizeLf(text);
       if (!normalized.startsWith("---\n") || !/\n---\n/.test(normalized.slice(4))) {
         findings.push({ file, severity: "error", code: "BAD_FRONTMATTER", message: "SKILL.md must open with a --- frontmatter block" });
@@ -654,31 +655,6 @@ export interface AgentsFinding {
   severity: "error" | "warning";
   code: string;
   message: string;
-}
-
-/**
- * Directories a module contract could live in: the literal prefix of each path pattern before
- * its first wildcard, root-level files excluded. A module confined to one directory has one
- * candidate; a module spanning several has several, and any one of them holding an AGENTS.md
- * counts, because Cursor loads the nested file wherever the work happens.
- */
-export function moduleDirectories(module: ModuleDefinition): string[] {
-  const prefixes = module.paths.map((pattern) => {
-    const solid: string[] = [];
-    for (const segment of (module.root ? `${module.root}/${pattern}` : pattern).split("/")) {
-      if (/[*?{]/.test(segment)) break;
-      solid.push(segment);
-    }
-    if (solid.length && /\.[A-Za-z0-9]{1,8}$/.test(solid[solid.length - 1])) solid.pop();
-    return solid.join("/");
-  });
-  return [...new Set(prefixes.filter(Boolean))];
-}
-
-/** The single directory a module contract would live in, or null when the module spans several. */
-export function moduleDirectory(module: ModuleDefinition): string | null {
-  const unique = moduleDirectories(module);
-  return unique.length === 1 ? unique[0] : null;
 }
 
 export function agentsLint(root: string): { contracts: Array<{ module: string; file: string; bytes: number }>; findings: AgentsFinding[] } {
