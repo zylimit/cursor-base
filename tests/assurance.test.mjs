@@ -878,7 +878,7 @@ test("a fresh install into a committed repository discovers its catalog instead 
 // Round-3 fixes from the structured self-review
 // ---------------------------------------------------------------------------------------------
 
-test("a check with a leading assignment, a quoted variable, or a keyword runs through the shell, and a missing program is BLOCKED", (t) => {
+test("a leading assignment is applied as env, a keyword runs through the shell, and a missing program is BLOCKED", (t) => {
   const marker = process.platform === "win32" ? "%HARNESS_PROBE%" : "$HARNESS_PROBE";
   const root = fixture(t, {
     matrix: {
@@ -895,7 +895,7 @@ test("a check with a leading assignment, a quoted variable, or a keyword runs th
   edit(root, "src/app.js", "export const one = 2;\n");
   const dry = jsonResult(runHarness(["gate", "--dry-run", "--target", root]));
   const available = Object.fromEntries(dry.would_execute.map((entry) => [entry.id, entry.executable_available]));
-  assert.equal(available.assigned, null, "a shell will interpret the assignment");
+  assert.equal(available.assigned, true, "assignments are env; the program is spawned directly");
   assert.equal(available.keyword, null);
   assert.equal(available.missing, false);
 

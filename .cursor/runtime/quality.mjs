@@ -237,13 +237,14 @@ export function executeCheck(root, check, plan) {
                 : `Command not found on PATH: ${target.program}.`;
             return signReceipt(receipt);
         }
-        const { program, args } = target;
+        const { program, args, env } = target;
         result = spawnSync(program, args, {
             cwd: root,
             encoding: "utf8",
             timeout,
             windowsHide: true,
             maxBuffer: 32 * 1024 * 1024,
+            env: env ? { ...process.env, ...env } : process.env,
         });
     }
     receipt.duration_ms = Date.now() - started;

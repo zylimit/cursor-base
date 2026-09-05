@@ -57,23 +57,40 @@ const SHELL_KEYWORDS = new Set([
 ]);
 
 export type SpawnTarget =
-  | { kind: "direct"; program: string; args: string[] }
+  | { kind: "direct"; program: string; args: string[]; env?: Record<string, string> }
   | { kind: "shell" }
   | { kind: "missing"; program: string };
 
+const LEADING_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
+
+/** Peel POSIX `NAME=value` prefixes. cmd.exe does not apply them; the caller must. */
+export function peelAssignments(tokens: string[]): { env: Record<string, string>; rest: string[] } {
+  const env: Record<string, string> = {};
+  let index = 0;
+  while (index < tokens.length && LEADING_ASSIGNMENT.test(tokens[index])) {
+    const eq = tokens[index].indexOf("=");
+    env[tokens[index].slice(0, eq)] = tokens[index].slice(eq + 1);
+    index += 1;
+  }
+  return { env, rest: tokens.slice(index) };
+}
+
 /**
  * How to run a command so that what runs is what was written. `direct` names a resolved
- * executable and literal arguments, so the recorded pid is the program itself. `shell` is for
- * everything a shell must interpret: several segments, substitution, expansion, a leading
- * `NAME=value`, a shell keyword, or a Windows `.cmd`/`.bat` shim. `missing` means the program
- * is a plain word or path that resolves to nothing, which a caller reports as a missing tool
- * rather than guessing that a shell would find it.
+ * executable and literal arguments, so the recorded pid is the program itself. Leading
+ * `NAME=value` pairs become `env` on that verdict — they are not a reason to invoke a shell,
+ * because Windows `cmd.exe` does not apply POSIX assignments. `shell` is for everything a
+ * shell must interpret: several segments, substitution, expansion, a shell keyword, or a
+ * Windows `.cmd`/`.bat` shim. `missing` means the program is a plain word or path that
+ * resolves to nothing, which a caller reports as a missing tool rather than guessing that a
+ * shell would find it.
  */
 export function directSpawnTarget(parse: ShellParse, cwd: string): SpawnTarget {
   if (requiresShell(parse)) return { kind: "shell" };
-  const tokens = parse.segments[0].rawTokens;
-  const program = tokens[0];
-  if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(program) || SHELL_KEYWORDS.has(program.toLowerCase())) return { kind: "shell" };
+  const { env, rest } = peelAssignments(parse.segments[0].rawTokens);
+  if (rest.length === 0) return { kind: "shell" };
+  const program = rest[0];
+  if (SHELL_KEYWORDS.has(program.toLowerCase())) return { kind: "shell" };
   const fileAt = (candidate: string): string | null => {
     try {
       return statSync(candidate).isFile() ? candidate : null;
@@ -95,7 +112,9 @@ export function directSpawnTarget(parse: ShellParse, cwd: string): SpawnTarget {
   }
   if (!resolved) return { kind: "missing", program };
   if (/\.(cmd|bat)$/i.test(resolved)) return { kind: "shell" };
-  return { kind: "direct", program: resolved, args: tokens.slice(1) };
+  return Object.keys(env).length > 0
+    ? { kind: "direct", program: resolved, args: rest.slice(1), env }
+    : { kind: "direct", program: resolved, args: rest.slice(1) };
 }
 
 const SHELL_EXPANSION = new Set(["$", "*", "?", "[", "~", "{", "}", "<", ">", "%"]);

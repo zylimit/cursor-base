@@ -113,9 +113,11 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   readiness` names optional conditions it could not evaluate instead of claiming every condition
   holds; `setup.ps1 -NoDiscover`; install-time discovery documented where adopters read.
 - From round 3 (four errors): a variable inside double quotes counts as an expansion; check
-  execution and service supervision share `directSpawnTarget`, so a leading `NAME=value`, a
+  execution and service supervision share `directSpawnTarget`, so a
   shell keyword, and Windows `.cmd`/`.bat` shims run through the shell and only a program that
-  truly resolves to nothing is `BLOCKED`; a relative program resolves against the target, not
+  truly resolves to nothing is `BLOCKED`; a leading `NAME=value` is applied as process env
+  and the remainder is spawned directly when it is one resolvable program (cmd.exe does not
+  honor POSIX assignments); a relative program resolves against the target, not
   the caller's directory; `upgrade` never removes a live contract a 1.x install distributed;
   machine commands (`shutdown`, `reboot`, `halt`, `poweroff`, `mkfs*`, `diskpart`) are denied by
   program name after wrapper stripping, so quoted prose is not a match and a subshell is; the
@@ -166,8 +168,8 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   a service whose command is one program is now spawned directly, so the recorded pid is the
   service itself (a shell is used whenever one must interpret the command: pipelines, chains,
   substitutions, unquoted or double-quoted variables, globs, braces, tildes, redirections, a
-  leading `NAME=value`, a shell keyword, or a `.cmd`/`.bat` wrapper — one `directSpawnTarget`
-  decision shared with check execution); `service stop` on Windows asks the supervisor to shut
+  a shell keyword, or a `.cmd`/`.bat` wrapper — one `directSpawnTarget`
+  decision shared with check execution; leading `NAME=value` is env on a direct spawn); `service stop` on Windows asks the supervisor to shut
   down through the stop flag
   instead of `TerminateProcess`, which skipped its handler and left the child tree behind, and
   it re-reads the last recorded child before confirming; `killTree` passed `/T /T` instead of a

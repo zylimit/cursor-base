@@ -288,16 +288,18 @@ export async function serviceSupervise(root: string, name: string): Promise<void
     // A command that is one program with arguments is spawned directly, so the recorded pid is
     // the service itself. Through a shell the pid would be `cmd.exe` or `sh`, and on Windows
     // killing that pid alone leaves the real process running with the repository as its cwd.
-    // Anything a shell must interpret (pipelines, chains, substitution, expansion, a leading
-    // assignment, a keyword, a `.cmd` shim) goes through the shell; a program that does not
-    // resolve is handed to the shell too, so its own error is what the log records.
+    // Anything a shell must interpret (pipelines, chains, substitution, expansion, a
+    // keyword, a `.cmd` shim) goes through the shell. Leading `NAME=value` pairs are
+    // applied as env on a direct spawn — cmd.exe does not honor POSIX assignments.
+    // A program that does not resolve is handed to the shell too, so its own error is
+    // what the log records.
     const parsed = parseShellCommand(definition.command);
     const target = directSpawnTarget(parsed, definition.cwd);
     const options = {
       cwd: definition.cwd,
       // Its own process group on POSIX, so the whole tree can be terminated together.
       detached: process.platform !== "win32",
-      env: { ...process.env, ...definition.env },
+      env: { ...process.env, ...definition.env, ...(target.kind === "direct" ? target.env : undefined) },
       stdio: ["ignore", "pipe", "pipe"] as ["ignore", "pipe", "pipe"],
       windowsHide: true,
     };

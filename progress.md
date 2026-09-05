@@ -84,6 +84,14 @@ section contract.
   at critical or high to `balanced` (`floors.criticalHighAttributes`). Recorded here because
   Decisions are append-only.
 
+- 2026-09-06 Leading `NAME=value` is process env, not a reason to invoke a shell.
+  `directSpawnTarget` peels those prefixes and puts them on a `direct` verdict; check
+  execution and service supervision merge them into the child env. Rejected: sending the
+  original string through `shell: true` — on Windows that is `cmd.exe`, which does not
+  apply POSIX assignments (`HARNESS_PROBE` is not recognized as a command). A keyword
+  (`exit`) and expansion still go through the shell. Supersedes the round-3 wording that
+  listed a leading assignment among the cases that require a shell.
+
 - 2026-09-06 One walker classifies a parsed command. `classifyParsed` applies the whole rule
   set — segment (machine, git), secret exposure, the legacy pattern net, then every recorded
   substitution — at every depth. `shellDecision` only trims and parses. Rejected: keeping
@@ -133,6 +141,9 @@ section contract.
 
 ## Done
 
+- POSIX `NAME=value` is child env (2026-09-06): `directSpawnTarget` peels assignments and
+  check/service spawn merge them. Windows CI had failed because `cmd.exe` does not apply
+  them. Local `node --test` 222/222 after the fix.
 - One classification walk (2026-09-06): `shellDecision` trims and parses; `classifyParsed`
   applies segments, secrets, the pattern net, and every substitution at every depth. The
   nesting-invariant test locks that a command and `echo $(that command)` take the same
@@ -184,9 +195,8 @@ section contract.
 
 ## In progress
 
-- None. The walker change is implemented and gated; the owning task stays open because
-  `reviewMode: structured` still needs an independent review receipt. Not opening another
-  self-review loop of the 8017024 range.
+- None. Waiting for GitHub Actions on the spawn-env fix. Not opening another self-review
+  loop of the 8017024 range.
 
 ## Not doing
 
