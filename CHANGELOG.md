@@ -74,8 +74,17 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
 
 - Windows CI had been red since 1.1.0: the service-supervision test killed only the `cmd.exe`
   that `shell: true` records as the child pid, orphaning the node process beneath it, whose
-  working directory then kept the fixture from being removed (`EBUSY`). The test now kills the
-  process tree the way the supervisor does, and fixture cleanup retries on handle-release lag.
+  working directory then kept the fixture from being removed (`EBUSY`). Three defects behind it:
+  a service whose command is one program is now spawned directly, so the recorded pid is the
+  service itself (the shell is used only for pipelines, chains, substitutions, and `.cmd`/`.bat`
+  wrappers); `service stop` on Windows asks the supervisor to shut down through the stop flag
+  instead of `TerminateProcess`, which skipped its handler and left the child tree behind, and
+  it re-reads the last recorded child before confirming; `killTree` passed `/T /T` instead of a
+  polite `/T` to `taskkill`. The test kills the tree, names any leaked process in the log, and
+  fixture cleanup retries on handle-release lag.
+- Machine-level commands (`shutdown`, `reboot`, `halt`, `poweroff`, `mkfs`, `diskpart`) are
+  denied in command position only; a commit message or an `echo` that mentions the word is no
+  longer blocked as "obviously destructive".
 
 ## [1.1.0] - 2026-08-07
 

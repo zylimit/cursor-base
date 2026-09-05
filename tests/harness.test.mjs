@@ -182,6 +182,12 @@ test("security hooks allow routine work and gate shell side effects", async (t) 
     ["Remove-Item C:\\workspace\\.git -Recurse -Force", "deny"],
     ["del C:\\workspace\\* /s /q", "deny"],
     ["diskpart /s wipe.txt", "deny"],
+    ["shutdown -h now", "deny"],
+    ["sudo shutdown -r +1", "deny"],
+    ["echo done && reboot", "deny"],
+    // Machine commands are recognized in command position only; prose that mentions them is not one.
+    ["echo 'skips the shutdown handler'", "allow"],
+    ["git commit -m 'stop: run the shutdown handler before exit'", "ask"],
   ];
 
   for (const [command, expected] of cases) {
@@ -2689,6 +2695,29 @@ function pidAlive(pid) {
   }
 }
 
+/**
+ * Processes whose command line mentions the fixture root or one of the given markers. Used only
+ * to diagnose and reap leaks in cleanup; a supervised tree that was stopped correctly leaves none.
+ */
+function processesReferencing(root, markers) {
+  const needles = [root, ...markers];
+  let rows = [];
+  if (process.platform === "win32") {
+    const script = "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress";
+    const result = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true, timeout: 20_000 });
+    try {
+      const parsed = JSON.parse(result.stdout || "[]");
+      rows = (Array.isArray(parsed) ? parsed : [parsed]).map((entry) => ({ pid: entry.ProcessId, ppid: entry.ParentProcessId, command: String(entry.CommandLine || "") }));
+    } catch {
+      rows = [];
+    }
+  } else {
+    const result = spawnSync("ps", ["-eo", "pid=,ppid=,args="], { encoding: "utf8" });
+    rows = (result.stdout || "").split("\n").map((line) => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line)).filter(Boolean).map((match) => ({ pid: Number(match[1]), ppid: Number(match[2]), command: match[3] }));
+  }
+  return rows.filter((row) => row.pid !== process.pid && needles.some((needle) => row.command.includes(needle)));
+}
+
 /** Kills a process and everything it spawned, the way the supervisor itself does. */
 function killProcessTree(pid) {
   try {
@@ -2999,7 +3028,11 @@ test("service supervision restarts a killed child and trips the breaker on a cra
       },
     },
   });
-  t.after(() => {
+  // Cleanup runs before the fixture directory is removed (after-hooks run in registration
+  // order, and the fixture registered first), so it lives in a finally block. Anything still
+  // holding the fixture as its working directory is named in the log before it is killed:
+  // a leaked process is a defect to diagnose, not a cleanup detail.
+  const cleanup = () => {
     for (const name of ["ticker", "crasher"]) {
       const state = readServiceState(root, name);
       runHarness(["service", "stop", name, "--target", root]);
@@ -3007,8 +3040,20 @@ test("service supervision restarts a killed child and trips the breaker on a cra
         if (pid && pidAlive(pid)) killProcessTree(pid);
       }
     }
-  });
+    const leaked = processesReferencing(root, ["setInterval(()=>{},1000)", "process.exit(1)"]);
+    if (leaked.length > 0) {
+      console.error(`service supervision leaked ${leaked.length} process(es):\n${leaked.map((entry) => `  pid ${entry.pid} ppid ${entry.ppid}: ${entry.command}`).join("\n")}`);
+      for (const entry of leaked) killProcessTree(entry.pid);
+    }
+  };
+  try {
+    await serviceSupervisionScenario(root);
+  } finally {
+    cleanup();
+  }
+});
 
+async function serviceSupervisionScenario(root) {
   // Liftoff is confirmed against a live pid, not against the act of spawning.
   const started = jsonResult(runHarness(["service", "start", "ticker", "--target", root], { timeout: 15_000 }));
   assert.equal(started.ok, true);
@@ -3065,7 +3110,7 @@ test("service supervision restarts a killed child and trips the breaker on a cra
 
   const risk = jsonResult(runHarness(["risk", "--target", root]));
   assert.ok(risk.findings.some((finding) => finding.id === "service-crashed-crasher" && finding.severity === "high"));
-});
+}
 
 test("risk scan reports stale tasks and session start surfaces the findings", (t) => {
   const root = gateFixture(t);

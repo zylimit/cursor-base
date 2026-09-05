@@ -170,13 +170,13 @@
     },
     {
       "path": ".cursor/runtime/services.mjs",
-      "sha256": "c3e96fb51eb945a4dea71a79eeb6227a321a6fd6760a0603f68cf15b751bc064",
-      "bytes": 21035
+      "sha256": "d54e0900fa92bbacb0028ce12a11caa62033d5cb6a1f8297386fca79c630a141",
+      "bytes": 24003
     },
     {
       "path": ".cursor/runtime/shell-policy.mjs",
-      "sha256": "3dbe5218d09f1d77178cd4f2c1fbdce95dafafeeac26601c61ca05300c6e1e1f",
-      "bytes": 22107
+      "sha256": "fea969648e5e9059f1f36470daeb40a1406c5b8a62b14161547869d04e4cb736",
+      "bytes": 22370
     },
     {
       "path": ".cursor/runtime/state.mjs",
@@ -434,5 +434,5 @@
       "bytes": 185
     }
   ],
-  "digest": "cd79407f1f82fb440290a36bb82800fb5f88635e937ad89c80e053ce7bd50f72"
+  "digest": "deaa5644aff2efc90e3928442e151700e45a8eb436e030d1c5c95839282f1850"
 }

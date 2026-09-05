@@ -407,7 +407,10 @@ export function shellDecision(command: unknown, root?: string): HookOutput {
   if (semantic.permission === "deny") return semantic;
   const denyPatterns = [
     /\bgit\s+(reset\s+--hard|clean\s+(?:--force|-[a-z]*f[a-z]*)|checkout\s+--)\b/i,
-    /\b(mkfs(\.\w+)?|diskpart|format\s+[a-z]:|shutdown|reboot)\b/i,
+    // Machine-level commands are recognized in command position only, so a commit message or
+    // an echo that merely mentions "shutdown" is not read as a shutdown.
+    /(^|[;&|(]\s*|\b(?:sudo|doas|timeout\s+\d+|nice|nohup|env)\s+)(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
+    /\bformat\s+[a-z]:/i,
     /\bdd\b[^;&|]*(\bof=\/dev\/|\bof=\\\\\.\\physicaldrive)/i,
     /\b(drop|truncate)\s+(database|schema)\b/i,
     // Root, root wildcard, parent traversal, or the .git directory. Anchored to argument

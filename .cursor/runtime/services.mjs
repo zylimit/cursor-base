@@ -5,7 +5,8 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renam
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import { relative, resolve } from "node:path";
-import { STATE_REL, isWithin, posix, printJson, readJson, targetFrom, writeJson } from "./core.mjs";
+import { STATE_REL, isWithin, posix, printJson, readJson, targetFrom, whichCommand, writeJson } from "./core.mjs";
+import { parseShellCommand } from "./shell-policy.mjs";
 // ============================== Service supervision ==============================
 // A development-time guardian for long-running services: crash restart with exponential
 // backoff, a restart-storm breaker that fails visibly instead of hammering the machine, and an
@@ -111,9 +112,10 @@ export function killTree(pid, force = false) {
     if (!pidAlive(pid))
         return;
     if (process.platform === "win32") {
-        spawnSync("taskkill", ["/PID", String(pid), "/T", force ? "/F" : "/T"], { windowsHide: true });
-        if (force)
-            return;
+        // A console process cannot be terminated politely by taskkill, so the forced tree kill
+        // follows the polite attempt immediately; there is no signal to hand over on this host.
+        if (!force)
+            spawnSync("taskkill", ["/PID", String(pid), "/T"], { windowsHide: true });
         spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { windowsHide: true });
         return;
     }
@@ -224,14 +226,32 @@ export async function serviceSupervise(root, name) {
     let stopping = false;
     let restartTimer = null;
     const startChild = () => {
-        const spawned = spawn(definition.command, {
+        // A command that is one program with arguments is spawned directly, so the recorded pid is
+        // the service itself. Through a shell the pid would be `cmd.exe` or `sh`, and on Windows
+        // killing that pid alone leaves the real process running with the repository as its cwd.
+        // Pipelines, chains, and substitutions still need the shell.
+        const parsed = parseShellCommand(definition.command);
+        const program = parsed.segments.length === 1 && !parsed.dynamic ? parsed.segments[0].rawTokens[0] : undefined;
+        const resolved = program ? whichCommand(program) : null;
+        // `.cmd`/`.bat` wrappers (npm, npx, yarn on Windows) cannot be spawned without a shell.
+        const direct = Boolean(resolved) && !/\.(cmd|bat)$/i.test(resolved ?? "");
+        const options = {
             cwd: definition.cwd,
-            shell: true,
             // Its own process group on POSIX, so the whole tree can be terminated together.
             detached: process.platform !== "win32",
             env: { ...process.env, ...definition.env },
             stdio: ["ignore", "pipe", "pipe"],
             windowsHide: true,
+        };
+        const spawned = direct
+            ? spawn(resolved, parsed.segments[0].rawTokens.slice(1), options)
+            : spawn(definition.command, { ...options, shell: true });
+        // A spawn failure (ENOENT, EACCES) surfaces as an error event; without a listener it would
+        // take the supervisor down with an uncaught exception instead of counting as a crash.
+        spawned.on("error", (error) => {
+            supervisorLog(root, name, `child failed to start: ${error.message}`);
+            if (child === spawned && !spawned.pid)
+                spawned.emit("exit", null, null);
         });
         child = spawned;
         state.child_pid = spawned.pid ?? null;
@@ -396,7 +416,11 @@ export async function serviceStop(root, name) {
         throw new Error(`Service ${name} has no recorded state.`);
     const dir = serviceDir(root, name);
     writeFileSync(resolve(dir, "stop.flag"), new Date().toISOString(), "utf8");
-    if (pidAlive(state.supervisor_pid)) {
+    // The supervisor owns the child tree and knows its current pid; it is asked to shut down and
+    // given time to do so. On POSIX SIGTERM reaches its handler. On Windows `process.kill` is
+    // TerminateProcess, which skips the handler and would orphan the child, so the stop flag it
+    // polls every second is the only graceful channel there.
+    if (process.platform !== "win32" && pidAlive(state.supervisor_pid)) {
         try {
             process.kill(state.supervisor_pid, "SIGTERM");
         }
@@ -404,22 +428,43 @@ export async function serviceStop(root, name) {
             // The stop flag remains the fallback channel.
         }
     }
-    if (state.child_pid)
-        killTree(state.child_pid);
+    const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+    const graceDeadline = Date.now() + 6_000;
+    while (pidAlive(state.supervisor_pid) && Date.now() < graceDeadline)
+        await sleep(150);
+    // A supervisor that ignored the request is terminated, and whatever child its last state
+    // named is killed as a tree. This is the escalation path, not the normal one.
+    if (pidAlive(state.supervisor_pid)) {
+        const latest = readServiceState(root, name);
+        for (const pid of new Set([latest?.child_pid, state.child_pid]))
+            if (pid)
+                killTree(pid, true);
+        try {
+            process.kill(state.supervisor_pid);
+        }
+        catch {
+            // Already gone.
+        }
+    }
+    // Whatever the supervisor recorded last is checked too: a child spawned between the request
+    // and the shutdown would otherwise survive with the repository as its working directory.
+    const latest = readServiceState(root, name);
+    for (const pid of new Set([latest?.child_pid, state.child_pid])) {
+        if (pid && pidAlive(pid))
+            killTree(pid, true);
+    }
     // Both processes must be confirmed dead; reporting "stopped" while something survives is the
     // supervisor's own version of a false green.
-    const deadline = Date.now() + 6_000;
+    const deadline = Date.now() + 3_000;
     for (;;) {
         const supervisorAlive = pidAlive(state.supervisor_pid);
-        const childAlive = pidAlive(state.child_pid);
+        const childAlive = [latest?.child_pid, state.child_pid].some((pid) => pid && pidAlive(pid));
         if (!supervisorAlive && !childAlive)
             break;
         if (Date.now() > deadline) {
-            if (state.child_pid)
-                killTree(state.child_pid, true);
-            throw new Error(`Service ${name} did not stop within 6s (supervisor alive: ${supervisorAlive}, child alive: ${childAlive}).`);
+            throw new Error(`Service ${name} did not stop within 9s (supervisor alive: ${supervisorAlive}, child alive: ${childAlive}).`);
         }
-        await new Promise((resolvePromise) => setTimeout(resolvePromise, 150));
+        await sleep(150);
     }
     const final = readServiceState(root, name);
     if (final && final.status !== "stopped") {

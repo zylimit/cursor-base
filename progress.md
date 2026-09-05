@@ -158,10 +158,11 @@ section contract.
   false violations.
 - Service supervision is exercised on Linux in tests and by design uses `taskkill` on Windows;
   the Windows path is covered by CI's windows-latest matrix, not by local runs here.
-- Hook behavior has been exercised through the harness CLI and the test suite, not inside a
-  live Cursor session. In particular, whether `postToolUse` fires with the payload shape assumed
-  for re-injection, and whether subagent edits arrive with a distinct `conversation_id` for
-  authorship, is unverified against a live host.
+- Hook behavior is exercised through the harness CLI and the test suite; in a live Cursor
+  session the `postToolUse` re-injection was observed to fire after a compaction on 2026-09-05
+  (the invariants block arrived as tool-result context), so that path is verified on the host.
+  Whether subagent edits arrive with a distinct `conversation_id` for authorship is still
+  unverified.
 - Authorship on Cursor is a per-conversation claim, not an authenticated identity; the review
   verdict says `authorship_enforced: false` whenever it could not check.
 - The `budget` control is resolved and reported but no blast-radius budget check consumes it yet
@@ -169,8 +170,11 @@ section contract.
 - `catalog discover` proposes attributes from keyword signals; the proposals are evidence to
   look at, never tiers, and a codebase with unusual vocabulary will get few or none.
 - On Windows a `shell: true` child's recorded pid is `cmd.exe`; killing that pid alone orphans
-  the real process. Anything that terminates a supervised child from outside must kill the tree
-  (`taskkill /T`), which is what `killTree` does and what the tests now do. This was the cause
-  of the Windows-only CI failure from 1.1.0 (06e436f) through 2.0.0 (9748a24).
+  the real process, and `process.kill(pid, "SIGTERM")` is `TerminateProcess`, so a supervisor
+  killed that way never runs its shutdown. Services with a single-program command are now
+  spawned directly, `service stop` on Windows goes through the stop flag, and anything that
+  terminates a supervised child from outside kills the tree. This was the Windows-only CI
+  failure from 1.1.0 (06e436f) through 2.0.0 (9748a24); the CI run for the fix is the evidence
+  that the diagnosis was complete, and the test now names any leaked process in its log.
 - The health probe treats any 2xx/3xx as healthy; an endpoint that lies about readiness defeats
   it. Choose probe URLs that actually exercise serving behavior.
