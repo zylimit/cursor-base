@@ -14,8 +14,8 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   four built-in strengths `explore < rapid < balanced < strict` over eight monotonic controls
   (verification breadth, deferral, review mode, attribute gaps, memory sync, budget, context
   depth, completion) plus the review-lens set. Named profiles may only tighten their parent.
-  Floors from task risk, impact, protected attributes, and governance paths only raise the
-  effective profile. The effective controls are part of the plan hash, so a profile change
+  Floors from task risk, impact, protected attributes, other critical/high attributes, and
+  governance paths only raise the effective profile. The effective controls are part of the plan hash, so a profile change
   stales receipts. Profiles never touch the capability axis (hooks, `cli.json`, sandbox).
 - **Fast loan and evidence debt** (`fast on|off|status`, `debt list`): a dated, reasoned loan
   defers only checks the matrix pre-declared `allowFastSkip`, never protected evidence; each
@@ -112,6 +112,16 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   reports a plan with no checks; the compaction note records the affected closure; `release
   readiness` names optional conditions it could not evaluate instead of claiming every condition
   holds; `setup.ps1 -NoDiscover`; install-time discovery documented where adopters read.
+- From round 3 (four errors): a variable inside double quotes counts as an expansion; check
+  execution and service supervision share `directSpawnTarget`, so a leading `NAME=value`, a
+  shell keyword, and Windows `.cmd`/`.bat` shims run through the shell and only a program that
+  truly resolves to nothing is `BLOCKED`; a relative program resolves against the target, not
+  the caller's directory; `upgrade` never removes a live contract a 1.x install distributed;
+  machine commands (`shutdown`, `reboot`, `halt`, `poweroff`, `mkfs*`, `diskpart`) are denied by
+  program name after wrapper stripping, so quoted prose is not a match and a subshell is; the
+  stop and preCompact hooks work in a repository with no commits; `diffStats` counts the index
+  when there is no commit and uses numstat's line convention; review change discovery reuses
+  `changedPaths`; `validate` requires and compiles `harness/default-assurance-policy.json`.
 
 ### Fixed
 
@@ -119,8 +129,11 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
   that `shell: true` records as the child pid, orphaning the node process beneath it, whose
   working directory then kept the fixture from being removed (`EBUSY`). Three defects behind it:
   a service whose command is one program is now spawned directly, so the recorded pid is the
-  service itself (the shell is used only for pipelines, chains, substitutions, and `.cmd`/`.bat`
-  wrappers); `service stop` on Windows asks the supervisor to shut down through the stop flag
+  service itself (a shell is used whenever one must interpret the command: pipelines, chains,
+  substitutions, unquoted or double-quoted variables, globs, braces, tildes, redirections, a
+  leading `NAME=value`, a shell keyword, or a `.cmd`/`.bat` wrapper — one `directSpawnTarget`
+  decision shared with check execution); `service stop` on Windows asks the supervisor to shut
+  down through the stop flag
   instead of `TerminateProcess`, which skipped its handler and left the child tree behind, and
   it re-reads the last recorded child before confirming; `killTree` passed `/T /T` instead of a
   polite `/T` to `taskkill`. The test kills the tree, names any leaked process in the log, and

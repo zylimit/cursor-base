@@ -64,7 +64,16 @@ section contract.
   target's are seeded from neutral `default-*` templates and then discovered from its own tree.
   Rejected: keeping this repository's catalog as the installed template — it shipped
   `security: critical` on `src/**` and `shared: true` to every target, which is exactly the
-  guessed tier `catalog discover` refuses to make. Rejected: keeping one 5,860-line file — it had outgrown navigation and
+  guessed tier `catalog discover` refuses to make.
+  (Supersedes an earlier wording of this entry that carried the engine-split rejection by
+  mistake; the round-3 review caught it. Decisions are append-only, so the correction is here.)
+
+- 2026-09-05 One decision for "may this command be spawned directly": `directSpawnTarget` in
+  shell-policy, shared by service supervision and check execution. Direct only for one
+  resolvable program with literal arguments; a shell for anything a shell must interpret; a
+  `missing` verdict only when a plain program resolves to nothing. Rejected: per-caller
+  predicates — round 3 of the review showed them diverging within a day (env assignments and
+  `.cmd` shims handled in one place and not the other). Rejected: keeping one 5,860-line file — it had outgrown navigation and
   made ownership of a change unreadable.
 
 - 2026-08-07 Waivers defer only checks that could not run (`MISSING`/`BLOCKED`/`SKIPPED`), bound
@@ -151,11 +160,12 @@ section contract.
 ## In progress
 
 - Structured self-review of 2.0.0 (`review start --base 8017024`), run by this session with one
-  reviewer subagent per lens because the other models were unavailable. Round 1: 5 errors, all
-  fixed (05ff9ab). Round 2: 2 errors (rm-root anchor, direct spawn with shell expansions) plus
-  template/self-catalog separation and the other warnings, fixed in the following commit. Round
-  3 is the last before the engine escalates; stages 2 (testing) and 3 (privacy, reliability,
-  resilience, security) still have to report once stage 1 is clean.
+  reviewer subagent per lens because the other models were unavailable. Round 1: 5 errors, fixed
+  (05ff9ab). Round 2: 2 errors, fixed (3c177fc). Round 3: 4 errors (quoted variables, env
+  assignments and `.cmd` shims in check execution, 1.x live contracts removed on upgrade), fixed
+  in the following commit; the engine set `escalate: true` at round 3 as designed. The user had
+  instructed the session to finish, so the escalation is recorded here and in the final report
+  rather than pausing; a further round runs the eight lenses again on the fixed range.
 
 ## Not doing
 

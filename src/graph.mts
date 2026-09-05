@@ -7,6 +7,8 @@ import { catalog, classifyPath, detectCycles, moduleForPath, trackedPaths } from
 import type { ClassifiedPath, ModuleCatalog, ModuleDefinition, QualityAttribute } from "./catalog.mjs";
 import {
   EXIT,
+  HARNESS_ROOT,
+  LIVE_CONTRACTS,
   boolOption,
   changedPaths,
   gitAvailable,
@@ -644,14 +646,23 @@ export function discoverCatalog(root: string, depth = 2) {
   };
 }
 
-/** True when the live file is absent or still byte-identical to its installed template. */
+/**
+ * True when the live file is absent or still byte-identical to its template. The template is
+ * read from the target's installed copy, or from the harness when the target has none, so the
+ * answer is the same one the installer's seed step used.
+ */
 export function isUneditedTemplate(root: string, live: string, template: string): boolean {
   const livePath = resolve(root, live);
-  const templatePath = resolve(root, template);
   if (!existsSync(livePath)) return true;
-  if (!existsSync(templatePath)) return false;
+  const templatePath = [resolve(root, template), resolve(HARNESS_ROOT, template)].find((candidate) => existsSync(candidate));
+  if (!templatePath) return false;
   return normalizeLf(readFileSync(livePath, "utf8")) === normalizeLf(readFileSync(templatePath, "utf8"));
 }
+
+const CONTRACT_SCHEMAS: Record<string, string> = {
+  "harness/module-catalog.json": "./schemas/module-catalog.schema.json",
+  "harness/verification-matrix.json": "./schemas/verification-matrix.schema.json",
+};
 
 /**
  * Persists a discovered catalog and matrix. The one rule every caller shares: a file someone
@@ -663,13 +674,14 @@ export function writeDiscoveredCatalog(
   result: { draft: ModuleCatalog; matrix: { version: number; checks: Record<string, unknown> } },
 ): string[] {
   const written: string[] = [];
-  const targets: Array<[string, string, string, unknown]> = [
-    ["harness/module-catalog.json", "harness/default-module-catalog.json", "./schemas/module-catalog.schema.json", result.draft],
-    ["harness/verification-matrix.json", "harness/default-verification-matrix.json", "./schemas/verification-matrix.schema.json", result.matrix],
-  ];
-  for (const [live, template, schema, value] of targets) {
+  const values: Record<string, unknown> = {
+    "harness/module-catalog.json": result.draft,
+    "harness/verification-matrix.json": result.matrix,
+  };
+  for (const [live, template] of LIVE_CONTRACTS) {
+    if (!(live in values)) continue;
     const target = isUneditedTemplate(root, live, template) ? live : live.replace(/\.json$/, ".draft.json");
-    writeJson(resolve(root, target), { $schema: schema, ...(value as Record<string, unknown>) });
+    writeJson(resolve(root, target), { $schema: CONTRACT_SCHEMAS[live], ...(values[live] as Record<string, unknown>) });
     written.push(target);
   }
   return written;

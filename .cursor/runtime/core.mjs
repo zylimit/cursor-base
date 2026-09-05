@@ -290,8 +290,13 @@ export function diffStats(cwd, base) {
         return null;
     const excludeState = (path) => path !== STATE_REL && !path.startsWith(`${STATE_REL}/`);
     let changedLines = 0;
-    if (base !== "NO_COMMIT") {
-        const result = git(cwd, ["diff", "--numstat", "-z", "--relative", base, "--", "."], true);
+    {
+        // Without a commit, the index is the only tracked side; `--cached` is what `changedPaths`
+        // and the diff digest see in that state too.
+        const args = base === "NO_COMMIT"
+            ? ["diff", "--cached", "--numstat", "-z", "--relative", "--", "."]
+            : ["diff", "--numstat", "-z", "--relative", base, "--", "."];
+        const result = git(cwd, args, true);
         if (!result.ok)
             return null;
         // `-z` terminates each record with NUL; renames add the two paths as further NUL records.
@@ -315,8 +320,12 @@ export function diffStats(cwd, base) {
     for (const path of untracked) {
         try {
             const contents = readFileSync(resolve(cwd, path));
-            if (!contents.includes(0))
-                changedLines += contents.toString("utf8").split("\n").length;
+            if (!contents.includes(0)) {
+                // Same convention as numstat: a line is a newline-terminated line, plus a final
+                // unterminated one when the file does not end with a newline.
+                const text = contents.toString("utf8");
+                changedLines += text.length === 0 ? 0 : text.split("\n").length - (text.endsWith("\n") ? 1 : 0);
+            }
         }
         catch {
             // Unreadable or vanished; it still counts as a new file.

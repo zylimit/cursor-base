@@ -274,7 +274,7 @@ export async function handleHookEvent(
     // preCompact hook is observational, so the note is saved to disk and the next tool call
     // re-injects the invariants from it.
     const current = binding(root);
-    const plan = buildVerifyPlan(root, [], { base: current.base_commit });
+    const plan = buildVerifyPlan(root, [], planBase(current));
     const assessment = assessQuality(root, plan);
     const task = activeTask(root);
     const notePath = resolve(root, STATE_REL, "compaction-note.json");
@@ -345,7 +345,7 @@ export async function handleHookEvent(
       Number(payload.loop_count || 0) < 2 &&
       changedThisSession
     ) {
-      const plan = buildVerifyPlan(root, [], { base: current.base_commit });
+      const plan = buildVerifyPlan(root, [], planBase(current));
       const assessment = assessQuality(root, plan);
       const parts: string[] = [];
       if (!assessment.complete) {
@@ -396,6 +396,11 @@ export async function handleHookEvent(
 }
 
 const REINJECT_REL_NAME = "reinject-invariants.json";
+
+/** A binding's base is passed back only when it names a commit; NO_COMMIT and NO_GIT are states. */
+function planBase(current: { base_commit: string }): { base?: string } {
+  return current.base_commit === "NO_COMMIT" || current.base_commit === "NO_GIT" ? {} : { base: current.base_commit };
+}
 
 /** One line describing the assurance profile in force, for session and delegation context. */
 function assuranceBanner(root: string, taskId: string | null): string {

@@ -14,7 +14,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { REVIEW_LENSES, REVIEW_STAGES, convenedForModules } from "./assurance.mjs";
 import { catalog } from "./catalog.mjs";
-import { EXIT, STATE_REL, binding, boolOption, git, gitAvailable, gitBase, posix, printJson, readJson, splitNulPaths, stdinJson, targetFrom, withStateLock, writeJson, } from "./core.mjs";
+import { EXIT, STATE_REL, binding, boolOption, changedPaths, git, gitAvailable, gitBase, posix, printJson, readJson, stdinJson, targetFrom, withStateLock, writeJson, } from "./core.mjs";
 import { REVIEW_ENGINE_SOURCE, buildVerifyPlan, writeReviewReceipt } from "./quality.mjs";
 export const REVIEW_STATE_REL = `${STATE_REL}/review/session.json`;
 export const AUTHORSHIP_REL = `${STATE_REL}/authorship.json`;
@@ -324,13 +324,11 @@ export function reviewVerdict(root, reviewer, notes) {
     };
 }
 function changedFiles(root, session) {
+    // The same discovery the plan uses: root-relative, state excluded, staged files included
+    // when there is no commit yet, so recorded authorship paths compare like with like.
     if (!gitAvailable(root))
         return [];
-    // NUL-separated so paths with spaces or non-ASCII bytes match the posix paths authorship records.
-    const args = session.base_commit === "NO_COMMIT" ? ["diff", "--name-only", "-z"] : ["diff", "--name-only", "-z", session.base_commit];
-    const result = git(root, args, true);
-    const untracked = git(root, ["ls-files", "--others", "--exclude-standard", "-z"], true);
-    return [...new Set([...splitNulPaths(result.stdout), ...splitNulPaths(untracked.stdout)].map(posix))];
+    return changedPaths(root, session.base_commit);
 }
 const BACKLOG_FORBIDDEN = /(security|safety|privacy|pii|secret|credential)/i;
 export function backlogAdd(root, payload) {

@@ -1,9 +1,9 @@
 // Command policy: shell parsing, wrapper stripping, git classification, credential exposure,
 // and the allow/ask/deny decisions for shell and MCP calls.
 
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { posix, sensitivePath } from "./core.mjs";
+import { posix, sensitivePath, whichCommand } from "./core.mjs";
 import type { HookOutput, HookPayload, Permission } from "./core.mjs";
 
 export interface ShellSegment {
@@ -37,6 +37,48 @@ export interface ShellParse {
 /** True when the command cannot be spawned as one program with literal arguments. */
 export function requiresShell(parse: ShellParse): boolean {
   return parse.segments.length !== 1 || parse.dynamic || parse.expands || parse.segments[0].rawTokens.length === 0;
+}
+
+// Words a shell interprets itself; none of them is a program on PATH.
+const SHELL_KEYWORDS = new Set([
+  ".", "source", "exec", "command", "builtin", "eval", "cd", "export", "unset", "set", "exit", "return",
+  "time", "if", "then", "else", "fi", "for", "while", "until", "do", "done", "case", "esac", "function",
+  "select", "alias", "trap", "ulimit", "umask", "wait", "local", "declare", "typeset", "readonly", "shift",
+  "call", "setlocal", "endlocal", "echo", "type", "hash", "read", "test", "[", "[[",
+]);
+
+export type SpawnTarget =
+  | { kind: "direct"; program: string; args: string[] }
+  | { kind: "shell" }
+  | { kind: "missing"; program: string };
+
+/**
+ * How to run a command so that what runs is what was written. `direct` names a resolved
+ * executable and literal arguments, so the recorded pid is the program itself. `shell` is for
+ * everything a shell must interpret: several segments, substitution, expansion, a leading
+ * `NAME=value`, a shell keyword, or a Windows `.cmd`/`.bat` shim. `missing` means the program
+ * is a plain word or path that resolves to nothing, which a caller reports as a missing tool
+ * rather than guessing that a shell would find it.
+ */
+export function directSpawnTarget(parse: ShellParse, cwd: string): SpawnTarget {
+  if (requiresShell(parse)) return { kind: "shell" };
+  const tokens = parse.segments[0].rawTokens;
+  const program = tokens[0];
+  if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(program) || SHELL_KEYWORDS.has(program.toLowerCase())) return { kind: "shell" };
+  let resolved: string | null;
+  if (program.includes("/") || program.includes("\\")) {
+    const absolute = resolve(cwd, program);
+    try {
+      resolved = statSync(absolute).isFile() ? absolute : null;
+    } catch {
+      resolved = null;
+    }
+  } else {
+    resolved = whichCommand(program);
+  }
+  if (!resolved) return { kind: "missing", program };
+  if (/\.(cmd|bat)$/i.test(resolved)) return { kind: "shell" };
+  return { kind: "direct", program: resolved, args: tokens.slice(1) };
 }
 
 const SHELL_EXPANSION = new Set(["$", "*", "?", "[", "~", "{", "}", "<", ">", "%"]);
@@ -102,6 +144,7 @@ export function parseShellCommand(value: string): ShellParse {
   let quote: '"' | "'" | null = null;
   let dynamic = false;
   let expands = false;
+  let substitutionDepth = 0;
   let pendingPipe = false;
 
   const pushToken = () => {
@@ -150,6 +193,8 @@ export function parseShellCommand(value: string): ShellParse {
       else {
         if (char === "$" && (value[index + 1] === "(" || value[index + 1] === "{")) dynamic = true;
         if (char === "`") dynamic = true;
+        // Variables expand inside double quotes ("$PORT", "%PORT%"); globs and tildes do not.
+        if (char === "$" || char === "%" || char === "`") expands = true;
         current += char;
         hasCurrent = true;
       }
@@ -169,8 +214,23 @@ export function parseShellCommand(value: string): ShellParse {
     if (char === "$" && (value[index + 1] === "(" || value[index + 1] === "{")) {
       dynamic = true;
       expands = true;
+      // `$(` opens a substitution; its parentheses belong to the token until it closes.
+      if (value[index + 1] === "(") substitutionDepth += 1;
+      current += char + value[index + 1];
+      hasCurrent = true;
+      index += 1;
+      continue;
+    }
+    if (substitutionDepth > 0 && (char === "(" || char === ")")) {
+      substitutionDepth += char === "(" ? 1 : -1;
       current += char;
       hasCurrent = true;
+      continue;
+    }
+    // Unquoted parentheses group commands (a subshell), so `(shutdown -h now)` is the same
+    // program call as `shutdown -h now`, not a program named `(shutdown`.
+    if (char === "(" || char === ")") {
+      pushToken();
       continue;
     }
     if (SHELL_EXPANSION.has(char)) expands = true;
@@ -319,9 +379,16 @@ export function classifyGit(rest: string[], raw: string, root?: string): HookOut
   );
 }
 
+// Commands that act on the machine rather than on the repository. Recognized by the resolved
+// program name after wrapper stripping, so quoted prose that mentions them is never a match.
+export const MACHINE_COMMANDS = new Set(["shutdown", "reboot", "halt", "poweroff", "diskpart"]);
+
 export function classifySegment(segment: ShellSegment, raw: string, root?: string): HookOutput {
   const allow: HookOutput = { permission: "allow" };
   if (!segment.name) return allow;
+  if (MACHINE_COMMANDS.has(segment.name) || segment.name.startsWith("mkfs")) {
+    return decision("deny", "Blocked an obviously destructive command.", raw);
+  }
   if (segment.name === "git") {
     return classifyGit(segment.args, raw, root) ?? allow;
   }
@@ -425,7 +492,7 @@ export function shellDecision(command: unknown, root?: string): HookOutput {
     /\bgit\s+(reset\s+--hard|clean\s+(?:--force|-[a-z]*f[a-z]*)|checkout\s+--)\b/i,
     // Machine-level commands are recognized in command position only, so a commit message or
     // an echo that merely mentions "shutdown" is not read as a shutdown.
-    /(^|[;&|(]\s*|\b(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+|\b(?:timeout\s+\d+|nice|nohup|env)\s+)(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
+    /(^|[;&|]\s*|\b(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+|\b(?:timeout\s+\d+|nice|nohup|env)\s+)(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
     /\bformat\s+[a-z]:/i,
     /\bdd\b[^;&|]*(\bof=\/dev\/|\bof=\\\\\.\\physicaldrive)/i,
     /\b(drop|truncate)\s+(database|schema)\b/i,

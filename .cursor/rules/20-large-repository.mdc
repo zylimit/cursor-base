@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Large Repository Strategy
 
-- Start from the module catalog, not the file tree: `repo-map` for the module graph, `affected <paths>` for the impact closure, `catalog discover` when no catalog exists yet.
+- Start from the module catalog, not the file tree: `repo-map` for the module graph, `affected <paths>` for the impact closure, `catalog discover` when the install reported `source: "template"` or `catalog lint` reports unmapped paths.
 - Search before reading broad trees; build context on a budget and read the manifest, not the files (`context-pack`).
 - Inspect the complete diff and verify the affected module first; the plan widens by dependency, risk, and profile (`verify-plan`, `gate`).
 - Real import edges must match declared dependencies; an unmapped tracked path escapes every targeted gate (`arch-check`, `catalog lint`).

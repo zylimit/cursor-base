@@ -56,7 +56,7 @@ node scripts/harness.mjs gate-audit        # which hooks have ever caught anythi
 ```
 
 Assurance profiles decide how much evidence a change needs; floors (task risk, impact, protected
-attributes, governance paths) only raise the answer:
+attributes, other critical/high attributes, governance paths) only raise the answer:
 
 ```sh
 node scripts/harness.mjs profile show                     # effective profile and every floor that raised it

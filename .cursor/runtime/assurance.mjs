@@ -14,8 +14,8 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { catalog, normalizeRequirement } from "./catalog.mjs";
-import { EXIT, STATE_REL, boolOption, canonicalJson, changedPaths, gitAvailable, gitBase, matchesPath, printJson, readJson, sha256, targetFrom, withStateLock, writeJson, } from "./core.mjs";
-import { affectedModules } from "./graph.mjs";
+import { EXIT, STATE_REL, boolOption, canonicalJson, matchesPath, printJson, readJson, sha256, targetFrom, withStateLock, writeJson, } from "./core.mjs";
+import { affectedModules, requestedPaths } from "./graph.mjs";
 import { activeTask } from "./state.mjs";
 // ---------------------------------------------------------------------------------------
 // Vocabulary
@@ -500,7 +500,8 @@ export function openLoan(root, request) {
     // The profile in force for the current change decides whether a loan may open at all. A loan
     // that opens under strict and then defers nothing would read as speed and deliver confusion.
     const task = activeTask(root);
-    const impact = affectedModules(root, gitAvailable(root) ? changedPaths(root, gitBase(root)) : [], gitAvailable(root));
+    const change = requestedPaths(root, [], {});
+    const impact = affectedModules(root, change.paths, !change.explicit);
     const resolved = assuranceForImpact(root, impact, task?.risk ?? null);
     if (resolved.controls.deferral === "none") {
         const floors = resolved.floors.map((floor) => floor.source).join(", ");

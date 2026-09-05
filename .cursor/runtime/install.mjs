@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import { POLICY_REL, effectiveSelection, isProtectedCheck, loadPolicy, openDebts, readLoan, resolveAssurance } from "./assurance.mjs";
+import { POLICY_REL, compilePolicy, effectiveSelection, isProtectedCheck, loadPolicy, openDebts, readLoan, resolveAssurance } from "./assurance.mjs";
 import { RISK_LEVELS, matrix, validateCatalog } from "./catalog.mjs";
 import { discoverCatalog, writeDiscoveredCatalog } from "./graph.mjs";
 import { EVENTS, HARNESS_ROOT, INSTALL_MANIFEST_REL, LIVE_CONTRACTS, SECURITY_EVENTS, SOURCE_MANIFEST_REL, VERSION, boolOption, copyNormalized, errorMessage, fileHash, git, gitAvailable, isHarnessSourceRoot, isWithin, normalizeLf, posix, printJson, readJson, run, sha256, snapshotFiles, targetFrom, walkFiles, writeJson, } from "./core.mjs";
@@ -159,6 +159,10 @@ export function installLike(action, options) {
     if (action === "upgrade" && oldManifest) {
         for (const oldEntry of oldManifest.files || []) {
             if (sourcePaths.has(oldEntry.path))
+                continue;
+            // A 1.x manifest listed the live contracts; they are the target's own files now, never
+            // obsolete, and never removed even when they still match what 1.x installed.
+            if (LIVE_CONTRACTS.some(([live]) => live === oldEntry.path))
                 continue;
             const destination = safeManagedPath(target, oldEntry.path);
             if (fileHash(destination) === oldEntry.sha256) {
@@ -339,10 +343,9 @@ export function validateManagedJson(root, paths, errors) {
     }
 }
 export function isDefaultBootstrapConfig(root) {
-    const pairs = [
-        ["harness/module-catalog.json", "harness/default-module-catalog.json"],
-        ["harness/verification-matrix.json", "harness/default-verification-matrix.json"],
-    ];
+    // The policy's template equals the built-in defaults, so matching it says nothing; only the
+    // catalog and the matrix tell whether a repository has described itself yet.
+    const pairs = LIVE_CONTRACTS.filter(([live]) => !live.endsWith("assurance-policy.json"));
     return pairs.every(([local, fallback]) => {
         const localPath = resolve(root, local);
         const fallbackPath = resolve(root, fallback);
@@ -366,6 +369,7 @@ export function validate(options) {
             ".cursor/worktrees.json",
             "harness/default-module-catalog.json",
             "harness/default-verification-matrix.json",
+            "harness/default-assurance-policy.json",
             "harness/module-catalog.json",
             "harness/verification-matrix.json",
             "scripts/harness.mjs",
@@ -384,6 +388,7 @@ export function validate(options) {
             ".cursor/worktrees.json",
             "harness/default-module-catalog.json",
             "harness/default-verification-matrix.json",
+            "harness/default-assurance-policy.json",
             "harness/module-catalog.json",
             "harness/verification-matrix.json",
             "harness/assurance-policy.json",
@@ -459,6 +464,16 @@ export function validate(options) {
         }
         catch (error) {
             errors.push(`Invalid ${POLICY_REL}: ${errorMessage(error)}`);
+        }
+        // The template seeds every new target's policy; a template that does not compile would
+        // pass here and fail at the target's first session.
+        if (existsSync(resolve(root, "harness/default-assurance-policy.json"))) {
+            try {
+                compilePolicy(readJson(resolve(root, "harness/default-assurance-policy.json")), "harness/default-assurance-policy.json");
+            }
+            catch (error) {
+                errors.push(`Invalid harness/default-assurance-policy.json: ${errorMessage(error)}`);
+            }
         }
         // A check that may be deferred under a loan must not be the one evidencing a protected
         // attribute; the gate refuses such deferrals at run time, but the contradiction belongs in

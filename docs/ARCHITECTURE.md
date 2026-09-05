@@ -17,8 +17,8 @@ path in ~3.2s and `affected` resolves impact in ~60ms (see `docs/LARGE-REPO-GUID
 - **Assurance** — how much evidence a change must carry before it is done: verification breadth,
   review requirement, attribute enforcement, memory sync, budget, deferral, completion. Owned by
   `harness/assurance-policy.json` and resolved per change as one of `explore < rapid < balanced
-  < strict`, with floors (task risk, impact, protected attributes, governance paths) that only
-  raise. See `docs/ASSURANCE-PROFILES.md`.
+  < strict`, with floors (task risk, impact, protected attributes, other critical/high
+  attributes, governance paths) that only raise. See `docs/ASSURANCE-PROFILES.md`.
 
 Conflating the two is how "fast mode" becomes "unsafe mode". Keeping them apart is what makes a
 rapid profile safe to offer.

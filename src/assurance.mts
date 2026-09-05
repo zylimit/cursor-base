@@ -21,9 +21,6 @@ import {
   STATE_REL,
   boolOption,
   canonicalJson,
-  changedPaths,
-  gitAvailable,
-  gitBase,
   matchesPath,
   printJson,
   readJson,
@@ -33,7 +30,7 @@ import {
   writeJson,
 } from "./core.mjs";
 import type { CliOptions } from "./core.mjs";
-import { affectedModules } from "./graph.mjs";
+import { affectedModules, requestedPaths } from "./graph.mjs";
 import type { ImpactResult } from "./graph.mjs";
 import { activeTask } from "./state.mjs";
 
@@ -662,7 +659,8 @@ export function openLoan(root: string, request: { minutes: number; reason: strin
   // The profile in force for the current change decides whether a loan may open at all. A loan
   // that opens under strict and then defers nothing would read as speed and deliver confusion.
   const task = activeTask(root);
-  const impact = affectedModules(root, gitAvailable(root) ? changedPaths(root, gitBase(root)) : [], gitAvailable(root));
+  const change = requestedPaths(root, [], {});
+  const impact = affectedModules(root, change.paths, !change.explicit);
   const resolved = assuranceForImpact(root, impact, task?.risk ?? null);
   if (resolved.controls.deferral === "none") {
     const floors = resolved.floors.map((floor) => floor.source).join(", ");

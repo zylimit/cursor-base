@@ -5,8 +5,8 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renam
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import { relative, resolve } from "node:path";
-import { STATE_REL, isWithin, posix, printJson, readJson, targetFrom, whichCommand, writeJson } from "./core.mjs";
-import { parseShellCommand, requiresShell } from "./shell-policy.mjs";
+import { STATE_REL, isWithin, posix, printJson, readJson, targetFrom, writeJson } from "./core.mjs";
+import { directSpawnTarget, parseShellCommand } from "./shell-policy.mjs";
 // ============================== Service supervision ==============================
 // A development-time guardian for long-running services: crash restart with exponential
 // backoff, a restart-storm breaker that fails visibly instead of hammering the machine, and an
@@ -229,13 +229,11 @@ export async function serviceSupervise(root, name) {
         // A command that is one program with arguments is spawned directly, so the recorded pid is
         // the service itself. Through a shell the pid would be `cmd.exe` or `sh`, and on Windows
         // killing that pid alone leaves the real process running with the repository as its cwd.
-        // Pipelines, chains, and substitutions still need the shell.
+        // Anything a shell must interpret (pipelines, chains, substitution, expansion, a leading
+        // assignment, a keyword, a `.cmd` shim) goes through the shell; a program that does not
+        // resolve is handed to the shell too, so its own error is what the log records.
         const parsed = parseShellCommand(definition.command);
-        const program = requiresShell(parsed) ? undefined : parsed.segments[0].rawTokens[0];
-        // A relative program resolves against the service's own cwd, where its node_modules live.
-        const resolved = program ? whichCommand(program.includes("/") || program.includes("\\") ? resolve(definition.cwd, program) : program) : null;
-        // `.cmd`/`.bat` wrappers (npm, npx, yarn on Windows) cannot be spawned without a shell.
-        const direct = Boolean(resolved) && !/\.(cmd|bat)$/i.test(resolved ?? "");
+        const target = directSpawnTarget(parsed, definition.cwd);
         const options = {
             cwd: definition.cwd,
             // Its own process group on POSIX, so the whole tree can be terminated together.
@@ -244,8 +242,8 @@ export async function serviceSupervise(root, name) {
             stdio: ["ignore", "pipe", "pipe"],
             windowsHide: true,
         };
-        const spawned = direct
-            ? spawn(resolved, parsed.segments[0].rawTokens.slice(1), options)
+        const spawned = target.kind === "direct"
+            ? spawn(target.program, target.args, options)
             : spawn(definition.command, { ...options, shell: true });
         // A spawn failure (ENOENT, EACCES) surfaces as an error event; without a listener it would
         // take the supervisor down with an uncaught exception instead of counting as a crash.

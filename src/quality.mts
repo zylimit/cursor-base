@@ -34,13 +34,12 @@ import {
   sha256,
   targetFrom,
   validTimestamp,
-  whichCommand,
   withStateLock,
   writeJson,
 } from "./core.mjs";
 import type { CliOptions, DiffBinding, OptionValue } from "./core.mjs";
 import { affectedModules, requestedPaths } from "./graph.mjs";
-import { parseShellCommand, requiresShell } from "./shell-policy.mjs";
+import { directSpawnTarget, parseShellCommand } from "./shell-policy.mjs";
 import { activeTask } from "./state.mjs";
 import {
   REVIEW_LENSES,
@@ -298,7 +297,11 @@ export function verifyLedgerChain(root: string): LedgerIntegrity {
 export function executeCheck(root: string, check: SelectedCheck, plan: VerifyPlan): VerificationReceipt {
   const command = String(check.command || "").trim();
   const parsed = parseShellCommand(command);
-  const useShell = requiresShell(parsed);
+  // One decision, shared with service supervision: direct when the command is one resolvable
+  // program with literal arguments, shell when a shell must interpret it, missing when the
+  // program is not there. Only the last is a BLOCKED receipt about the environment.
+  const target = command ? directSpawnTarget(parsed, root) : ({ kind: "shell" } as const);
+  const useShell = target.kind === "shell";
   const receipt: VerificationReceipt = {
     version: 1,
     kind: "verification",
@@ -349,12 +352,12 @@ export function executeCheck(root: string, check: SelectedCheck, plan: VerifyPla
       maxBuffer: 32 * 1024 * 1024,
     });
   } else {
-    const [program, ...args] = parsed.segments[0].rawTokens;
-    if (!whichCommand(program)) {
+    if (target.kind === "missing") {
       receipt.duration_ms = Date.now() - started;
-      receipt.reason = `Command not found on PATH: ${program}.`;
+      receipt.reason = `Command not found on PATH: ${target.program}.`;
       return signReceipt(receipt);
     }
+    const { program, args } = target as { program: string; args: string[] };
     result = spawnSync(program, args, {
       cwd: root,
       encoding: "utf8",
@@ -1002,10 +1005,11 @@ export function gate(positional: string[], options: CliOptions): void {
         attributes: check.attributes ?? [],
         command: check.command ?? "",
         would_defer: deferrable(check, plan),
-        executable_available:
-          parseShellCommand(String(check.command || "")).segments.length === 1
-            ? whichCommand(parseShellCommand(String(check.command || "")).segments[0].rawTokens[0]) !== null
-            : null,
+        // null when a shell will interpret the command, so nothing can be said about one program.
+        executable_available: (() => {
+          const spawnTarget = directSpawnTarget(parseShellCommand(String(check.command || "")), root);
+          return spawnTarget.kind === "shell" ? null : spawnTarget.kind === "direct";
+        })(),
       })),
     });
     return;

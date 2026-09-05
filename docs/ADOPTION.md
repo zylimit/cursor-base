@@ -23,7 +23,8 @@ templates; when the target is a committed git repository, the catalog and matrix
 proposed from its own tree, real import edges, and build manifests (`catalog.source:
 "discovered"` in the output, with `needs_decision` listing what was deliberately not guessed —
 attribute tiers, forbidden edges, layers). Pass `--no-discover` (`setup.ps1 -NoDiscover`) to keep
-the template. An existing live file is never touched, on install or on upgrade.
+the template. An existing live file is never touched, on install or on upgrade, whatever version
+installed it.
 
 ## Existing repository
 
@@ -68,9 +69,13 @@ What changes for a repository that already runs the harness:
   floors, or change the path floors (`docs/ASSURANCE-PROFILES.md`).
 - **Live contracts are yours.** `harness/module-catalog.json`, `verification-matrix.json`, and
   `assurance-policy.json` are no longer part of the distributed file set: `upgrade` never
-  rewrites them and `uninstall` leaves them in place. A 1.x install carried this repository's
-  own module map (with `security: critical` on `src/**`); if yours still matches that template,
-  run `catalog discover --write` to replace it with a map of your repository.
+  rewrites or removes them — including the copies a 1.x install distributed, which are kept
+  exactly as they are even though the 1.x manifest listed them — and `uninstall` leaves them in
+  place. A 1.x install carried this repository's own module map (modules `governance`,
+  `runtime`, `tests`, `distribution`, with `security: critical` on `src/**`). Discovery does not
+  run on `upgrade`, so after upgrading run `node scripts/harness.mjs catalog discover`, review
+  the proposal, then `catalog discover --write`: because your file differs from the new neutral
+  template, the draft lands beside it as `harness/module-catalog.draft.json` for you to merge.
 - **Matrix and catalog fields.** Checks may declare `allowFastSkip` (deferrable under a fast
   loan; never for security, safety, or privacy evidence). The catalog accepts `memory`,
   `budget`, and `review` sections; none is required.

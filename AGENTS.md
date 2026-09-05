@@ -18,7 +18,7 @@ command surface.
 ## Assurance
 
 - Every change runs under an effective profile — `explore < rapid < balanced < strict` — that
-  floors (task risk, impact, protected attributes, governance paths) may only raise. Read it with
+  floors (task risk, impact, protected and other critical/high attributes, governance paths) may only raise. Read it with
   `profile show`; select with `profile set`; the `sessionStart` hook announces it.
 - Speed is a loan, never a waiver: `fast on --minutes N --reason TEXT` defers only checks the
   matrix pre-declared `allowFastSkip`, records each as debt, and only a later PASS repays it

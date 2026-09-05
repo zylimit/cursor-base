@@ -21,9 +21,10 @@ function tempRepository(t, label = "cursor-assurance-") {
   return root;
 }
 
-function runHarness(args, { input, cwd = repositoryRoot, timeout = 30_000 } = {}) {
+function runHarness(args, { input, cwd = repositoryRoot, timeout = 30_000, env } = {}) {
   return spawnSync(process.execPath, [harnessScript, ...args], {
     cwd,
+    env,
     encoding: "utf8",
     input: typeof input === "string" ? input : input === undefined ? undefined : JSON.stringify(input),
     maxBuffer: 32 * 1024 * 1024,
@@ -871,6 +872,82 @@ test("a fresh install into a committed repository discovers its catalog instead 
   git(other, ["commit", "--quiet", "-m", "seed"]);
   const kept = jsonResult(runHarness(["install", "--no-discover", "--target", other]));
   assert.equal(kept.catalog.source, "template");
+});
+
+// ---------------------------------------------------------------------------------------------
+// Round-3 fixes from the structured self-review
+// ---------------------------------------------------------------------------------------------
+
+test("a check with a leading assignment, a quoted variable, or a keyword runs through the shell, and a missing program is BLOCKED", (t) => {
+  const marker = process.platform === "win32" ? "%HARNESS_PROBE%" : "$HARNESS_PROBE";
+  const root = fixture(t, {
+    matrix: {
+      version: 1,
+      checks: {
+        assigned: { class: "test", command: `HARNESS_PROBE=1 ${process.execPath} -e "process.exit(process.env.HARNESS_PROBE === '1' ? 0 : 1)"`, required: true },
+        quoted: { class: "test", command: `${process.execPath} -e "process.exit(process.argv[1] === '1' ? 0 : 1)" "${marker}"`, required: true },
+        keyword: { class: "test", command: "exit 0", required: true },
+        missing: { class: "test", command: "no-such-program-xyz --version", required: true },
+      },
+    },
+    catalog: { version: 1, modules: [{ id: "app", paths: ["src/**"], dependsOn: [], verification: ["assigned", "quoted", "keyword", "missing"], owners: [] }] },
+  });
+  edit(root, "src/app.js", "export const one = 2;\n");
+  const dry = jsonResult(runHarness(["gate", "--dry-run", "--target", root]));
+  const available = Object.fromEntries(dry.would_execute.map((entry) => [entry.id, entry.executable_available]));
+  assert.equal(available.assigned, null, "a shell will interpret the assignment");
+  assert.equal(available.keyword, null);
+  assert.equal(available.missing, false);
+
+  const gate = jsonResult(runHarness(["gate", "--target", root], { env: { ...process.env, HARNESS_PROBE: process.platform === "win32" ? "1" : "1" } }), 2);
+  const results = Object.fromEntries(gate.results.map((entry) => [entry.id, entry]));
+  assert.equal(results.assigned.status, "PASS", JSON.stringify(results.assigned));
+  assert.equal(results.keyword.status, "PASS", JSON.stringify(results.keyword));
+  assert.equal(results.missing.status, "BLOCKED");
+  assert.match(results.missing.reason, /Command not found on PATH: no-such-program-xyz/);
+});
+
+test("upgrade never removes or reseeds a live contract a 1.x install distributed", async (t) => {
+  const root = fixture(t);
+  // Simulate a 1.x manifest that listed the live catalog with the hash of the file on disk.
+  const manifestPath = resolve(root, ".cursor/harness-state/install-manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const catalogText = readFileSync(resolve(root, "harness/module-catalog.json"), "utf8").replace(/\r\n?/g, "\n");
+  const sha256 = (await import("node:crypto")).createHash("sha256").update(catalogText).digest("hex");
+  manifest.files.push({ path: "harness/module-catalog.json", sha256, bytes: Buffer.byteLength(catalogText, "utf8") });
+  manifest.digest = (await import("node:crypto")).createHash("sha256").update(manifest.files.map((entry) => `${entry.path}\0${entry.sha256}\n`).join("")).digest("hex");
+  writeJson(manifestPath, manifest);
+
+  const upgraded = jsonResult(runHarness(["upgrade", "--target", root]));
+  const touched = upgraded.operations.filter((entry) => entry.path === "harness/module-catalog.json");
+  assert.deepEqual(touched, [], `the live catalog must not appear as obsolete or seeded: ${JSON.stringify(touched)}`);
+  assert.equal(readFileSync(resolve(root, "harness/module-catalog.json"), "utf8").replace(/\r\n?/g, "\n"), catalogText);
+});
+
+test("the stop and preCompact hooks work in a repository with no commits", (t) => {
+  const root = tempRepository(t);
+  jsonResult(runHarness(["install", "--target", root]));
+  git(root, ["init", "--quiet"]);
+  writeJson(resolve(root, "harness", "assurance-policy.json"), { version: 1, floors: { paths: [] } });
+  edit(root, "src/app.js", "export const one = 1;\n");
+  const stop = hook(root, "stop", { status: "completed", loop_count: 0 });
+  assert.equal(stop.additional_context, undefined, "the hook must not degrade");
+  assert.match(stop.followup_message ?? "", /no check wired for app|no passing verification receipt/);
+  const compact = hook(root, "preCompact", { trigger: "auto" });
+  assert.match(compact.user_message, /before compaction/);
+});
+
+test("machine commands are recognized by program name, not by prose", (t) => {
+  const root = fixture(t);
+  const cases = [
+    ['git commit -m "handle (shutdown) event"', "ask"],
+    ["echo 'reboot the discussion'", "allow"],
+    ["(shutdown -h now)", "deny"],
+    ["sudo -u root shutdown -h now", "deny"],
+  ];
+  for (const [command, expected] of cases) {
+    assert.equal(hook(root, "beforeShellExecution", { command }).permission, expected, command);
+  }
 });
 
 // ---------------------------------------------------------------------------------------------
