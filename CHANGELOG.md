@@ -79,6 +79,9 @@ following a line-by-line study of `dsh-base` and `cc-base` and a review of `code
 - `validate`/`doctor` no longer warn about bootstrap defaults inside the harness source
   checkout, where the catalog is the template by definition.
 - CI uses `actions/checkout@v5` and `actions/setup-node@v5`.
+- A review opened with `review start --base <ref>` stays fresh against that range instead of
+  going stale against HEAD, writes its receipt bound to that base, and counts authorship
+  recorded anywhere inside the range.
 
 ### Fixed
 

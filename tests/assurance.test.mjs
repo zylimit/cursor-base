@@ -453,6 +453,39 @@ test("structured review stages lenses, refuses unlocated findings, and computes 
   assert.deepEqual(status.blockers, ["attribute app/security (high) is uncovered"]);
 });
 
+test("a review opened on a commit range stays fresh against that range and binds its receipt to it", (t) => {
+  const root = fixture(t);
+  const base = git(root, ["rev-parse", "HEAD"]).trim();
+  edit(root, "src/app.js", "export const one = 2;\n");
+  jsonResult(runHarness(["authorship", "record", "--target", root], { input: { agent: "impl-1", files: ["src/app.js"] } }));
+  git(root, ["add", "-A"]);
+  git(root, ["commit", "--quiet", "-m", "change"]);
+
+  // A clean tree has nothing to review against HEAD, but the range is a real change.
+  const nothing = jsonResult(runHarness(["review", "start", "--target", root]), 3);
+  assert.equal(nothing.degraded, true);
+  const started = jsonResult(runHarness(["review", "start", "--base", base, "--target", root]));
+  assert.deepEqual(started.convened, ["correctness"], "balanced minus lenses whose attribute nobody declares");
+  const blue = jsonResult(runHarness(["review", "blue", "--target", root], { input: { claims: [{ claim: "ok", evidence: "gate" }] } }));
+  assert.equal(blue.ok, true, "the session is fresh against its own base, not against HEAD");
+
+  // Authorship recorded while the earlier commit was HEAD still counts inside the range.
+  const authorship = jsonResult(runHarness(["authorship", "show", "--target", root]));
+  assert.deepEqual(authorship.authors, ["impl-1"]);
+  jsonResult(runHarness(["review", "lens", "correctness", "--agent", "impl-1", "--target", root], { input: { findings: [] } }));
+  const refused = jsonResult(runHarness(["review", "verdict", "--target", root]), 1);
+  assert.ok(refused.blockers.some((entry) => /author of this diff/.test(entry)));
+
+  jsonResult(runHarness(["review", "lens", "correctness", "--agent", "reviewer", "--target", root], { input: { findings: [] } }));
+  const verdict = jsonResult(runHarness(["review", "verdict", "--reviewer", "panel", "--target", root]));
+  assert.equal(verdict.verdict, "ACCEPT");
+  const receipt = JSON.parse(readFileSync(resolve(root, verdict.receipt), "utf8"));
+  assert.equal(receipt.base_commit, base);
+  assert.equal(receipt.diff_sha256, started.diff_sha256);
+  const status = jsonResult(runHarness(["review", "status", "--target", root]));
+  assert.equal(status.stale, false);
+});
+
 test("a self-review cannot carry an ACCEPT once authorship is recorded", (t) => {
   const root = fixture(t);
   edit(root, "src/app.js", "export const one = 2;\n");

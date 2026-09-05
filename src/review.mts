@@ -95,11 +95,19 @@ function saveSession(root: string, session: ReviewSession): ReviewSession {
 /** The session is evidence only about the tree it opened on. */
 function freshness(root: string, session: ReviewSession | null): { ok: boolean; stale?: boolean; reason?: string } {
   if (!session) return { ok: false, reason: "no review session is open; run `review start`" };
-  const current = binding(root);
+  // The session is re-bound against the base it opened on, so a review of a commit range
+  // (`review start --base <ref>`) stays fresh while the working tree matches that range.
+  const current = sessionBinding(root, session);
   if (current.diff_sha256 !== session.diff_sha256 || current.base_commit !== session.base_commit) {
     return { ok: false, stale: true, reason: "the working tree changed since this review opened; re-open it and re-run the lenses" };
   }
   return { ok: true };
+}
+
+function sessionBinding(root: string, session: Pick<ReviewSession, "base_commit">): DiffBinding {
+  return session.base_commit === "NO_COMMIT" || session.base_commit === "NO_GIT"
+    ? binding(root)
+    : binding(root, session.base_commit);
 }
 
 function stageOf(lens: string): number {
@@ -156,13 +164,32 @@ export function recordAuthorship(root: string, agent: string, files: string[]): 
   });
 }
 
-/** Agents recorded as having edited any path in the given set since the base commit. */
-export function authorsOf(root: string, paths: string[]): string[] {
+/**
+ * Agents recorded as having edited any path in the given set within the reviewed range. An
+ * entry counts when it was recorded against the current HEAD, or against a commit inside the
+ * range (a descendant of the review base and an ancestor of HEAD), so a review of several
+ * commits still sees who wrote them.
+ */
+export function authorsOf(root: string, paths: string[], base?: string): string[] {
   const wanted = new Set(paths.map(posix));
-  const base = gitAvailable(root) ? gitBase(root) : "NO_GIT";
+  if (!gitAvailable(root)) return [];
+  const head = gitBase(root);
+  const rangeBase = base && base !== "NO_COMMIT" && base !== "NO_GIT" ? base : head;
+  const inRange = new Map<string, boolean>();
+  const within = (commit: string): boolean => {
+    if (commit === head) return true;
+    if (!/^[0-9a-f]{40}$/.test(commit)) return false;
+    const cached = inRange.get(commit);
+    if (cached !== undefined) return cached;
+    const isAncestorOfHead = git(root, ["merge-base", "--is-ancestor", commit, head], true).ok;
+    const isDescendantOfBase = rangeBase === head ? false : git(root, ["merge-base", "--is-ancestor", rangeBase, commit], true).ok;
+    const result = isAncestorOfHead && isDescendantOfBase;
+    inRange.set(commit, result);
+    return result;
+  };
   const authors = new Set<string>();
   for (const entry of readAuthorship(root).entries) {
-    if (entry.base_commit !== base) continue;
+    if (!within(entry.base_commit)) continue;
     if (entry.files.some((file) => wanted.has(file))) authors.add(entry.agent);
   }
   return [...authors].sort();
@@ -321,7 +348,7 @@ export function reviewVerdict(root: string, reviewer: string, notes: string): Ve
 
   // The reviewer is never the author. Enforced only where identities were actually recorded;
   // an unenforced rule reported as enforced would be worse than the prose it replaces.
-  const authors = authorsOf(root, changedFiles(root, current));
+  const authors = authorsOf(root, changedFiles(root, current), current.base_commit);
   const reporting = reports.map(([, report]) => report.agent).filter((agent): agent is string => Boolean(agent));
   const selfReview = reporting.filter((agent) => authors.includes(agent));
   const authorshipEnforced = authors.length > 0 && reporting.length > 0;
@@ -350,6 +377,7 @@ export function reviewVerdict(root: string, reviewer: string, notes: string): Ve
   let receipt: string | null = null;
   if (verdict === "ACCEPT" && final) {
     const written = writeReviewReceipt(root, {
+      base: current.base_commit === "NO_COMMIT" || current.base_commit === "NO_GIT" ? undefined : current.base_commit,
       scope: current.modules.length ? current.modules : ["."],
       reviewer,
       decision: "approve",
@@ -617,7 +645,7 @@ export async function reviewCommand(positional: string[], options: CliOptions): 
       printJson({ command: "review status", target: root, session: null });
       return;
     }
-    const current = binding(root);
+    const current = sessionBinding(root, session);
     const stale = current.diff_sha256 !== session.diff_sha256 || current.base_commit !== session.base_commit;
     printJson({
       command: "review status",
@@ -656,13 +684,14 @@ export async function authorshipCommand(positional: string[], options: CliOption
   }
   if (subcommand === "show") {
     const session = readSession(root);
-    const files = session ? changedFiles(root, session) : gitAvailable(root) ? changedFiles(root, { base_commit: gitBase(root) } as ReviewSession) : [];
+    const base = session?.base_commit ?? (gitAvailable(root) ? gitBase(root) : "NO_GIT");
+    const files = session ? changedFiles(root, session) : gitAvailable(root) ? changedFiles(root, { base_commit: base } as ReviewSession) : [];
     printJson({
       command: "authorship show",
       target: root,
-      base_commit: gitAvailable(root) ? gitBase(root) : "NO_GIT",
+      base_commit: base,
       files: files.length,
-      authors: authorsOf(root, files),
+      authors: authorsOf(root, files, base),
       entries: readAuthorship(root).entries.length,
       note: "Authorship on this host is recorded per conversation by the afterFileEdit hook; it is a claim about who edited, not an authenticated identity.",
     });
