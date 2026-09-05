@@ -648,9 +648,9 @@ export function discoverCatalog(root: string, depth = 2) {
 }
 
 /**
- * True when the live file is absent or still byte-identical to its template. The template is
- * read from the target's installed copy, or from the harness when the target has none, so the
- * answer is the same one the installer's seed step used.
+ * True when the live file is absent or still equals its template apart from line endings. The
+ * template comes from `templatePath`, the same resolver the installer's seed step used, so the
+ * comparison and the seed can never disagree about which file the template is.
  */
 export function isUneditedTemplate(root: string, live: string): boolean {
   const livePath = resolve(root, live);

@@ -25,8 +25,8 @@ proposed from its own tree, real import edges, and build manifests (`catalog.sou
 attribute tiers, forbidden edges, layers). Pass `--no-discover` (`setup.ps1 -NoDiscover`) to keep
 the template. A live file the target already has is never touched, on install or on upgrade,
 whatever version installed it and whether or not it was edited; discovery writes only the files
-the same install seeded, and `catalog discover --write` later replaces a file only while it is
-still byte-identical to its template (otherwise it writes a `.draft.json` beside it).
+the same install seeded, and `catalog discover --write` later replaces a file only while it still
+equals its template apart from line endings (otherwise it writes a `.draft.json` beside it).
 
 ## Existing repository
 

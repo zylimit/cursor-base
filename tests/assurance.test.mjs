@@ -956,6 +956,17 @@ test("machine commands are recognized by program name, not by prose", (t) => {
     // Inside single quotes the same characters are literal text.
     ["echo 'run $(halt) later'", "allow"],
     ["git commit -m 'docs: explain the `shutdown` hook'", "ask"],
+    ["git commit -m 'rotate logs; reboot not needed'", "ask"],
+    // A closed backtick pair inside double quotes does not turn the words after it into a command.
+    ['echo "`date` shutdown"', "allow"],
+    ['git commit -m "`date` reboot the runner"', "ask"],
+    // A separator outside quotes starts a real command.
+    ["echo done; reboot", "deny"],
+    // Every semantic rule applies inside a substitution, not only the machine-command list.
+    ["echo $(git restore .)", "deny"],
+    ["echo `git checkout -- src/app.js`", "deny"],
+    ["echo $(git commit -m x)", "ask"],
+    ["echo $(git status)", "allow"],
   ];
   for (const [command, expected] of cases) {
     assert.equal(hook(root, "beforeShellExecution", { command }).permission, expected, command);

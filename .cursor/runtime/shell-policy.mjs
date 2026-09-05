@@ -188,8 +188,12 @@ export function parseShellCommand(value) {
             else {
                 if (char === "$" && value[index + 1] === "(")
                     captureSubstitution(index);
-                if (char === "`")
-                    captureSubstitution(index);
+                // Backticks pair across quote contexts; only the opener starts a substitution.
+                if (char === "`") {
+                    if (!backtickOpen)
+                        captureSubstitution(index);
+                    backtickOpen = !backtickOpen;
+                }
                 if (char === "$" && (value[index + 1] === "(" || value[index + 1] === "{"))
                     dynamic = true;
                 if (char === "`")
@@ -395,26 +399,31 @@ export const MACHINE_COMMANDS = new Set(["shutdown", "reboot", "halt", "poweroff
 function isMachineCommand(name) {
     return MACHINE_COMMANDS.has(name) || name.startsWith("mkfs");
 }
+/** Nesting beyond which a substitution is treated as opaque and asked about rather than judged. */
+export const SUBSTITUTION_DEPTH_LIMIT = 8;
 /**
- * Program names a shell would run inside a command's substitutions, at any nesting depth, with
- * the same wrapper and assignment stripping the segment heads receive. A machine command hidden
- * in `echo $(exec shutdown -h now)` is still the machine command; the segment head is only the
- * program that receives its output. Single-quoted text is never a substitution and never here.
+ * What runs inside `$(...)` and backticks is a command too, and it receives the whole semantic
+ * rule set — machine commands, git discards, credential exposure — not a subset. `echo $(git
+ * restore .)` discards work exactly as `git restore .` does. Nesting past the limit is asked
+ * about, never waved through.
  */
-export function substitutedPrograms(parse, depth = 0) {
-    if (depth > 4)
-        return [];
-    const names = [];
+export function classifySubstitutions(parse, raw, root, depth = 0) {
+    let verdict = { permission: "allow" };
+    if (parse.substitutions.length === 0)
+        return verdict;
+    if (depth > SUBSTITUTION_DEPTH_LIMIT) {
+        return decision("ask", "Command substitutions are nested too deeply to classify.", raw);
+    }
     for (const inner of parse.substitutions) {
         if (!inner)
             continue;
         const nested = parseShellCommand(inner);
         for (const segment of nested.segments)
-            if (segment.name)
-                names.push(segment.name);
-        names.push(...substitutedPrograms(nested, depth + 1));
+            verdict = strictest(verdict, classifySegment(segment, raw, root));
+        verdict = strictest(verdict, classifySecretExposure(nested, raw));
+        verdict = strictest(verdict, classifySubstitutions(nested, raw, root, depth + 1));
     }
-    return names;
+    return verdict;
 }
 export function classifySegment(segment, raw, root) {
     const allow = { permission: "allow" };
@@ -509,10 +518,8 @@ export function shellDecision(command, root) {
     for (const segment of parse.segments) {
         semantic = strictest(semantic, classifySegment(segment, value, root));
     }
-    // What runs inside `$(...)` and backticks is a command too, judged by the same names.
-    if (substitutedPrograms(parse).some(isMachineCommand)) {
-        semantic = strictest(semantic, decision("deny", "Blocked an obviously destructive command.", value));
-    }
+    // What runs inside `$(...)` and backticks is a command too, judged by the same rules.
+    semantic = strictest(semantic, classifySubstitutions(parse, value, root));
     semantic = strictest(semantic, classifySecretExposure(parse, value));
     if (semantic.permission === "deny")
         return semantic;
@@ -520,9 +527,10 @@ export function shellDecision(command, root) {
         /\bgit\s+(reset\s+--hard|clean\s+(?:--force|-[a-z]*f[a-z]*)|checkout\s+--)\b/i,
         // Machine-level commands are recognized in command position only, so a commit message or
         // an echo that merely mentions "shutdown" is not read as a shutdown.
-        // Substitutions are judged by the semantic layer above, which knows quote context; the
-        // pattern here covers command position only, so single-quoted prose is never a match.
-        /(^|[;&|]\s*|\b(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+|\b(?:timeout\s+\d+|nice|nohup|env)\s+)(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
+        // Separators, wrappers, and substitutions are judged by the semantic layer above, which
+        // knows quote context; this net is anchored to the start of the line, where no quote can
+        // precede it, so prose inside a quoted argument is never a match here either.
+        /^\s*(?:(?:sudo|doas)(?:\s+-{1,2}[\w-]+(?:[= ]\S+)?)*\s+)?(mkfs(\.\w+)?|diskpart|shutdown|reboot|halt|poweroff)\b/i,
         /\bformat\s+[a-z]:/i,
         /\bdd\b[^;&|]*(\bof=\/dev\/|\bof=\\\\\.\\physicaldrive)/i,
         /\b(drop|truncate)\s+(database|schema)\b/i,

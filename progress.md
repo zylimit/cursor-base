@@ -175,8 +175,9 @@ section contract.
   session to finish, so the escalation is recorded here and in the final report rather than
   pausing. Round 4: 1 error (machine command hidden in a substitution), fixed in c3f3544.
   Round 5: 1 error (Windows bare-name probe shadowing `npm.cmd`, a regression from round 4),
-  fixed in the following commit; error count per round 5 → 2 → 4 → 1 → 1. Round 6 runs all
-  eight lenses on the fixed range.
+  fixed in 981b70c. Round 6: 1 error (substitutions received only the machine-command check, not
+  the whole semantic rule set), fixed in the following commit; error count per round
+  5 → 2 → 4 → 1 → 1 → 1. Round 7 runs all eight lenses on the fixed range.
 
 ## Not doing
 
