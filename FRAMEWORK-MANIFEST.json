@@ -155,8 +155,8 @@
     },
     {
       "path": ".cursor/runtime/release.mjs",
-      "sha256": "3e821397c5276e2e71185e9d98c73556a6f3fde1581338e1a0ea1719293da5f4",
-      "bytes": 12159
+      "sha256": "87e0ae8f28fd6b577e99d0383753c02d602fe3119b19f20e5a0f232d768b5139",
+      "bytes": 12602
     },
     {
       "path": ".cursor/runtime/review.mjs",
@@ -429,5 +429,5 @@
       "bytes": 185
     }
   ],
-  "digest": "1e65812835228c43a789149c44fd213413740dafeffe9464dfb91559350a341f"
+  "digest": "be5ebf38dba6b9b4e7a81878340f3e91dec81bddcb1ff4e172cd9178eb5d0042"
 }

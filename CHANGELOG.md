@@ -29,6 +29,9 @@ controls, spec-trace, and path leases among the rejections).
 - **Node support matrix modernized.** `engines` and the doctor floor move to `>=22`; the CI matrix
   tests Node 22 and 24 (was 20 and 22). The repository is public, so the regression matrix runs on
   free standard runners.
+- **Release-readiness CI probe gated on a remote.** `release readiness` observes CI only when a
+  git remote is configured; a remoteless repository reports the `ci` condition BLOCKED without
+  shelling to `gh`, removing a network subprocess and its nondeterministic latency from the path.
 
 ## [2.0.0] - 2026-09-05
 

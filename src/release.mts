@@ -132,10 +132,14 @@ export function releaseReadiness(root: string, options: CliOptions): {
     add("changelog", version && text.includes(version) ? "PASS" : version ? "FAIL" : "BLOCKED", version ? (text.includes(version) ? `CHANGELOG.md mentions ${version}` : `CHANGELOG.md does not mention the current version ${version}`) : "no version could be read from the manifest", false);
   }
 
-  // CI is observed, never assumed. Without the tooling it stays BLOCKED, which is the honest
-  // reading of "I could not look".
+  // CI is observed, never assumed, and only where it could exist: a repository with no remote
+  // has no CI to look at, so probing `gh` there is a pointless network call (and, on shared
+  // runners, a source of nondeterministic latency). Without the tooling or a remote it stays
+  // BLOCKED, which is the honest reading of "I could not look".
   if (gitAvailable(root)) {
-    if (!whichCommand("gh")) add("ci", "BLOCKED", "gh is not installed, so the CI status of HEAD could not be read", false);
+    const hasRemote = git(root, ["remote"], true).stdout.trim() !== "";
+    if (!hasRemote) add("ci", "BLOCKED", "no git remote is configured, so the CI status of HEAD cannot be observed", false);
+    else if (!whichCommand("gh")) add("ci", "BLOCKED", "gh is not installed, so the CI status of HEAD could not be read", false);
     else {
       const sha = git(root, ["rev-parse", "HEAD"], true).stdout.trim();
       const result = run("gh", ["run", "list", "--commit", sha, "--limit", "5", "--json", "status,conclusion,name"], root, true);

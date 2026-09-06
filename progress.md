@@ -240,10 +240,11 @@ section contract.
 
 ## Risks
 
-- Two tests are flaky on slow/cold runners (seen once on Node 20, run 34040478414): `non-ASCII
-  paths are usable` and `release readiness performs nothing...`. Each failed on a different job
-  while passing on Node 22 and locally, so the cause is timing in temp-repo git calls, not the
-  assertion. Not yet stabilized; a rerun currently clears them.
+- `non-ASCII paths are usable` flaked once on Node 20 (run 34040478414) while passing on Node 22,
+  Node 24, and locally many times over; the cause looks like Node 20 filesystem-encoding behavior,
+  and Node 20 is out of the matrix. Not reproducible on the supported runtimes; left as-is rather
+  than masked with a retry. (The release-readiness flake from the same run is fixed: the CI probe
+  no longer shells to `gh` without a configured remote.)
 - `arch-check` counts bare specifiers without `provides` as unresolved, not as violations; a
   catalog without `provides` sees only part of the graph.
 - Import extraction is pattern-based; unusual syntax reduces coverage rather than producing

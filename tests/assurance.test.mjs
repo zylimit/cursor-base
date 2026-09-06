@@ -1070,6 +1070,10 @@ test("release readiness performs nothing and reports every condition under the s
   assert.equal(byId["fast-loan"].status, "PASS");
   assert.deepEqual(dirty.trust_boundary, { tagged: false, pushed: false, published: false, deployed: false, ci_triggered: false });
   assert.equal(byId["remote-sync"].status, "BLOCKED", "no upstream means divergence cannot be measured");
+  // With no remote there is no CI to observe, so the probe reports BLOCKED without shelling to
+  // gh — which keeps this path free of a network subprocess and its nondeterministic latency.
+  assert.equal(byId.ci.status, "BLOCKED");
+  assert.match(byId.ci.detail, /no git remote/);
 
   const action = runHarness(["release", "tag", "--target", root]);
   assert.notEqual(action.status, 0);
