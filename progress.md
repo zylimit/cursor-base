@@ -162,6 +162,11 @@ section contract.
 
 ## Done
 
+- Release-readiness CI probe gated on a remote (2026-09-06, commit b540801): a remoteless repo
+  reports `ci` BLOCKED without shelling to `gh`, removing the network-latency flake vector seen on
+  a Windows Node 20 runner. Verified 227/227, gate 14/14, CI green on all four jobs (run
+  34041843085). The `non-ASCII paths` flake was not reproducible on the supported matrix (22/24) or
+  locally and is left recorded under Risks rather than masked.
 - Node matrix modernized (2026-09-06, commit 392e403): CI tests Node 22 and 24 (was 20 and 22);
   `engines`, the `validate` floor, and the `doctor` node check move to `>=22`. Repository made
   public, so the regression matrix runs on free standard runners. CI green on all four jobs
