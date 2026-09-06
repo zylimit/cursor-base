@@ -162,6 +162,11 @@ section contract.
 
 ## Done
 
+- Node matrix modernized (2026-09-06, commit 392e403): CI tests Node 22 and 24 (was 20 and 22);
+  `engines`, the `validate` floor, and the `doctor` node check move to `>=22`. Repository made
+  public, so the regression matrix runs on free standard runners. CI green on all four jobs
+  (ubuntu/windows × 22/24, run 34041063738, 13 steps each). The two Node 20 flakes are recorded
+  under Risks, not hidden by the version change.
 - Codex v5 lessons adopted (2026-09-06, commit 307fe79): `--no-renames` on `changedPaths` and
   `diffArgumentSets`; gate `status_counts`/`non_pass`; stop-hook strike bound (3 blocks keyed by
   unresolved-state hash, then a recorded release that never marks complete); `release readiness
