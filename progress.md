@@ -88,9 +88,21 @@ section contract.
   `directSpawnTarget` peels those prefixes and puts them on a `direct` verdict; check
   execution and service supervision merge them into the child env. Rejected: sending the
   original string through `shell: true` — on Windows that is `cmd.exe`, which does not
-  apply POSIX assignments (`HARNESS_PROBE` is not recognized as a command). A keyword
+  apply POSIX assignments   (`HARNESS_PROBE` is not recognized as a command). A keyword
   (`exit`) and expansion still go through the shell. Supersedes the round-3 wording that
   listed a leading assignment among the cases that require a shell.
+
+- 2026-09-06 Adopted five mechanisms from the codex-base v5 review, each the executable half of
+  a lesson: `--no-renames` on all fingerprints (`changedPaths`, `diffArgumentSets`), gate
+  `status_counts`/`non_pass`, a stop-hook strike bound keyed by unresolved-state hash (3 blocks
+  then a recorded release that never marks complete), `release readiness --operation
+  package|release`, and a guard mutation tripwire test.
+  Rejected: codex's second control bundle (`targetControls`/`executionControls`) — at resolve
+  time the two are byte-identical and the split is only which consumer reads which axis; our
+  `complete`/`closable`/debt already carries "what shipped vs what is owed", so a second bundle
+  is structure without a decision. Rejected again: spec-trace with a REQ registry (a second
+  constitution), path leases without an integration owner, 48-hour loans, and guard-fault epoch
+  lineage (disproportionate for a lightweight harness). See `docs/CAPABILITY-MATRIX.md`.
 
 - 2026-09-06 One walker classifies a parsed command. `classifyParsed` applies the whole rule
   set — segment (machine, git), secret exposure, the legacy pattern net, then every recorded
@@ -195,8 +207,9 @@ section contract.
 
 ## In progress
 
-- None. Waiting for GitHub Actions on the spawn-env fix. Not opening another self-review
-  loop of the 8017024 range.
+- Five codex-v5 lessons adopted (task-1788628213269): `--no-renames` fingerprints, gate
+  `status_counts`/`non_pass`, stop-hook strike bound, package-vs-release readiness, guard
+  mutation tripwire. Implemented and gated locally (227/227, gate PASS); pending GitHub Actions.
 
 ## Not doing
 

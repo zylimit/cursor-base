@@ -5,7 +5,7 @@ import { relative, resolve } from "node:path";
 import { effectiveSelection, loadPolicy, openDebts, readLoan, resolveAssurance } from "./assurance.mjs";
 import { invariants, syncCheck } from "./memory.mjs";
 import { recordAuthorship } from "./review.mjs";
-import { EVENTS, SECURITY_EVENTS, STATE_REL, binding, boundedHead, boundedText, changedPaths, errorMessage, posix, printJson, readJson, redactSecrets, sensitivePath, stdinJson, targetFrom, withStateLock, writeJson, } from "./core.mjs";
+import { EVENTS, SECURITY_EVENTS, STATE_REL, binding, boundedHead, boundedText, changedPaths, errorMessage, canonicalJson, posix, printJson, readJson, redactSecrets, sensitivePath, sha256, stdinJson, targetFrom, withStateLock, writeJson, } from "./core.mjs";
 import { appendLedger, riskScan } from "./ops.mjs";
 import { QUALITY_LEDGER_REL, assessQuality, buildVerifyPlan } from "./quality.mjs";
 import { READ_ONLY_TOOLS, decision, mcpDecision, shellDecision, toolPaths } from "./shell-policy.mjs";
@@ -313,9 +313,7 @@ export async function handleHookEvent(event, payload, root) {
         const changedThisSession = baseline
             ? baseline.diff_sha256 !== current.diff_sha256
             : changedPaths(root, current.base_commit).length > 0;
-        if (payload.status === "completed" &&
-            Number(payload.loop_count || 0) < 2 &&
-            changedThisSession) {
+        if (payload.status === "completed" && changedThisSession) {
             const plan = buildVerifyPlan(root, [], planBase(current));
             const assessment = assessQuality(root, plan);
             const parts = [];
@@ -356,17 +354,73 @@ export async function handleHookEvent(event, payload, root) {
             if (assessment.budget.mode === "block" && assessment.budget.exceeded.length > 0) {
                 parts.push(`a blast radius over budget (${assessment.budget.exceeded.join("; ")})`);
             }
-            if (parts.length > 0) {
-                output = {
-                    followup_message: `Under the ${assessment.assurance.effective} assurance profile the current diff has ${parts.join("; and ")}. ` +
-                        "Run `node scripts/harness.mjs gate` (and record the decision in project memory) and report the outcome. Do not claim verification that did not execute.",
-                };
+            if (parts.length === 0) {
+                // Whatever was being struck is resolved; the next unresolved state starts its own count.
+                clearStopStrike(root);
+            }
+            else {
+                // Block the SAME unresolved state a bounded number of times, then hand control back so a
+                // stale gate cannot deadlock the turn across sessions. The release is recorded in the
+                // ledger and never marks the work complete. The signature is the change plus the exact
+                // outstanding reasons, so making progress — a different diff or a different blocker —
+                // resets the count rather than spending a strike on new work.
+                const signature = sha256(canonicalJson({ base: current.base_commit, diff: current.diff_sha256, parts: [...parts].sort() }));
+                const strikes = recordStopStrike(root, signature);
+                const release = strikes >= STOP_STRIKE_LIMIT || Number(payload.loop_count || 0) >= STOP_STRIKE_LIMIT;
+                if (release) {
+                    clearStopStrike(root);
+                    appendLedger(root, "stop", payload, "followup", `stop-strike-release after ${STOP_STRIKE_LIMIT} blocks of the same unresolved state; control handed back without marking work complete: ${parts.join("; ")}`);
+                    output = {
+                        additional_context: `The completion gate has blocked this same unresolved state ${STOP_STRIKE_LIMIT} times and is handing control back so the turn is not deadlocked. ` +
+                            `The work is NOT verified or complete: under the ${assessment.assurance.effective} assurance profile the current diff has ${parts.join("; and ")}. ` +
+                            "Resolve it or escalate to the user; do not read this release as verification.",
+                    };
+                }
+                else {
+                    output = {
+                        followup_message: `Under the ${assessment.assurance.effective} assurance profile the current diff has ${parts.join("; and ")} (block ${strikes} of ${STOP_STRIKE_LIMIT} for this unresolved state). ` +
+                            "Run `node scripts/harness.mjs gate` (and record the decision in project memory) and report the outcome. Do not claim verification that did not execute.",
+                    };
+                }
             }
         }
     }
     return output;
 }
 const REINJECT_REL_NAME = "reinject-invariants.json";
+const STOP_STRIKES_REL = `${STATE_REL}/stop-strikes.json`;
+/** How many times the same unresolved state may block the stop hook before it hands control back. */
+const STOP_STRIKE_LIMIT = 3;
+/** Count consecutive stop blocks of one unresolved signature; a new signature resets to 1. */
+function recordStopStrike(root, signature) {
+    return withStateLock(root, "stop-strikes", () => {
+        const path = resolve(root, STOP_STRIKES_REL);
+        let previous = {};
+        try {
+            if (existsSync(path))
+                previous = readJson(path);
+        }
+        catch {
+            // A corrupt strike file is not evidence of anything; start the count over rather than
+            // letting it wedge the stop hook.
+            previous = {};
+        }
+        const count = previous.signature === signature ? Number(previous.count || 0) + 1 : 1;
+        writeJson(path, { version: 1, signature, count, updated_at: new Date().toISOString() });
+        return count;
+    });
+}
+/** Clear the strike record once the state resolves or control is handed back. */
+function clearStopStrike(root) {
+    try {
+        const path = resolve(root, STOP_STRIKES_REL);
+        if (existsSync(path))
+            rmSync(path);
+    }
+    catch {
+        // Best effort: a strike file that cannot be removed will be overwritten on the next block.
+    }
+}
 /** A binding's base is passed back only when it names a commit; NO_COMMIT and NO_GIT are states. */
 function planBase(current) {
     return current.base_commit === "NO_COMMIT" || current.base_commit === "NO_GIT" ? {} : { base: current.base_commit };

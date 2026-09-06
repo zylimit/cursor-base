@@ -67,7 +67,7 @@ point imports `cli`. `tests/assurance.test.mjs` asserts all three properties on 
 | `scan` | fitness rules, adapters, ADR check, instruction-file scan, skills lint, agents lint, rules audit |
 | `services` | development service supervision |
 | `ops` | hook ledger, gate audit, risk scan, retention |
-| `release` | release readiness (report only) |
+| `release` | release readiness (report only), for the `package` and `release` operations |
 | `shell-policy` | command semantics and the capability axis: shell parsing and wrapper stripping, git classification, credential exposure, allow/ask/deny decisions for shell and MCP calls, read-only tool vocabulary, one classification walk (`classifyParsed`) that applies the full rule set at every substitution depth, and the spawn-target decision (`directSpawnTarget`) that check execution and service supervision share |
 | `install` | install/upgrade/uninstall (with catalog discovery on a fresh install), manifests, runtime parity, validate, doctor |
 | `hooks` | Cursor hook event handling |

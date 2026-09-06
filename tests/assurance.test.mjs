@@ -87,6 +87,18 @@ function edit(root, rel, contents) {
   writeFileSync(resolve(root, rel), contents, "utf8");
 }
 
+/** A committed repository whose catalog maps only the given modules; nothing else is seeded. */
+function mappedRepository(t, modules) {
+  const root = tempRepository(t);
+  jsonResult(runHarness(["install", "--target", root]));
+  git(root, ["init", "--quiet"]);
+  git(root, ["config", "user.email", "harness@example.invalid"]);
+  git(root, ["config", "user.name", "Harness"]);
+  writeJson(resolve(root, "harness", "module-catalog.json"), { version: 1, modules });
+  writeJson(resolve(root, "harness", "assurance-policy.json"), { version: 1, floors: { paths: [] } });
+  return root;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Engine structure
 // ---------------------------------------------------------------------------------------------
@@ -1072,4 +1084,155 @@ test("degraded commands exit 3 and stale review state exits 4", (t) => {
   assert.equal(degraded.degraded, true);
   const discover = jsonResult(runHarness(["catalog", "discover", "--target", root]), 3);
   assert.equal(discover.degraded, true);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Adopted from the 2026-09 codex v5 review: rename fingerprints, gate summary, stop strikes,
+// package vs release readiness, and a guard mutation tripwire.
+// ---------------------------------------------------------------------------------------------
+
+test("a rename enters the impact closure as both the old path and the new one", (t) => {
+  const root = mappedRepository(t, [
+    { id: "left", paths: ["src/left/**"], dependsOn: [], verification: ["unit"], owners: [] },
+    { id: "right", paths: ["src/right/**"], dependsOn: [], verification: ["unit"], owners: [] },
+  ]);
+  edit(root, "src/left/mod.js", "export const x = 1;\n");
+  git(root, ["add", "-A"]);
+  git(root, ["commit", "--quiet", "-m", "seed left"]);
+  // git mv needs the destination directory to exist; it does not ship a rename record either
+  // way because the diff arguments force --no-renames.
+  mkdirSync(resolve(root, "src", "right"), { recursive: true });
+  git(root, ["mv", "src/left/mod.js", "src/right/mod.js"]);
+
+  // `--no-renames` keeps the rename as a deletion of the old path plus an addition of the new
+  // one, so both sides — and both modules — enter the impact closure. A paired R record would
+  // drop `left` and let a module reachable only through it escape verification.
+  const result = jsonResult(runHarness(["affected", "--target", root]));
+  assert.ok(result.paths.includes("src/left/mod.js"), `old path missing: ${JSON.stringify(result.paths)}`);
+  assert.ok(result.paths.includes("src/right/mod.js"), `new path missing: ${JSON.stringify(result.paths)}`);
+  assert.ok(result.affected.includes("left"), `old module missing: ${JSON.stringify(result.affected)}`);
+  assert.ok(result.affected.includes("right"), `new module missing: ${JSON.stringify(result.affected)}`);
+});
+
+test("gate summarizes a count for every status and names every non-PASS check", (t) => {
+  const root = fixture(t, {
+    catalog: { version: 1, modules: [{ id: "app", paths: ["src/**"], dependsOn: [], verification: ["ok", "bad"], owners: [] }] },
+    matrix: {
+      version: 1,
+      checks: {
+        ok: { class: "test", command: PASS, required: true },
+        bad: { class: "test", command: FAIL, required: true },
+      },
+    },
+  });
+  edit(root, "src/app.js", "export const one = 2;\n");
+  const gate = jsonResult(runHarness(["gate", "--target", root]), 2);
+  assert.equal(gate.status, "FAIL");
+  assert.equal(gate.status_counts.PASS, 1);
+  assert.equal(gate.status_counts.FAIL, 1);
+  assert.equal(gate.status_counts.BLOCKED, 0);
+  assert.equal(gate.status_counts.SKIPPED, 0);
+  // The failure is named in the summary itself, so a reader (or a bounded projection) that never
+  // scans the full results array still sees exactly what did not pass.
+  assert.deepEqual(gate.non_pass, ["bad (FAIL)"]);
+});
+
+test("the stop hook blocks one unresolved state a bounded number of times, then hands control back", (t) => {
+  const root = fixture(t);
+  edit(root, "src/app.js", "export const one = 2;\n");
+
+  const first = hook(root, "stop", { status: "completed", loop_count: 0 });
+  assert.match(first.followup_message, /block 1 of 3/);
+  const second = hook(root, "stop", { status: "completed", loop_count: 0 });
+  assert.match(second.followup_message, /block 2 of 3/);
+
+  // The third attempt on the same unresolved state hands control back rather than deadlocking,
+  // records the release, and does not mark the work complete.
+  const third = hook(root, "stop", { status: "completed", loop_count: 0 });
+  assert.equal(third.followup_message, undefined, "the bounded block hands control back");
+  assert.match(third.additional_context, /NOT verified or complete/);
+  const ledger = readFileSync(resolve(root, ".cursor/harness-state/ledger.jsonl"), "utf8");
+  assert.match(ledger, /stop-strike-release/);
+  assert.equal(jsonResult(runHarness(["quality", "status", "--target", root]), 2).complete, false);
+
+  // Making progress — a different diff — resets the count instead of spending a strike on it.
+  edit(root, "src/app.js", "export const one = 3;\n");
+  const afterProgress = hook(root, "stop", { status: "completed", loop_count: 0 });
+  assert.match(afterProgress.followup_message, /block 1 of 3/);
+});
+
+test("release readiness tolerates a dirty tree for a package but not for a release", (t) => {
+  const root = fixture(t);
+  edit(root, "src/app.js", "export const one = 2;\n");
+
+  const release = jsonResult(runHarness(["release", "readiness", "--target", root]), 2);
+  assert.equal(release.operation, "release");
+  const releaseById = Object.fromEntries(release.conditions.map((condition) => [condition.id, condition]));
+  assert.equal(releaseById["worktree-clean"].status, "FAIL");
+
+  const pkg = jsonResult(runHarness(["release", "readiness", "--operation", "package", "--target", root]), 2);
+  assert.equal(pkg.operation, "package");
+  const packageById = Object.fromEntries(pkg.conditions.map((condition) => [condition.id, condition]));
+  assert.equal(packageById["worktree-clean"].status, "SKIPPED");
+  assert.equal(packageById["worktree-clean"].required, false);
+  assert.equal(packageById["remote-sync"], undefined, "a package does not gate on upstream divergence");
+});
+
+test("a quietly broken guard changes the verdict its mutation test pins", (t) => {
+  // Install so the temp root carries the harness markers, then mutate the installed runtime in
+  // place and restore it after each probe. Spawning the runtime directly exercises exactly what
+  // an installed repository runs.
+  const root = tempRepository(t);
+  jsonResult(runHarness(["install", "--target", root]));
+  const policyFile = resolve(root, ".cursor", "runtime", "shell-policy.mjs");
+  const original = readFileSync(policyFile, "utf8");
+
+  const decisionFor = (command) => {
+    const result = spawnSync(
+      process.execPath,
+      [resolve(root, ".cursor", "runtime", "harness.mjs"), "hook", "beforeShellExecution", "--target", root],
+      { input: JSON.stringify({ workspace_roots: [root], command }), encoding: "utf8", maxBuffer: 8 * 1024 * 1024, windowsHide: true },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout).permission;
+  };
+
+  // Each mutant disables exactly one load-bearing guard with an anchored edit. If an anchor no
+  // longer matches, the test fails loudly so it is updated with the refactor rather than rotting
+  // into a passing no-op.
+  const mutants = [
+    {
+      // Behind a `timeout` wrapper the start-anchored regex net does not fire, so only the
+      // semantic machine-command guard denies this. That isolates the guard under test.
+      name: "machine-command deny",
+      from: "if (isMachineCommand(segment.name)) {",
+      to: "if (false && isMachineCommand(segment.name)) {",
+      command: "timeout 5 shutdown -h now",
+    },
+    {
+      name: "substitution recursion",
+      from: "verdict = strictest(verdict, classifyParsed(parseShellCommand(inner), raw, root, depth + 1, inner));",
+      to: "verdict = verdict;",
+      command: "echo $(shutdown -h now)",
+    },
+  ];
+
+  // The unmutated runtime denies every probe: the control works.
+  for (const mutant of mutants) {
+    assert.equal(decisionFor(mutant.command), "deny", `baseline must block: ${mutant.name}`);
+  }
+
+  // Breaking the guard must change the verdict; a mutation that leaves it `deny` means the guard
+  // was not load-bearing or the anchor is stale.
+  for (const mutant of mutants) {
+    assert.ok(original.includes(mutant.from), `mutation anchor is stale for ${mutant.name}; update the test with the code`);
+    writeFileSync(policyFile, original.replace(mutant.from, mutant.to), "utf8");
+    let permission;
+    try {
+      permission = decisionFor(mutant.command);
+    } finally {
+      writeFileSync(policyFile, original, "utf8");
+    }
+    assert.notEqual(permission, "deny", `guard is not load-bearing: mutating ${mutant.name} did not change the verdict for \`${mutant.command}\``);
+  }
 });

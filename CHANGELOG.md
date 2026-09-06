@@ -2,6 +2,31 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use Semantic Versioning.
 
+## [Unreleased]
+
+Five mechanisms adopted from the 2026-09 review of `codex-base` v5, each the executable half of a
+lesson (`docs/CAPABILITY-MATRIX.md` records what was adapted and what was rejected — 15-plus
+controls, spec-trace, and path leases among the rejections).
+
+- **Rename fingerprints.** `changedPaths` and the canonical diff (`diffArgumentSets`) pass
+  `--no-renames`, so a rename is a delete of the old path plus an add of the new one. `git mv a b`
+  and a same-content add of `b` no longer share a fingerprint, and a module reachable only through
+  the old path still enters the impact closure.
+- **Gate summary carries its failures.** `gate` reports `status_counts` for every state and a
+  `non_pass` list naming each check that is not PASS, so a bounded projection or a reader who never
+  scans the full `results` array cannot miss a FAIL.
+- **Stop-hook strike bound.** The completion gate blocks one unresolved state (keyed by the change
+  plus the exact outstanding reasons) at most three times, then records a `stop-strike-release` in
+  the ledger and hands control back without marking the work complete. Making progress resets the
+  count.
+- **Package vs release readiness.** `release readiness --operation package` binds the working tree
+  and does not gate on a clean tree or upstream divergence; `--operation release` (the default)
+  keeps the clean-tree and remote-sync requirements. Everything downstream — the strict gate,
+  review, loans, debt, open tasks, manifest — is identical.
+- **Guard mutation tripwire.** A test disables one load-bearing command guard at a time with an
+  anchored edit and asserts the verdict changes, proving the guard is load-bearing and the probe is
+  sensitive; a stale anchor fails the test loudly.
+
 ## [2.0.0] - 2026-09-05
 
 Tiered assurance, structured review, memory that survives compaction, and governance integrity,

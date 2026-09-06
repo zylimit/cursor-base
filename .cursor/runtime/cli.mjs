@@ -68,7 +68,7 @@ Commands:
   service <sub>      start, stop, status, list, or logs for supervised dev services
   risk               Scan harness state for stale tasks, broken chains, and dead services
   retention          Destroy aged evidence and context packs; protects referenced receipts
-  release readiness  Report every release condition under the strict floor; performs no release action
+  release readiness  Report every release condition under the strict floor (--operation package|release); performs no release action
   feedback <sub>     list or lint recorded lessons; recurring ones graduate into rules
   recap              Budgeted digest of project memory plus live state; never from a summary
   invariants         The non-negotiable rules plus live state, small enough to re-inject

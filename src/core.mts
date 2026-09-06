@@ -359,10 +359,13 @@ export function gitBase(cwd: string, requested?: OptionValue): string {
 
 export function changedPaths(cwd: string, base?: string): string[] {
   if (!gitAvailable(cwd)) return [];
+  // `--no-renames` keeps a rename as a delete of the old path plus an add of the new one, so
+  // both sides enter the impact closure. A paired R record would drop the old path, and an
+  // affected module reachable only through it would escape verification.
   const args =
     base && base !== "NO_COMMIT" && base !== "NO_GIT"
-      ? ["diff", "--name-only", "-z", "--relative", base, "--", "."]
-      : ["status", "--porcelain=v1", "-z", "--untracked-files=all"];
+      ? ["diff", "--name-only", "-z", "--no-renames", "--relative", base, "--", "."]
+      : ["status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all"];
   const result = git(cwd, args, true);
   // Failing to list changes is not the same as there being none. Returning an empty set here
   // would report an unverified change set as fully verified.
@@ -371,8 +374,9 @@ export function changedPaths(cwd: string, base?: string): string[] {
   }
   const excludeState = (path: string) => path !== STATE_REL && !path.startsWith(`${STATE_REL}/`);
   if (args[0] === "status") {
-    // With `-z`, porcelain v1 emits `XY <path>` NUL, and a rename adds the old path as its own
-    // NUL-terminated record, so the record after an R or C status is consumed rather than parsed.
+    // With `-z`, porcelain v1 emits `XY <path>` NUL. `--no-renames` means no R/C record is
+    // emitted (a rename is a separate deletion and addition), but the paired-record skip stays
+    // as a defensive fallback in case a git build still reports a copy.
     const records = result.stdout.split("\0").filter(Boolean);
     const paths: string[] = [];
     for (let index = 0; index < records.length; index += 1) {
@@ -443,13 +447,16 @@ export const DIFF_EXCLUDE = `:(exclude)${STATE_REL}/**`;
 
 export function diffArgumentSets(base: string): string[][] {
   const tail = ["--", ".", DIFF_EXCLUDE];
-  const common = ["diff", "--binary", "--no-ext-diff", "--relative"];
+  // `--no-renames`: a rename must hash and impact as a delete of the old path plus an add of the
+  // new one. Letting git pair them into one R record makes `git mv a b` and a same-content add
+  // of `b` share a diff, so one fingerprint would stand for two different change sets.
+  const common = ["diff", "--binary", "--no-ext-diff", "--no-renames", "--relative"];
   if (base !== "NO_COMMIT" && base !== "NO_GIT") {
     return [[...common, base, ...tail]];
   }
   if (base === "NO_COMMIT") {
     return [
-      ["diff", "--cached", "--binary", "--no-ext-diff", "--relative", ...tail],
+      ["diff", "--cached", "--binary", "--no-ext-diff", "--no-renames", "--relative", ...tail],
       [...common, ...tail],
     ];
   }

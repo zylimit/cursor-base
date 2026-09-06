@@ -79,6 +79,24 @@ Liveness is always synthesized from pids at read time; recorded status is truste
 deliberate terminal states `stopped` and `crashed`. A state file claiming supervision whose
 supervisor pid is dead reports `dead`, which is a high-severity risk finding.
 
+## Stop-hook strikes
+
+The completion gate blocks a turn that ends with unresolved work, but one unresolved state may
+block only a bounded number of times before control is handed back, so a stale gate cannot
+deadlock a session. The strike key is the change (`base_commit`, `diff_sha256`) plus the exact
+outstanding reasons, so making progress — a different diff or a different blocker — resets the
+count rather than spending a strike on new work. At the limit (3) the hook records a
+`stop-strike-release` in the ledger and returns without a follow-up; the release never marks the
+work complete and says so.
+
+## Readiness operations
+
+`release readiness` reports, and performs nothing. It binds one of two subjects: `--operation
+package` binds the working tree (a dirty tree is expected, so the clean-tree and upstream-sync
+conditions do not gate), while `--operation release` (the default) ships commits and keeps both.
+The strict gate, review, fast-loan, evidence-debt, open-task, and manifest conditions are
+identical for both, because a package that cannot pass the release gate is not worth building.
+
 ## Review receipt
 
 A review receipt is valid only for one immutable review target:

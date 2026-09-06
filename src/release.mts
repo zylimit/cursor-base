@@ -36,13 +36,22 @@ export interface ReleaseCondition {
   required: boolean;
 }
 
+export type ReadinessOperation = "package" | "release";
+
 export function releaseReadiness(root: string, options: CliOptions): {
+  operation: ReadinessOperation;
   ready: boolean;
   conditions: ReleaseCondition[];
   trust_boundary: Record<string, false>;
   base_commit: string;
   diff_sha256: string;
 } {
+  // `package` binds the working tree (the artifact you would build now), so a dirty tree is
+  // expected and not a blocker; `release` ships commits, so it demands a clean tree and a
+  // measured position against the upstream. Everything downstream — the strict gate, review,
+  // loans, debt, open tasks, manifest — is identical, because a package that cannot pass the
+  // release gate is not worth building.
+  const operation: ReadinessOperation = String(options.operation || "release") === "package" ? "package" : "release";
   const conditions: ReleaseCondition[] = [];
   const add = (id: string, status: ConditionStatus, detail: string, required = true) => conditions.push({ id, status, detail, required });
 
@@ -50,16 +59,25 @@ export function releaseReadiness(root: string, options: CliOptions): {
     add("git", "BLOCKED", "not a git repository; a release needs a commit to name");
   } else {
     const dirty = changedPaths(root, gitBase(root));
-    add("worktree-clean", dirty.length === 0 ? "PASS" : "FAIL", dirty.length === 0 ? "no uncommitted or untracked changes" : `${dirty.length} path(s) differ from HEAD; a release ships commits, not a working tree`);
-    const upstream = git(root, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], true);
-    if (!upstream.ok) {
-      add("remote-sync", "BLOCKED", "no upstream branch is configured, so divergence cannot be measured");
+    if (operation === "package") {
+      add(
+        "worktree-clean",
+        "SKIPPED",
+        dirty.length === 0 ? "clean working tree" : `${dirty.length} uncommitted path(s); a package binds the working tree, so this is not a blocker`,
+        false,
+      );
     } else {
-      const counts = git(root, ["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], true);
-      const [ahead, behind] = counts.ok ? counts.stdout.trim().split(/\s+/).map(Number) : [NaN, NaN];
-      if (!Number.isFinite(ahead) || !Number.isFinite(behind)) add("remote-sync", "BLOCKED", "git could not count divergence from the upstream");
-      else if (behind > 0) add("remote-sync", "FAIL", `HEAD is ${behind} commit(s) behind ${upstream.stdout.trim()}; integrate before releasing`);
-      else add("remote-sync", "PASS", ahead > 0 ? `HEAD is ${ahead} commit(s) ahead of ${upstream.stdout.trim()} and not behind (pushing is the user's action)` : `HEAD matches ${upstream.stdout.trim()}`);
+      add("worktree-clean", dirty.length === 0 ? "PASS" : "FAIL", dirty.length === 0 ? "no uncommitted or untracked changes" : `${dirty.length} path(s) differ from HEAD; a release ships commits, not a working tree`);
+      const upstream = git(root, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], true);
+      if (!upstream.ok) {
+        add("remote-sync", "BLOCKED", "no upstream branch is configured, so divergence cannot be measured");
+      } else {
+        const counts = git(root, ["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], true);
+        const [ahead, behind] = counts.ok ? counts.stdout.trim().split(/\s+/).map(Number) : [NaN, NaN];
+        if (!Number.isFinite(ahead) || !Number.isFinite(behind)) add("remote-sync", "BLOCKED", "git could not count divergence from the upstream");
+        else if (behind > 0) add("remote-sync", "FAIL", `HEAD is ${behind} commit(s) behind ${upstream.stdout.trim()}; integrate before releasing`);
+        else add("remote-sync", "PASS", ahead > 0 ? `HEAD is ${ahead} commit(s) ahead of ${upstream.stdout.trim()} and not behind (pushing is the user's action)` : `HEAD matches ${upstream.stdout.trim()}`);
+      }
     }
   }
 
@@ -140,6 +158,7 @@ export function releaseReadiness(root: string, options: CliOptions): {
   const bound = gitAvailable(root) ? binding(root) : { base_commit: "NO_GIT", diff_sha256: "" };
   const ready = conditions.every((condition) => condition.status === "PASS" || (!condition.required && condition.status !== "FAIL"));
   return {
+    operation,
     ready,
     conditions,
     // Fields that are false by construction. A reader can verify at a glance that readiness is
@@ -169,12 +188,16 @@ export function releaseCommand(positional: string[], options: CliOptions): void 
   const root = targetFrom(options);
   const subcommand = positional[0] || "readiness";
   if (subcommand !== "readiness") throw new Error("release supports the readiness subcommand. Tagging, pushing, and publishing are the user's actions.");
-  const result = releaseReadiness(root, options);
+  const operationArg = positional[1] ?? options.operation;
+  if (operationArg !== undefined && operationArg !== "package" && operationArg !== "release") {
+    throw new Error("release readiness --operation must be package or release.");
+  }
+  const result = releaseReadiness(root, { ...options, operation: operationArg });
   const failing = result.conditions.filter((condition) => condition.status === "FAIL");
   const blocked = result.conditions.filter((condition) => condition.status === "BLOCKED" && condition.required);
   const unobserved = result.conditions.filter((condition) => condition.status === "BLOCKED" && !condition.required);
   printJson({
-    command: "release readiness",
+    command: `release readiness (${result.operation})`,
     target: root,
     ...result,
     note: result.ready

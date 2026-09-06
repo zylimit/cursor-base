@@ -818,6 +818,15 @@ export function gate(positional, options) {
         : receipts.some((receipt) => receipt.status === "BLOCKED") || everyDeferred
             ? "BLOCKED"
             : "PASS";
+    // A count for every state and an explicit list of the ones that are not PASS. The summary
+    // must carry the failures itself: a reader (or a bounded projection) that never scans the
+    // full `results` array still sees exactly what did not pass, so truncation cannot hide a FAIL.
+    const statusCounts = { PASS: 0, FAIL: 0, BLOCKED: 0, SKIPPED: 0 };
+    for (const receipt of receipts)
+        statusCounts[receipt.status] += 1;
+    const nonPass = receipts
+        .filter((receipt) => receipt.status !== "PASS")
+        .map((receipt) => `${receipt.check_id} (${receipt.status})`);
     printJson({
         command: "gate",
         target: root,
@@ -832,6 +841,8 @@ export function gate(positional, options) {
             floors: plan.assurance.floors.map((floor) => `${floor.source} -> ${floor.profile}`),
         },
         status,
+        status_counts: statusCounts,
+        ...(nonPass.length > 0 ? { non_pass: nonPass } : {}),
         ...(everyDeferred
             ? { reason: "Every selected check was deferred under the fast loan; nothing ran, so nothing is proven." }
             : {}),
