@@ -4,7 +4,7 @@ A technology-neutral Cursor governance harness for large repositories. It keeps 
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 22 or newer
 - Git
 - PowerShell 7+ on Windows, or a POSIX shell on macOS/Linux
 - Cursor with project rules, agents, and skills support

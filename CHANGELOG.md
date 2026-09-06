@@ -26,6 +26,9 @@ controls, spec-trace, and path leases among the rejections).
 - **Guard mutation tripwire.** A test disables one load-bearing command guard at a time with an
   anchored edit and asserts the verdict changes, proving the guard is load-bearing and the probe is
   sensitive; a stale anchor fails the test loudly.
+- **Node support matrix modernized.** `engines` and the doctor floor move to `>=22`; the CI matrix
+  tests Node 22 and 24 (was 20 and 22). The repository is public, so the regression matrix runs on
+  free standard runners.
 
 ## [2.0.0] - 2026-09-05
 

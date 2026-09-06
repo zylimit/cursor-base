@@ -25,4 +25,4 @@ repositories. What passes here is what an installed repository runs.
 ## Verification
 
 `node --test` from the repository root, or `node --test --test-name-pattern="<name>"` for one
-test. Both files run in CI on Ubuntu and Windows, Node 20 and 22.
+test. Both files run in CI on Ubuntu and Windows, Node 22 and 24.

@@ -92,6 +92,15 @@ section contract.
   (`exit`) and expansion still go through the shell. Supersedes the round-3 wording that
   listed a leading assignment among the cases that require a shell.
 
+- 2026-09-06 Node support floor raised to `>=22`; CI matrix is Node 22 and 24 (was 20 and 22).
+  Node 20 enters maintenance and the maintainer runs 24; a "continuously optimized" scaffold
+  tracks current runtimes rather than the oldest. `package.json` engines, the `validate` floor,
+  and the `doctor` node check all move to 22. Rejected: dropping a version purely to dodge a
+  flake — the two Node 20 failures that surfaced (`non-ASCII paths`, `release readiness`) were
+  non-deterministic (each job failed a different test; both passed on Node 22 and locally and on
+  the same commit 307fe79 earlier), so they are recorded as a risk, not hidden by the version
+  change. Made possible by the repository being public: standard runners are free.
+
 - 2026-09-06 Adopted five mechanisms from the codex-base v5 review, each the executable half of
   a lesson: `--no-renames` on all fingerprints (`changedPaths`, `diffArgumentSets`), gate
   `status_counts`/`non_pass`, a stop-hook strike bound keyed by unresolved-state hash (3 blocks
@@ -226,6 +235,10 @@ section contract.
 
 ## Risks
 
+- Two tests are flaky on slow/cold runners (seen once on Node 20, run 34040478414): `non-ASCII
+  paths are usable` and `release readiness performs nothing...`. Each failed on a different job
+  while passing on Node 22 and locally, so the cause is timing in temp-repo git calls, not the
+  assertion. Not yet stabilized; a rerun currently clears them.
 - `arch-check` counts bare specifiers without `provides` as unresolved, not as violations; a
   catalog without `provides` sees only part of the graph.
 - Import extraction is pattern-based; unusual syntax reduces coverage rather than producing

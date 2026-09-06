@@ -2,7 +2,7 @@
 
 ## Expected commands
 
-From the repository root with Node.js 20+:
+From the repository root with Node.js 22+:
 
 ```sh
 node scripts/harness.mjs doctor

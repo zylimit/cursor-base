@@ -8,7 +8,7 @@
     "url": "https://github.com/zylimit/cursor-base.git"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

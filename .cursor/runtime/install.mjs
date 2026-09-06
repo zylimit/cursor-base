@@ -505,8 +505,8 @@ export function validate(options) {
             errors.push(`Feedback lesson ${lesson.path}: ${lesson.errors.join(" ")}`);
         }
     }
-    if (Number(process.versions.node.split(".")[0]) < 20)
-        errors.push("Node.js 20 or newer is required.");
+    if (Number(process.versions.node.split(".")[0]) < 22)
+        errors.push("Node.js 22 or newer is required.");
     if (!gitAvailable(root))
         warnings.push("Git is unavailable; receipt bindings use a filesystem snapshot.");
     printJson({
@@ -525,7 +525,7 @@ export function doctor(options) {
     const checks = [];
     const warnings = [];
     const major = Number(process.versions.node.split(".")[0]);
-    checks.push({ name: "node", ok: major >= 20, detail: process.version });
+    checks.push({ name: "node", ok: major >= 22, detail: process.version });
     const gitVersion = git(root, ["--version"], true);
     checks.push({
         name: "git",
