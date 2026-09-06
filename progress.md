@@ -186,6 +186,13 @@ section contract.
 
 ## Done
 
+- cc-base v3 absorption (2026-09-06, commit 71107cc): `git push` no longer asks (force push
+  still does), fast-loan window clamped on read, `npm run build` refreshes the manifest, guard
+  mutation test opt-in (`npm run test:mutation`), two feedback lessons recorded. Studied ~40 v3
+  commits; verified cursor-base already had the tier/auto-raise/single-runtime/exclusions
+  mechanisms by construction, and that the public-switch scrub patterns (`proxysg`, gateway IPs,
+  netentsec) appear nowhere in this repository or its history. Verified 230/230, gate 14/14, CI
+  green on all four jobs (run 34043625305).
 - Release-readiness CI probe gated on a remote (2026-09-06, commit b540801): a remoteless repo
   reports `ci` BLOCKED without shelling to `gh`, removing the network-latency flake vector seen on
   a Windows Node 20 runner. Verified 227/227, gate 14/14, CI green on all four jobs (run
@@ -256,9 +263,7 @@ section contract.
 
 ## In progress
 
-- cc-base v3 absorption (task-1788709185340): push no-confirm (force still asks), read-side
-  loan clamp, build refreshes manifest, mutation test opt-in, two feedback lessons. Implementing;
-  gate and CI pending.
+- None.
 
 ## Not doing
 
