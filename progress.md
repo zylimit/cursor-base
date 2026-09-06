@@ -153,6 +153,12 @@ section contract.
 
 ## Done
 
+- Codex v5 lessons adopted (2026-09-06, commit 307fe79): `--no-renames` on `changedPaths` and
+  `diffArgumentSets`; gate `status_counts`/`non_pass`; stop-hook strike bound (3 blocks keyed by
+  unresolved-state hash, then a recorded release that never marks complete); `release readiness
+  --operation package|release`; a guard mutation tripwire. Verified `node --test` 227/227, gate
+  PASS 14/14, and CI green on all four matrix jobs (run 34037870782). Rejected the second control
+  bundle, spec-trace, and path leases (see the 2026-09-06 Decisions entry and CAPABILITY-MATRIX).
 - POSIX `NAME=value` is child env (2026-09-06): `directSpawnTarget` peels assignments and
   check/service spawn merge them. Windows CI had failed because `cmd.exe` does not apply
   them. Local `node --test` 222/222 after the fix.
@@ -207,9 +213,7 @@ section contract.
 
 ## In progress
 
-- Five codex-v5 lessons adopted (task-1788628213269): `--no-renames` fingerprints, gate
-  `status_counts`/`non_pass`, stop-hook strike bound, package-vs-release readiness, guard
-  mutation tripwire. Implemented and gated locally (227/227, gate PASS); pending GitHub Actions.
+- None.
 
 ## Not doing
 
