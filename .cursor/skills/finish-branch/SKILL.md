@@ -14,9 +14,9 @@ description: Prepares a branch for human handoff by checking scope, affected ver
    structured-review verdict at `strict`.
 5. Record the outcome in `progress.md` (`sync-check` confirms it moved with the code) and, for a
    release, run `release readiness`.
-6. Summarize merge readiness and leave commit/push to explicit user instruction.
+6. Summarize merge readiness; commit and push authorized work to the tracked remote, and leave tagging and publishing to the user.
 
-Never automatically commit, push, publish, kill ports, install dependencies, or overwrite user changes.
+Never publish, force-push, kill ports, install dependencies, or overwrite user changes without explicit authorization.
 
 Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**.
 

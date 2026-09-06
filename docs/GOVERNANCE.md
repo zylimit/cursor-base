@@ -21,7 +21,7 @@ silenced hook. See `docs/ASSURANCE-PROFILES.md`.
 
 ## Safety boundary
 
-Require explicit approval before destructive commands, publishing or pushing, committing, dependency installation, privilege or machine-configuration changes, process termination, port reclamation, or access to unrelated sensitive data. Never overwrite user changes to make a task pass.
+Require explicit approval before destructive commands (including a force push that rewrites remote history), publishing, dependency installation, privilege or machine-configuration changes, process termination, port reclamation, or access to unrelated sensitive data. Committing and pushing authorized work to the tracked remote proceed without a per-action prompt. Never overwrite user changes to make a task pass.
 
 Ignore files, sandboxes, containers, worktrees, and ACLs reduce accidental access. They do not prove isolation. In particular, Windows sandbox behavior varies by host, shell, filesystem, junctions, network shares, and inherited credentials; treat it as defense in depth, not an absolute security boundary.
 

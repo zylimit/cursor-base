@@ -92,6 +92,30 @@ section contract.
   (`exit`) and expansion still go through the shell. Supersedes the round-3 wording that
   listed a leading assignment among the cases that require a shell.
 
+- 2026-09-06 `git push` no longer asks; a force push still does. The user decided it (the same
+  decision was made in cc-base the same day: after authorization the agent executes normal git
+  lifecycle actions instead of bouncing them back). Push is an approval tier, not a safety
+  control, so a user instruction may waive it; rewriting remote history is destructive and stays
+  on the safety floor (`--force`, `-f` ask; `--force-with-lease` passes). The engine itself still
+  never pushes.
+  Rejected: dropping the force-push gate too — "push" as a category was waived, destruction of
+  shared history was not.
+
+- 2026-09-06 Fast-loan window is enforced on read, not only on write: `readLoan` clamps to
+  `min(opened_at, now) + maxLoanMinutes` and refuses a loan with no readable `opened_at`.
+  Learned from cc-base PX-7 ("a future set_epoch once bought 30 days"). The file is a claim; the
+  policy is the bound.
+
+- 2026-09-06 Meta-tests are opt-in. The guard mutation test moved to `tests/guard-mutations.mjs`
+  behind `npm run test:mutation`, per the user's rule that the release chain carries only checks
+  that prove the code itself (cc-base deleted a 65-minute mutation matrix the same day). Kept
+  rather than deleted: two mutants, half a second, aimed at the walker that took six review rounds.
+
+- 2026-09-06 `npm run build` writes the manifest. The manifest hashes the compiled runtime, so
+  the two cannot be allowed to drift by a forgotten command; cc-base reached for a pre-commit
+  hook after failing twice in a day, this repository folds the refresh into the build instead of
+  managing git hooks.
+
 - 2026-09-06 Node support floor raised to `>=22`; CI matrix is Node 22 and 24 (was 20 and 22).
   Node 20 enters maintenance and the maintainer runs 24; a "continuously optimized" scaffold
   tracks current runtimes rather than the oldest. `package.json` engines, the `validate` floor,
@@ -232,7 +256,9 @@ section contract.
 
 ## In progress
 
-- None.
+- cc-base v3 absorption (task-1788709185340): push no-confirm (force still asks), read-side
+  loan clamp, build refreshes manifest, mutation test opt-in, two feedback lessons. Implementing;
+  gate and CI pending.
 
 ## Not doing
 

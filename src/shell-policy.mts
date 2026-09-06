@@ -442,7 +442,11 @@ export function classifyGit(rest: string[], raw: string, root?: string): HookOut
     return decision("deny", discards, raw);
   }
   if (subcommand === "push") {
-    return decision("ask", "Publishing repository changes requires approval.", raw);
+    // A plain push is the normal end of authorized work and no longer asks. Rewriting remote
+    // history is destructive to everyone sharing the branch, so a force push still stops;
+    // `--force-with-lease` is the safe form and passes (it does not prefix-match `--force`).
+    const forced = hasLongOption(args, "--force") || args.some((token) => /^-[a-zA-Z]*f[a-zA-Z]*$/.test(token));
+    return forced ? decision("ask", "A force push rewrites remote history; confirm before retrying.", raw) : null;
   }
   if (GIT_READ_ONLY.has(subcommand)) return null;
   if (!subcommand) return null;
@@ -481,7 +485,6 @@ const DENY_PATTERNS = [
 ];
 
 const ASK_PATTERNS = [
-  /\bgit(?:\s+(?:-[a-zA-Z]\s+\S+|--[\w-]+(?:=\S+)?))*\s+push\b/i,
   /\b(gh\s+(pr\s+merge|release\s+create)|npm\s+publish|cargo\s+publish|twine\s+upload)\b/i,
   /\bgh\s+(api|issue\s+create|pr\s+create)\b/i,
   /\bcurl\b[^;&|]*(?:\s-d(?:\s|=)|--data(?:-[a-z]+)?(?:\s|=)|--upload-file(?:\s|=)|\s-T\s)/i,
@@ -512,9 +515,7 @@ export function classifyPatterns(text: string, subject: string): HookOutput {
   if (ASK_PATTERNS.some((pattern) => pattern.test(text))) {
     return decision("ask", "This command has external, destructive, privileged, or installation side effects.", subject);
   }
-  return text.toLowerCase().includes("git push")
-    ? decision("ask", "Publishing repository changes requires approval.", subject)
-    : allow;
+  return allow;
 }
 
 /**

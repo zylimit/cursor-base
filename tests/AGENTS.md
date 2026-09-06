@@ -26,3 +26,8 @@ repositories. What passes here is what an installed repository runs.
 
 `node --test` from the repository root, or `node --test --test-name-pattern="<name>"` for one
 test. Both files run in CI on Ubuntu and Windows, Node 22 and 24.
+
+`tests/guard-mutations.mjs` is an opt-in meta-test (`npm run test:mutation`): it disables one
+command-safety guard at a time and asserts the verdict changes. It proves the detector is
+load-bearing, not that the code is correct, so it stays off the default run and the release
+chain; run it when `src/shell-policy.mts` changes.

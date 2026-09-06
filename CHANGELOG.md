@@ -32,6 +32,22 @@ controls, spec-trace, and path leases among the rejections).
 - **Release-readiness CI probe gated on a remote.** `release readiness` observes CI only when a
   git remote is configured; a remoteless repository reports the `ci` condition BLOCKED without
   shelling to `gh`, removing a network subprocess and its nondeterministic latency from the path.
+- **`git push` no longer asks; a force push still does.** Pushing authorized work to the tracked
+  remote is the normal end of a task and proceeds without a per-action prompt (user decision,
+  2026-09-06). Rewriting remote history is destructive to everyone on the branch, so `--force` and
+  `-f` keep asking; `--force-with-lease` passes. `AGENTS.md`, the approval-tier rule, and the
+  skills say the same.
+- **Fast-loan window clamped on read.** `readLoan` measures the window from the earlier of
+  `opened_at` and now, capped at the policy maximum, and does not recognize a loan without a
+  readable opening time. A hand-edited `fast-loan.json` can neither extend nor slide the window.
+- **`npm run build` refreshes the manifest.** The manifest hashes the compiled runtime, so
+  compiling now rewrites `FRAMEWORK-MANIFEST.json` in the same step; `manifest --check` in the gate
+  and CI stays the judge. Removes the "built but forgot the manifest" failure class.
+- **Guard mutation test is opt-in.** Moved to `tests/guard-mutations.mjs` (`npm run test:mutation`),
+  outside the default `node --test` run and the release chain: it proves the detector is
+  load-bearing, not that the code is correct.
+- Two lessons recorded in `docs/feedback/`: `subagent-dispatch-minimal-context` and
+  `meta-tests-stay-off-the-release-chain`, each seen in two harnesses on the same day.
 
 ## [2.0.0] - 2026-09-05
 

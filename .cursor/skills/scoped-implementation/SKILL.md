@@ -11,7 +11,7 @@ description: Implements a bounded code change while preserving user work, follow
 4. Inspect the diff and run affected checks.
 5. Stop on scope conflict, destructive work, or a required unmade decision.
 
-Never install, commit, push, publish, kill ports, or overwrite user changes without explicit authorization.
+Never install, publish, force-push, kill ports, or overwrite user changes without explicit authorization.
 
 Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**.
 

@@ -481,16 +481,27 @@ export function convenedForModules(root, moduleIds, controls) {
 // ---------------------------------------------------------------------------------------
 export const LOAN_REL = `${STATE_REL}/fast-loan.json`;
 export const DEBT_REL = `${STATE_REL}/evidence-debt.json`;
-export function readLoan(root) {
+export function readLoan(root, now = Date.now()) {
     const path = resolve(root, LOAN_REL);
     if (!existsSync(path))
         return { active: false, expired: false, loan: null };
     const loan = readJson(path);
     const expiresAt = Date.parse(String(loan?.expires_at));
-    if (!Number.isFinite(expiresAt))
+    const openedAt = Date.parse(String(loan?.opened_at));
+    // The file is a claim; the policy is the bound. A loan with no readable opening time cannot
+    // have its window measured, so it is not recognized (fail closed).
+    if (!Number.isFinite(expiresAt) || !Number.isFinite(openedAt))
         return { active: false, expired: true, loan };
-    const expired = expiresAt <= Date.now();
-    return { active: !expired, expired, loan };
+    // Read-side clamp: the window never exceeds the policy maximum measured from the EARLIER of
+    // opened_at and now. A hand-edited expires_at cannot extend it, and an opened_at written in the
+    // future cannot slide it forward (the write side already caps; this keeps the cap honest
+    // against a file edited after the fact).
+    const maxMs = loadPolicy(root).policy.maxLoanMinutes * 60_000;
+    const cap = Math.min(openedAt, now) + maxMs;
+    const effectiveExpiry = Math.min(expiresAt, cap);
+    const expired = effectiveExpiry <= now;
+    const clamped = effectiveExpiry !== expiresAt ? { ...loan, expires_at: new Date(effectiveExpiry).toISOString() } : loan;
+    return { active: !expired, expired, loan: clamped };
 }
 export function openLoan(root, request) {
     const compiled = loadPolicy(root);

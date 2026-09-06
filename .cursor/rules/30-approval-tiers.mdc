@@ -6,7 +6,7 @@ alwaysApply: true
 # Approval Tiers
 
 - **Proceed** without asking: read-only exploration, documentation and project-memory updates, adding tests, local builds and checks, changes inside the owned scope (prompt-only).
-- **Announce and continue**: new files outside the stated scope, refactors spanning many files, long-running work, delegating a subagent, opening a fast loan (prompt-only; the loan itself is recorded by `fast on`).
-- **Stop for approval**: deleting or disabling existing behavior, commit, push, publish, deploy, dependency installation, machine or privilege configuration, terminating processes or ports, anything irreversible or remote, and any access to credentials. The hooks ask or deny for the command-shaped cases (`beforeShellExecution`, `beforeMCPExecution`, `beforeReadFile`).
+- **Announce and continue**: new files outside the stated scope, refactors spanning many files, long-running work, delegating a subagent, opening a fast loan, committing and pushing authorized work to the tracked remote (prompt-only; the loan itself is recorded by `fast on`).
+- **Stop for approval**: deleting or disabling existing behavior, force-pushing or otherwise rewriting remote history, publish, deploy, dependency installation, machine or privilege configuration, terminating processes or ports, anything irreversible, and any access to credentials. The hooks ask or deny for the command-shaped cases (`beforeShellExecution`, `beforeMCPExecution`, `beforeReadFile`).
 - Release actions are never taken by the harness; it reports readiness and stops (`release readiness`).
 - When the tier is unclear, treat it as the higher one. A user instruction can waive a single Proceed or Announce decision; it can never waive a safety control (prompt-only).

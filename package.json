@@ -11,10 +11,11 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/harness.mjs manifest --write",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "runtime-sync": "node scripts/harness.mjs validate --sync-only",
     "test": "node scripts/harness.mjs test",
+    "test:mutation": "node --test tests/guard-mutations.mjs",
     "doctor": "node scripts/harness.mjs doctor",
     "validate": "node scripts/harness.mjs validate",
     "manifest:write": "node scripts/harness.mjs manifest --write",
