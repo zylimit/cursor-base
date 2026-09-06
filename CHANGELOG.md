@@ -2,7 +2,13 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use Semantic Versioning.
 
-## [Unreleased]
+## [2.1.0] - 2026-09-07
+
+Lessons from the 2026-09 reviews of `codex-base` v5 and `cc-base` v3, each landed as the
+executable half of a lesson, plus one user policy decision: a plain `git push` no longer asks.
+`docs/CAPABILITY-MATRIX.md` records what was adapted and what was rejected (15-plus controls,
+spec-trace, path leases, golden mutation matrices, per-hook tier tables among the rejections).
+The repository is public; the regression matrix runs on Node 22 and 24.
 
 Five mechanisms adopted from the 2026-09 review of `codex-base` v5, each the executable half of a
 lesson (`docs/CAPABILITY-MATRIX.md` records what was adapted and what was rejected — 15-plus

@@ -186,6 +186,9 @@ section contract.
 
 ## Done
 
+- 2.1.0 released (2026-09-07): Unreleased folded into the 2.1.0 entry; `package.json`, `VERSION`,
+  and the manifest's `harness_version` agree; tag `v2.1.0` on `main`. First tag in the repository
+  (2.0.0 shipped untagged on 2026-09-05). Verified 230/230, gate 14/14 before tagging.
 - cc-base v3 absorption (2026-09-06, commit 71107cc): `git push` no longer asks (force push
   still does), fast-loan window clamped on read, `npm run build` refreshes the manifest, guard
   mutation test opt-in (`npm run test:mutation`), two feedback lessons recorded. Studied ~40 v3

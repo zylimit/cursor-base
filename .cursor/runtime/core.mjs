@@ -7,7 +7,7 @@ import { closeSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFi
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-export const VERSION = "2.0.0";
+export const VERSION = "2.1.0";
 export const STATE_REL = ".cursor/harness-state";
 export const INSTALL_MANIFEST_REL = `${STATE_REL}/install-manifest.json`;
 export const SOURCE_MANIFEST_REL = "FRAMEWORK-MANIFEST.json";

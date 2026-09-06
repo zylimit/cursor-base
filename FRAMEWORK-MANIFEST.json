@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "harness_version": "2.0.0",
+  "harness_version": "2.1.0",
   "hash": "sha256-lf-v1",
   "files": [
     {
@@ -115,7 +115,7 @@
     },
     {
       "path": ".cursor/runtime/core.mjs",
-      "sha256": "9564ad1538326aabb4b0c67ae24d42ea552e7435343d8dcc56c2ad55fd09320c",
+      "sha256": "423c64a02c67b0fd50aaee9de1c08ebd47b216ec39e104b7108755953f9bc402",
       "bytes": 34237
     },
     {
@@ -429,5 +429,5 @@
       "bytes": 185
     }
   ],
-  "digest": "7a895af24d14493fc6a98747565a29bc2cf357431c54e3715aa62d5417dcadfc"
+  "digest": "ff850992196a649cef55f8f88e341e779849ecba4f61d5a6a52164ef4092277d"
 }
