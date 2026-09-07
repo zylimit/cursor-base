@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use Semantic Versioning.
 
+## [2.1.1] - 2026-09-07
+
+### Fixed
+
+- **State lock could be stolen in another process's create-then-write window, losing an update.**
+  `withStateLock` judged a lock's age from its JSON body; an exclusive create and the write of
+  that body are two steps, so a concurrent waiter could read an empty file, parse nothing, treat
+  "no `created_at`" as infinitely old, delete the live lock, and proceed — two writers behind one
+  lock. Observed as a dropped `session_edited_files` entry on a Windows runner (run 34070733480).
+  Age now comes from the body when it is readable and from the file's mtime when it is not, so an
+  unreadable lock is a held lock until its mtime says otherwise; a lock is released only when its
+  token matches. `CURSOR_HARNESS_LOCK_WAIT_MS` raises the waiter deadline on a slow host. The lock
+  test covers the empty-fresh (respected) and empty-abandoned (reclaimed) cases and runs in 3.7s
+  instead of 10s.
+
 ## [2.1.0] - 2026-09-07
 
 Lessons from the 2026-09 reviews of `codex-base` v5 and `cc-base` v3, each landed as the

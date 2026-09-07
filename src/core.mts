@@ -89,7 +89,7 @@ export interface HookPayload {
   subagent_id?: string;
 }
 
-export const VERSION = "2.1.0";
+export const VERSION = "2.1.1";
 
 export const STATE_REL = ".cursor/harness-state";
 
@@ -201,6 +201,12 @@ export const LOCK_STALE_MS = 60_000;
 
 export const LOCK_WAIT_MS = 10_000;
 
+/** How long a waiter spins for a held lock; `CURSOR_HARNESS_LOCK_WAIT_MS` raises it on a slow host. */
+export function lockWaitMs(): number {
+  const override = Number(process.env.CURSOR_HARNESS_LOCK_WAIT_MS);
+  return Number.isInteger(override) && override > 0 ? override : LOCK_WAIT_MS;
+}
+
 // Several hook processes can run at once, and each one read-modify-writes shared state.
 // Without a lock the last writer silently discards whatever the others recorded.
 export function withStateLock<T>(root: string, name: string, action: () => T): T {
@@ -208,7 +214,7 @@ export function withStateLock<T>(root: string, name: string, action: () => T): T
   mkdirSync(directory, { recursive: true });
   const lockPath = resolve(directory, `${name}.lock`);
   const token = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const deadline = Date.now() + LOCK_WAIT_MS;
+  const deadline = Date.now() + lockWaitMs();
 
   for (;;) {
     try {
@@ -219,15 +225,29 @@ export function withStateLock<T>(root: string, name: string, action: () => T): T
       break;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      let holder: { created_at?: number } = {};
+      // The lock's age comes from its content when that is readable and from the file's mtime
+      // when it is not. An exclusive create and the write of the body are two steps, so another
+      // process can observe an empty lock in between; treating "no readable created_at" as
+      // infinitely old stole live locks and lost a concurrent writer's update (seen on a Windows
+      // runner). An unreadable lock is a held lock until its mtime says otherwise.
+      let age: number;
       try {
-        holder = JSON.parse(readFileSync(lockPath, "utf8"));
+        const holder = JSON.parse(readFileSync(lockPath, "utf8")) as { created_at?: unknown };
+        const createdAt = Number(holder?.created_at);
+        age = Number.isFinite(createdAt) && createdAt > 0 ? Date.now() - createdAt : Date.now() - statSync(lockPath).mtimeMs;
       } catch {
-        holder = {};
+        try {
+          age = Date.now() - statSync(lockPath).mtimeMs;
+        } catch {
+          continue; // The lock vanished between the failed create and the stat: try the create again.
+        }
       }
-      const age = Date.now() - Number(holder.created_at || 0);
       if (age > LOCK_STALE_MS) {
-        rmSync(lockPath, { force: true });
+        try {
+          rmSync(lockPath, { force: true });
+        } catch {
+          // Another waiter reclaimed it first, or the holder still has it open: go round again.
+        }
         continue;
       }
       if (Date.now() > deadline) {
@@ -244,11 +264,13 @@ export function withStateLock<T>(root: string, name: string, action: () => T): T
   try {
     return action();
   } finally {
+    // Release only what is provably ours. An unreadable lock may be another process's, caught in
+    // its create-then-write window; deleting it would reopen the race this lock exists to close.
     try {
       const holder = JSON.parse(readFileSync(lockPath, "utf8"));
       if (holder?.token === token) rmSync(lockPath, { force: true });
     } catch {
-      rmSync(lockPath, { force: true });
+      // Unreadable or already gone: leave it to mtime-based staleness rather than guess.
     }
   }
 }

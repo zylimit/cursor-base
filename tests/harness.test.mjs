@@ -1692,6 +1692,24 @@ test("a stale lock is taken over and a live lock is respected", (t) => {
   mkdirSync(resolve(root, "src"), { recursive: true });
   const file = resolve(root, "src", "app.js");
   writeFileSync(file, "export const one = 1;\n", "utf8");
+  // Waiters give up after this long in the blocked cases below; the default 10s is production's.
+  const previousWait = process.env.CURSOR_HARNESS_LOCK_WAIT_MS;
+  process.env.CURSOR_HARNESS_LOCK_WAIT_MS = "1500";
+  t.after(() => {
+    if (previousWait === undefined) delete process.env.CURSOR_HARNESS_LOCK_WAIT_MS;
+    else process.env.CURSOR_HARNESS_LOCK_WAIT_MS = previousWait;
+    rmSync(lockPath, { force: true });
+  });
+  const editedCount = () =>
+    JSON.parse(readFileSync(resolve(root, ".cursor/harness-state/quality.json"), "utf8")).session_edited_files.length;
+  const blockedHook = () => {
+    const blocked = runHarness(["hook", "afterFileEdit", "--target", root], {
+      input: { workspace_roots: [root], file_path: file },
+      timeout: 60_000,
+    });
+    assert.equal(blocked.status, 0, "an observational hook degrades rather than crashing");
+    return JSON.parse(blocked.stdout);
+  };
 
   // A lock left behind by a killed process must not block the repository forever.
   writeFileSync(
@@ -1700,8 +1718,7 @@ test("a stale lock is taken over and a live lock is respected", (t) => {
     "utf8",
   );
   hook(root, "afterFileEdit", { file_path: file });
-  const quality = JSON.parse(readFileSync(resolve(root, ".cursor/harness-state/quality.json"), "utf8"));
-  assert.equal(quality.session_edited_files.length, 1, "a stale lock must be taken over");
+  assert.equal(editedCount(), 1, "a stale lock must be taken over");
   assert.equal(existsSync(lockPath), false, "the taken-over lock is released");
 
   // A lock that is still fresh must not be stolen; the waiter times out instead.
@@ -1710,15 +1727,26 @@ test("a stale lock is taken over and a live lock is respected", (t) => {
     JSON.stringify({ token: "alive", pid: process.pid, created_at: Date.now() }),
     "utf8",
   );
-  t.after(() => rmSync(lockPath, { force: true }));
-  const blocked = runHarness(["hook", "afterFileEdit", "--target", root], {
-    input: { workspace_roots: [root], file_path: file },
-    timeout: 60_000,
-  });
-  assert.equal(blocked.status, 0, "an observational hook degrades rather than crashing");
-  const output = JSON.parse(blocked.stdout);
-  assert.match(output.additional_context, /Timed out waiting for the quality state lock/);
+  const blocked = blockedHook();
+  assert.match(blocked.additional_context, /Timed out waiting for the quality state lock/);
   assert.equal(existsSync(lockPath), true, "the live lock is left alone");
+  rmSync(lockPath, { force: true });
+
+  // An EMPTY lock is what another process's lock looks like between its exclusive create and
+  // the write of its body. Fresh, it is a held lock and must be respected: treating "no readable
+  // created_at" as infinitely old stole live locks and lost a concurrent writer's update.
+  writeFileSync(lockPath, "", "utf8");
+  const emptyFresh = blockedHook();
+  assert.match(emptyFresh.additional_context, /Timed out waiting for the quality state lock/);
+  assert.equal(existsSync(lockPath), true, "an empty but fresh lock is a held lock, not a stale one");
+  assert.equal(editedCount(), 1, "no write happened behind the held lock");
+
+  // The same empty lock, abandoned long ago (a crash between create and write), is reclaimed by
+  // its mtime rather than wedging the repository.
+  const abandonedAt = new Date(Date.now() - 120_000);
+  utimesSync(lockPath, abandonedAt, abandonedAt);
+  hook(root, "afterFileEdit", { file_path: file });
+  assert.equal(existsSync(lockPath), false, "an abandoned empty lock is reclaimed and released");
 });
 
 test("gate-audit separates hooks that have intervened from hooks that never have", (t) => {

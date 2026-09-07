@@ -92,6 +92,15 @@ section contract.
   (`exit`) and expansion still go through the shell. Supersedes the round-3 wording that
   listed a leading assignment among the cases that require a shell.
 
+- 2026-09-07 A lock's age is read from its body when readable and from the file's mtime when
+  not; an unreadable lock is held, not stale, and only a token-matched lock is released. The
+  create-then-write window of `writeFileSync(..., { flag: "wx" })` let a concurrent waiter read an
+  empty lock, call it infinitely old, and steal it — a lost update the concurrency test caught on
+  a Windows runner right after v2.1.0 was tagged. Rejected: writing the lock body atomically via a
+  temp file and rename — rename cannot give exclusive-create semantics portably, so readers must
+  tolerate an empty body anyway; mtime is the honest clock for that state. Shipped as 2.1.1
+  (the defect predates 2.0).
+
 - 2026-09-06 `git push` no longer asks; a force push still does. The user decided it (the same
   decision was made in cc-base the same day: after authorization the agent executes normal git
   lifecycle actions instead of bouncing them back). Push is an approval tier, not a safety
@@ -186,6 +195,10 @@ section contract.
 
 ## Done
 
+- 2.1.1 released (2026-09-07): state-lock lost-update race fixed (unreadable lock judged by
+  mtime, never stolen; token-matched release only); `CURSOR_HARNESS_LOCK_WAIT_MS` knob; lock
+  test covers empty-fresh and empty-abandoned and runs 3.7s instead of 10s. Found by the
+  concurrency test on windows/Node 22 in the v2.1.0 CI run (one of eight concurrent writers lost).
 - 2.1.0 released (2026-09-07): Unreleased folded into the 2.1.0 entry; `package.json`, `VERSION`,
   and the manifest's `harness_version` agree; tag `v2.1.0` on `main`. First tag in the repository
   (2.0.0 shipped untagged on 2026-09-05). Verified 230/230, gate 14/14 before tagging.
