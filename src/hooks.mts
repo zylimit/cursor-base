@@ -4,6 +4,7 @@
 import { existsSync, renameSync, rmSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { effectiveSelection, loadPolicy, openDebts, readLoan, resolveAssurance } from "./assurance.mjs";
+import { classifyPath, catalog } from "./catalog.mjs";
 import { invariants, syncCheck } from "./memory.mjs";
 import { recordAuthorship } from "./review.mjs";
 import {
@@ -14,6 +15,8 @@ import {
   boundedHead,
   boundedText,
   changedPaths,
+  trackedChangedPaths,
+  untrackedPaths,
   errorMessage,
   canonicalJson,
   posix,
@@ -157,7 +160,7 @@ export async function handleHookEvent(
     }
   } else if (event === "sessionStart") {
     const current = binding(root);
-    const dirty = changedPaths(root, current.base_commit);
+    const dirty = stopRelevantPaths(root, current.base_commit);
     writeJson(resolve(root, STATE_REL, "baseline.json"), {
       ...current,
       changed_paths: dirty,
@@ -337,85 +340,94 @@ export async function handleHookEvent(
     const current = binding(root);
     const baselinePath = resolve(root, STATE_REL, "baseline.json");
     const baseline = existsSync(baselinePath) ? readJson(baselinePath) : null;
-    // Relying on afterFileEdit would miss every write made through a shell command, so the
-    // trigger is the working tree moving away from the session baseline instead.
-    const changedThisSession = baseline
-      ? baseline.diff_sha256 !== current.diff_sha256
-      : changedPaths(root, current.base_commit).length > 0;
-    if (payload.status === "completed" && changedThisSession) {
-      const plan = buildVerifyPlan(root, [], planBase(current));
-      const assessment = assessQuality(root, plan);
-      const parts: string[] = [];
-      if (!assessment.complete) {
-        const outstanding = assessment.checks
-          .filter((check) => !check.acceptable)
-          .map((check) => `${check.id} (${check.status})`);
-        const gapsBlock = assessment.assurance.controls.attributeGaps === "blocking";
-        const gaps = assessment.attributes
-          .filter((entry) => entry.enforcement === "block" && !entry.covered && !entry.deferred)
-          .map((entry) => `${entry.module}/${entry.attribute} (${entry.tier})`);
-        if (outstanding.length > 0) {
-          parts.push(`no passing verification receipt for: ${outstanding.join(", ")}`);
+    // Untracked tooling and scratch (unmapped / ignored, such as local MCP state) must not make a
+    // clean committed tree look like unverified work. Untracked files the catalog maps are new
+    // source and still count; `gate` sees the full untracked set either way.
+    const relevant = stopRelevantPaths(root, current.base_commit);
+    if (relevant.length === 0) {
+      clearStopStrike(root);
+    } else {
+      // Relying on afterFileEdit would miss every write made through a shell command, so the
+      // trigger is the working tree moving away from the session baseline instead.
+      const changedThisSession = baseline
+        ? baseline.diff_sha256 !== current.diff_sha256
+        : true;
+      if (payload.status === "completed" && changedThisSession) {
+        const plan = buildVerifyPlan(root, [], planBase(current));
+        const assessment = assessQuality(root, plan);
+        const parts: string[] = [];
+        if (!assessment.complete) {
+          const outstanding = assessment.checks
+            .filter((check) => !check.acceptable)
+            .map((check) => `${check.id} (${check.status})`);
+          const gapsBlock = assessment.assurance.controls.attributeGaps === "blocking";
+          const gaps = assessment.attributes
+            .filter((entry) => entry.enforcement === "block" && !entry.covered && !entry.deferred)
+            .map((entry) => `${entry.module}/${entry.attribute} (${entry.tier})`);
+          if (outstanding.length > 0) {
+            parts.push(`no passing verification receipt for: ${outstanding.join(", ")}`);
+          }
+          if (plan.checks.length === 0 && plan.modules.length > 0) {
+            parts.push(`no check wired for ${plan.modules.join(", ")}; nothing about this change can be verified until the matrix names one`);
+          }
+          if (gapsBlock && gaps.length > 0) {
+            parts.push(`no evidence for required quality attributes: ${gaps.join(", ")}`);
+          }
+        } else if (assessment.assurance.controls.memorySync === "block") {
+          // Memory sync on the *next* turn after receipts exist: asking for a progress.md write
+          // in the same breath as `gate` moves the diff and immediately stales the receipts.
+          try {
+            const sync = syncCheck(root, relevant);
+            const behind = sync.findings.find((finding) => finding.code === "MEMORY_BEHIND_CODE");
+            if (behind) parts.push(`governed code changed but ${sync.ledger} did not (${behind.sample?.slice(0, 3).join(", ")})`);
+          } catch {
+            // A memory check that cannot run must not convert a completed turn into a loop.
+          }
         }
-        if (plan.checks.length === 0 && plan.modules.length > 0) {
-          parts.push(`no check wired for ${plan.modules.join(", ")}; nothing about this change can be verified until the matrix names one`);
+        // A blast radius over budget is a reason to split the change or escalate on purpose; under
+        // `budget: block` the turn does not end on it silently.
+        if (assessment.budget.mode === "block" && assessment.budget.exceeded.length > 0) {
+          parts.push(`a blast radius over budget (${assessment.budget.exceeded.join("; ")})`);
         }
-        if (gapsBlock && gaps.length > 0) {
-          parts.push(`no evidence for required quality attributes: ${gaps.join(", ")}`);
-        }
-      }
-      // Memory that falls behind the code is the state a cleared session cannot recover from.
-      // Whether that stops the turn is the profile's call: strict blocks, balanced reports
-      // through recap and risk, explore ignores it.
-      if (assessment.assurance.controls.memorySync === "block") {
-        try {
-          const sync = syncCheck(root, changedPaths(root, current.base_commit));
-          const behind = sync.findings.find((finding) => finding.code === "MEMORY_BEHIND_CODE");
-          if (behind) parts.push(`governed code changed but ${sync.ledger} did not (${behind.sample?.slice(0, 3).join(", ")})`);
-        } catch {
-          // A memory check that cannot run must not convert a completed turn into a loop.
-        }
-      }
-      // A blast radius over budget is a reason to split the change or escalate on purpose; under
-      // `budget: block` the turn does not end on it silently.
-      if (assessment.budget.mode === "block" && assessment.budget.exceeded.length > 0) {
-        parts.push(`a blast radius over budget (${assessment.budget.exceeded.join("; ")})`);
-      }
-      if (parts.length === 0) {
-        // Whatever was being struck is resolved; the next unresolved state starts its own count.
-        clearStopStrike(root);
-      } else {
-        // Block the SAME unresolved state a bounded number of times, then hand control back so a
-        // stale gate cannot deadlock the turn across sessions. The release is recorded in the
-        // ledger and never marks the work complete. The signature is the change plus the exact
-        // outstanding reasons, so making progress — a different diff or a different blocker —
-        // resets the count rather than spending a strike on new work.
-        const signature = sha256(
-          canonicalJson({ base: current.base_commit, diff: current.diff_sha256, parts: [...parts].sort() }),
-        );
-        const strikes = recordStopStrike(root, signature);
-        const release = strikes >= STOP_STRIKE_LIMIT || Number(payload.loop_count || 0) >= STOP_STRIKE_LIMIT;
-        if (release) {
+        if (parts.length === 0) {
+          // Whatever was being struck is resolved; the next unresolved state starts its own count.
           clearStopStrike(root);
-          appendLedger(
-            root,
-            "stop",
-            payload,
-            "followup",
-            `stop-strike-release after ${STOP_STRIKE_LIMIT} blocks of the same unresolved state; control handed back without marking work complete: ${parts.join("; ")}`,
-          );
-          output = {
-            additional_context:
-              `The completion gate has blocked this same unresolved state ${STOP_STRIKE_LIMIT} times and is handing control back so the turn is not deadlocked. ` +
-              `The work is NOT verified or complete: under the ${assessment.assurance.effective} assurance profile the current diff has ${parts.join("; and ")}. ` +
-              "Resolve it or escalate to the user; do not read this release as verification.",
-          };
         } else {
-          output = {
-            followup_message:
-              `Under the ${assessment.assurance.effective} assurance profile the current diff has ${parts.join("; and ")} (block ${strikes} of ${STOP_STRIKE_LIMIT} for this unresolved state). ` +
-              "Run `node scripts/harness.mjs gate` (and record the decision in project memory) and report the outcome. Do not claim verification that did not execute.",
-          };
+          // Block the SAME unresolved state a bounded number of times, then hand control back so a
+          // stale gate cannot deadlock the turn across sessions. The release is recorded in the
+          // ledger and never marks the work complete. The signature is the change plus the exact
+          // outstanding reasons, so making progress — a different diff or a different blocker —
+          // resets the count rather than spending a strike on new work.
+          const signature = sha256(
+            canonicalJson({ base: current.base_commit, diff: current.diff_sha256, parts: [...parts].sort() }),
+          );
+          const strikes = recordStopStrike(root, signature);
+          const release = strikes >= STOP_STRIKE_LIMIT || Number(payload.loop_count || 0) >= STOP_STRIKE_LIMIT;
+          if (release) {
+            clearStopStrike(root);
+            appendLedger(
+              root,
+              "stop",
+              payload,
+              "followup",
+              `stop-strike-release after ${STOP_STRIKE_LIMIT} blocks of the same unresolved state; control handed back without marking work complete: ${parts.join("; ")}`,
+            );
+            output = {
+              additional_context:
+                `The completion gate has blocked this same unresolved state ${STOP_STRIKE_LIMIT} times and is handing control back so the turn is not deadlocked. ` +
+                `The work is NOT verified or complete: under the ${assessment.assurance.effective} assurance profile the current diff has ${parts.join("; and ")}. ` +
+                "Resolve it or escalate to the user; do not read this release as verification.",
+            };
+          } else {
+            const receiptGap = !assessment.complete;
+            output = {
+              followup_message:
+                `Under the ${assessment.assurance.effective} assurance profile the current diff has ${parts.join("; and ")} (block ${strikes} of ${STOP_STRIKE_LIMIT} for this unresolved state). ` +
+                (receiptGap
+                  ? "Run `node scripts/harness.mjs gate` and report the outcome. Do not claim verification that did not execute."
+                  : "Resolve it before claiming complete. Do not run gate unless the working tree moved."),
+            };
+          }
         }
       }
     }
@@ -455,6 +467,29 @@ function clearStopStrike(root: string): void {
   } catch {
     // Best effort: a strike file that cannot be removed will be overwritten on the next block.
   }
+}
+
+/** Tracked dirty files, plus untracked files the catalog maps. Untracked ignored/unmapped
+ *  paths (local MCP state, scratch) are not unverified work. */
+function stopRelevantPaths(root: string, base: string): string[] {
+  const tracked = trackedChangedPaths(root, base);
+  let untracked: string[] = [];
+  try {
+    untracked = untrackedPaths(root);
+  } catch {
+    return tracked;
+  }
+  let mappedUntracked: string[] = [];
+  try {
+    const definition = catalog(root);
+    mappedUntracked = untracked.filter((path) => {
+      const kind = classifyPath(definition, path).classification;
+      return kind === "mapped" || kind === "global" || kind === "overlap";
+    });
+  } catch {
+    mappedUntracked = untracked;
+  }
+  return [...new Set([...tracked, ...mappedUntracked])];
 }
 
 /** A binding's base is passed back only when it names a commit; NO_COMMIT and NO_GIT are states. */

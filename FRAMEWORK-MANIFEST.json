@@ -70,8 +70,8 @@
     },
     {
       "path": ".cursor/rules/40-assurance.mdc",
-      "sha256": "dd6bbefd1e07a4899a1b255ecb9d43eb4267359c4094c52c70eac0d0f414b184",
-      "bytes": 1491
+      "sha256": "b06830a9d435c4883f4f8b3e95ca3c54206b3772bb25b6d7dd6d6514977c1f4a",
+      "bytes": 1499
     },
     {
       "path": ".cursor/rules/50-memory-and-review.mdc",
@@ -100,8 +100,8 @@
     },
     {
       "path": ".cursor/runtime/assurance.mjs",
-      "sha256": "32c80b07187c05e924658ee1b7c0cec9a6ada766f02b4aa32cc6931558ce8664",
-      "bytes": 33994
+      "sha256": "feccbadf12cc650972aca2d7711084612c83899ffe567a0db96bcf4864ffe0a3",
+      "bytes": 34103
     },
     {
       "path": ".cursor/runtime/catalog.mjs",
@@ -120,8 +120,8 @@
     },
     {
       "path": ".cursor/runtime/core.mjs",
-      "sha256": "3026354e59af560f553712b92fbfe45a45dc777c68dec87e3af59efaf3a6632a",
-      "bytes": 35825
+      "sha256": "4bf731e77b3ac8eaa1a3ccbbed00f2bd7962bf252b804f7431858211b883b56f",
+      "bytes": 37295
     },
     {
       "path": ".cursor/runtime/graph.mjs",
@@ -135,8 +135,8 @@
     },
     {
       "path": ".cursor/runtime/hooks.mjs",
-      "sha256": "12b754dd8ff58abc7095ba9bcdb4851ebc6e629cbeddbb330e3e5494916e66a7",
-      "bytes": 24446
+      "sha256": "daa30ff591d8a2e28c85e256c1eecaaf72799ef134441f5931169666a03c7d52",
+      "bytes": 26173
     },
     {
       "path": ".cursor/runtime/install.mjs",
@@ -170,8 +170,8 @@
     },
     {
       "path": ".cursor/runtime/scan.mjs",
-      "sha256": "53d920ac8013f410562e38c3329bfa9c41309192bfbb0bd1e156ba0226762058",
-      "bytes": 37751
+      "sha256": "50cb06195a64142cf0f4565ec1cbba591fbbd4ed3b235f06ad79718945e39780",
+      "bytes": 39337
     },
     {
       "path": ".cursor/runtime/services.mjs",
@@ -300,8 +300,8 @@
     },
     {
       "path": ".cursor/skills/dfx-design/SKILL.md",
-      "sha256": "bae0be31c4dadae6a944b0ff2284c552268caf1e0c15c4430595dfa0a8d98e69",
-      "bytes": 7437
+      "sha256": "fbf8576de83dc3a402d066366d03d7aee9dbf830cb1607cdf26243762a706c0a",
+      "bytes": 7470
     },
     {
       "path": ".cursor/skills/dfx-design/templates/dfx-spec-template.md",
@@ -415,8 +415,8 @@
     },
     {
       "path": ".cursor/skills/release-readiness/SKILL.md",
-      "sha256": "e6b16cd0c54bc847a14265aa9a7db71540952bd059a6ec7a10bf7820187fc32f",
-      "bytes": 1270
+      "sha256": "1a4d103094340b771fa2d2abf127e23b26b53bdf5559a99201b0341156f1cb24",
+      "bytes": 1422
     },
     {
       "path": ".cursor/skills/root-cause-debugging/REFERENCE.md",
@@ -500,8 +500,8 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "9d12aff3ae63c4e852a9d5e7000c4cbe83c481de074ad1a067b9b8bd2b0d210d",
-      "bytes": 4373
+      "sha256": "2ffe7ee8515a55cdde61743e9036e92542b1b9b30de2e92f0be2cec1ad1dc185",
+      "bytes": 4416
     },
     {
       "path": "harness/adapters.json",
@@ -515,8 +515,8 @@
     },
     {
       "path": "harness/default-assurance-policy.json",
-      "sha256": "2023a702adfd80b343fe02d425e93d20b858207874f94d4023797c37c7fb7064",
-      "bytes": 1118
+      "sha256": "eb52577bd06d76f037f1a5bf61c7795b10ee7eb0e5e4d55b86b2376cc9f36d30",
+      "bytes": 1207
     },
     {
       "path": "harness/default-module-catalog.json",
@@ -574,5 +574,5 @@
       "bytes": 185
     }
   ],
-  "digest": "9f2f51444a7e8cfa0a95f707d900c3f5a02af825228cf978195808d549b2e827"
+  "digest": "f99efbee3757e2cb2f222a58e3360a5fdac59e8f5d92e51ce866ec23bd224264"
 }

@@ -417,6 +417,37 @@ export function changedPaths(cwd: string, base?: string): string[] {
   return [...new Set([...tracked, ...untrackedPaths(cwd)])].sort();
 }
 
+/** Tracked paths that differ from `base`. Untracked files (tooling state, local scratch) are
+ *  not in this set: they must not make a clean committed tree look like unverified work. */
+export function trackedChangedPaths(cwd: string, base?: string): string[] {
+  if (!gitAvailable(cwd)) return [];
+  const args =
+    base && base !== "NO_COMMIT" && base !== "NO_GIT"
+      ? ["diff", "--name-only", "-z", "--no-renames", "--relative", base, "--", "."]
+      : ["status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=no"];
+  const result = git(cwd, args, true);
+  if (!result.ok) {
+    throw new Error(`Unable to determine tracked changes: ${(result.stderr || "git failed").trim()}`);
+  }
+  const excludeState = (path: string) => path !== STATE_REL && !path.startsWith(`${STATE_REL}/`);
+  if (args[0] === "status") {
+    const records = result.stdout.split("\0").filter(Boolean);
+    const paths: string[] = [];
+    for (let index = 0; index < records.length; index += 1) {
+      const record = records[index];
+      if (record.length < 4) continue;
+      const status = record.slice(0, 2);
+      paths.push(posix(record.slice(3)));
+      if (/[RC]/.test(status) && index + 1 < records.length) {
+        paths.push(posix(records[index + 1]));
+        index += 1;
+      }
+    }
+    return paths.filter(excludeState);
+  }
+  return splitNulPaths(result.stdout).filter(excludeState);
+}
+
 /**
  * Size of the change against `base`: added plus removed lines for tracked files (binary files
  * count as a file, not as lines) and every line of each untracked file, with the same scoping

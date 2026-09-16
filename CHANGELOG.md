@@ -4,12 +4,9 @@ All notable changes to this project are documented here. The format follows Keep
 
 ## [Unreleased]
 
-The product-development skill families of `cc-base` and `codex-base`, read skill by skill, are
-absorbed as on-demand Cursor skills routed by which documents exist, under the profile the task's
-tier selects. `docs/CAPABILITY-MATRIX.md` records every mechanism absorbed, adapted, or rejected
-(the persona, the brand, the fixed sequence, the generator daemon, the "main agent never codes"
-hook, the 300-line file limit, the ratio gate, the session-start evolution scan, per-role agent
-memory, and recorder / deployer subagents among the rejections). No engine change.
+The product-development skill families of `cc-base` and `codex-base` are absorbed as on-demand
+Cursor skills. This release also cuts the assurance cost model so a docs or skill edit no longer
+pays a full-engine review, and so the stop hook cannot loop a clean tree.
 
 ### Added
 
@@ -45,6 +42,16 @@ memory, and recorder / deployer subagents among the rejections). No engine chang
 
 ### Changed
 
+- Stop hook: a clean tracked tree (untracked tooling only) is not unverified work; missing
+  receipts ask for `gate` only; memory sync waits until receipts exist and does not share that
+  turn. Hash-bound receipts are unchanged.
+- Governance path floor covers the executable harness (hooks, runtime, `cli.json`, `sandbox.json`,
+  `harness/**`, installers, CI, lockfiles), not `.cursor/**` or `AGENTS.md`. Skills and docs follow
+  the module's attributes (`maintainability: high` → `balanced`).
+- `FRAMEWORK-MANIFEST.json` is a `distribution` path, not a `globalPaths` fan-out, so rewriting it
+  with a docs or skill edit no longer convenes every module.
+- `skills-lint` reports `YAML_UNQUOTED_COLON` when an unquoted description contains `: ` or a YAML
+  structural character — the class the host loader drops and a first-colon split used to miss.
 - `architecture-design`: business-event walkthrough, fact ownership and invariants, break points,
   same-scenario candidate comparison, sensitive assumptions, refutation-first experiments, state
   ownership; S / M / L sizing; the invariant test; the deployment envelope in three states; ADRs

@@ -469,6 +469,17 @@ export function instructionsCommand(options) {
 // likely to be dropped is the one that enforces something. Cursor reads `name` (kebab-case,
 // equal to the folder), `description`, `paths`, `disable-model-invocation`, `metadata`.
 export const SKILL_ROOTS = [".cursor/skills", ".agents/skills"];
+/** The host loader parses skill front matter as YAML. An unquoted `: ` or a structural
+ *  indicator makes Cursor drop the skill while a first-colon split still "succeeds". */
+function yamlUnsafeUnquoted(raw) {
+    const trimmed = raw.trim();
+    if (!trimmed)
+        return false;
+    const quote = trimmed[0];
+    if ((quote === '"' || quote === "'") && trimmed.endsWith(quote) && trimmed.length >= 2)
+        return false;
+    return /: /.test(trimmed) || /^[[\]{}>&*!%@`|]/.test(trimmed);
+}
 export function skillsLint(root) {
     const findings = [];
     const skills = [];
@@ -508,6 +519,26 @@ export function skillsLint(root) {
                 findings.push({ file, severity: "error", code: "DESCRIPTION_TOO_LONG", message: `description is ${description.length} characters; keep it under 500` });
             else if (description.length > 220)
                 findings.push({ file, severity: "warning", code: "DESCRIPTION_LONG", message: `description is ${description.length} characters; every session pays for it on every request` });
+            // Cursor loads front matter as YAML. A first-colon split still "succeeds" on
+            // `description: Use when: ...` while the host drops the skill; refuse that class here.
+            const rawBlock = /^---\n([\s\S]*?)\n---/.exec(normalized);
+            if (rawBlock) {
+                for (const line of rawBlock[1].split("\n")) {
+                    const separator = line.indexOf(":");
+                    if (separator === -1)
+                        continue;
+                    if (line.slice(0, separator).trim() !== "description")
+                        continue;
+                    if (yamlUnsafeUnquoted(line.slice(separator + 1))) {
+                        findings.push({
+                            file,
+                            severity: "error",
+                            code: "YAML_UNQUOTED_COLON",
+                            message: "unquoted description contains ': ' or a YAML structural character; the host loader drops the skill. Quote the description.",
+                        });
+                    }
+                }
+            }
             for (const key of Object.keys(meta)) {
                 if (key === "disableModelInvocation" || key === "userInvocable") {
                     findings.push({ file, severity: "error", code: "CAMEL_CASE_KEY", message: `frontmatter key ${key} is camelCase; the loader reads disable-model-invocation` });

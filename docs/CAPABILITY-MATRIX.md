@@ -26,7 +26,7 @@ The 2.0 refactor followed a line-by-line study of `dsh-base` and `cc-base` and a
 | Three-file sync (code ↔ ledger, spec ↔ changelog) | `cc-base`, `dsh-base` | **Adapted** as `sync-check`; blocks the stop hook only under `strict` | `sync-check`, `stop` |
 | Instruction files as untrusted input | `dsh-base` (`scan-instructions`) | **Absorbed** for Cursor's file set (`AGENTS.md`, rules, skills, agents, `.cursorrules`) and wired as a security-class check | `instructions` |
 | Constitution audit: enforced / prompt-only / phantom | `cc-base` (`rules-audit`) | **Absorbed**; only phantoms fail | `rules-audit` |
-| Skills lint against the loader's parser | `dsh-base`, `cc-base` | **Adapted** to Cursor's frontmatter (`name` = folder, `description`, `disable-model-invocation`) | `skills-lint` |
+| Skills lint against the loader's parser | `dsh-base`, `cc-base` | **Adapted** to Cursor's frontmatter (`name` = folder, `description`, `disable-model-invocation`); an unquoted description with `: ` or a YAML structural character is `YAML_UNQUOTED_COLON` | `skills-lint` |
 | Nested module contracts (`AGENTS.md` per high-risk module) | `dsh-base` | **Adapted**: required where a protected attribute blocks, derived from the module's root | `agents-lint` |
 | Catalog discovery from tree, real imports, and manifests, refusing to guess tiers | `dsh-base`, `cc-base` (`init`) | **Absorbed** | `catalog discover` |
 | Release readiness with hard-false trust-boundary fields | `cc-base`, `codex-base` | **Absorbed**; CI observed through `gh`, `BLOCKED` when unobservable | `release readiness` |
@@ -148,6 +148,17 @@ executable check or an on-demand skill rather than as more always-applied text.
 | Governance integrity | `instructions`, `rules-audit`, `skills-lint`, `agents-lint` | Untrusted instruction files; no phantom rules; loadable skills |
 | Catalog bootstrap | `catalog discover` | Modules and edges proposed; tiers never guessed |
 | Release proof | `release readiness` | Every condition reported under strict; nothing performed |
+
+## 2026-09-16 engine cost-model cut
+
+Four mechanical changes, no fifth profile, no second review engine, hash-bound receipts stay.
+
+| Mechanism | Decision | Where it lives |
+| --- | --- | --- |
+| Stop hook on a clean tracked tree, and gate paired with a memory write | Untracked tooling is not unverified work; missing receipts ask for `gate` only; memory sync waits until receipts exist | `src/hooks.mts`, `trackedChangedPaths` |
+| Governance path floor | Executable harness and delivery surface only; skills, rules, docs, `AGENTS.md` follow the module's attributes | `DEFAULT_POLICY`, `harness/assurance-policy.json` |
+| `FRAMEWORK-MANIFEST.json` as a global path | Moved onto the `distribution` module so a docs or skill edit that rewrites it does not convene every module | `harness/module-catalog.json` |
+| Skill descriptions the host YAML loader drops | `skills-lint` errors `YAML_UNQUOTED_COLON` | `src/scan.mts` |
 
 ## Non-goals
 

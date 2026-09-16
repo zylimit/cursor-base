@@ -231,6 +231,20 @@ test("a governance path floor raises the profile and an empty path floor list di
   assert.ok(governance.assurance.floors.some((floor) => floor.source === "path:governance"));
 });
 
+test("the governance path floor is the executable harness, not skills", (t) => {
+  const root = fixture(t, { policy: null });
+  edit(root, ".cursor/skills/demo-skill/SKILL.md", "---\nname: demo-skill\ndescription: Demo.\n---\n# Demo\n");
+  const skills = jsonResult(runHarness(["verify-plan", "--target", root]));
+  assert.equal(skills.assurance.effective, "balanced");
+  assert.ok(!skills.assurance.floors.some((floor) => floor.source === "path:governance"));
+
+  const hooksPath = resolve(root, ".cursor/hooks.json");
+  edit(root, ".cursor/hooks.json", `${readFileSync(hooksPath, "utf8")}\n`);
+  const hooks = jsonResult(runHarness(["verify-plan", "--target", root]));
+  assert.equal(hooks.assurance.effective, "strict");
+  assert.ok(hooks.assurance.floors.some((floor) => floor.source === "path:governance"));
+});
+
 test("explore runs no verification and cannot close work", (t) => {
   const root = fixture(t);
   jsonResult(runHarness(["profile", "set", "explore", "--target", root]));
@@ -685,6 +699,8 @@ test("skills-lint catches what the loader would drop silently", (t) => {
   edit(root, ".cursor/skills/good-skill/SKILL.md", "---\nname: good-skill\ndescription: Does one thing well.\n---\n# Good\n");
   edit(root, ".cursor/skills/bad-skill/SKILL.md", "---\nname: Bad_Skill\ndisableModelInvocation: true\n---\n# Bad\n");
   edit(root, ".cursor/skills/empty-skill/README.md", "no skill here\n");
+  edit(root, ".cursor/skills/colon-skill/SKILL.md", "---\nname: colon-skill\ndescription: Use when: the parser would drop this.\n---\n# Colon\n");
+  edit(root, ".cursor/skills/quoted-skill/SKILL.md", "---\nname: quoted-skill\ndescription: \"Use when: quoting makes this valid YAML.\"\n---\n# Quoted\n");
   const result = jsonResult(runHarness(["skills-lint", "--target", root]), 1);
   const codes = new Set(result.findings.map((finding) => finding.code));
   assert.ok(codes.has("NAME_NOT_KEBAB"));
@@ -692,7 +708,10 @@ test("skills-lint catches what the loader would drop silently", (t) => {
   assert.ok(codes.has("NO_DESCRIPTION"));
   assert.ok(codes.has("CAMEL_CASE_KEY"));
   assert.ok(codes.has("NO_SKILL_MD"));
+  assert.ok(codes.has("YAML_UNQUOTED_COLON"));
   assert.ok(!result.findings.some((finding) => finding.file.includes("good-skill")));
+  assert.ok(!result.findings.some((finding) => finding.file.includes("quoted-skill")));
+  assert.ok(result.findings.some((finding) => finding.file.includes("colon-skill") && finding.code === "YAML_UNQUOTED_COLON"));
 });
 
 test("agents-lint requires a nested contract where a protected attribute blocks", (t) => {
@@ -1200,6 +1219,18 @@ test("the stop hook blocks one unresolved state a bounded number of times, then 
   edit(root, "src/app.js", "export const one = 3;\n");
   const afterProgress = hook(root, "stop", { status: "completed", loop_count: 0 });
   assert.match(afterProgress.followup_message, /block 1 of 3/);
+});
+
+test("the stop hook ignores untracked scratch and does not pair gate with a memory write", (t) => {
+  const root = fixture(t);
+  hook(root, "sessionStart", {});
+  writeFileSync(resolve(root, "scratch.local"), "scratch\n", "utf8");
+  assert.deepEqual(hook(root, "stop", { status: "completed", loop_count: 0 }), {});
+
+  edit(root, "src/app.js", "export const one = 2;\n");
+  const missing = hook(root, "stop", { status: "completed", loop_count: 0 });
+  assert.match(missing.followup_message, /node scripts\/harness\.mjs gate/);
+  assert.doesNotMatch(missing.followup_message, /project memory/);
 });
 
 test("release readiness tolerates a dirty tree for a package but not for a release", (t) => {

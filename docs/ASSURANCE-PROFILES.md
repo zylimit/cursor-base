@@ -86,10 +86,12 @@ than from anyone's judgement at the time:
 | `criticalHighAttributes` | balanced | balanced | an affected module declares any other attribute at critical or high |
 | `paths` | see below | – | glob patterns over changed paths |
 
-Default path floors: the governance surface (`.cursor/**`, `AGENTS.md`, `harness/**`,
-`scripts/**`, setup scripts, CI, manifests and lockfiles) and trust boundaries
-(`**/auth/**`, `**/security/**`, `**/secrets/**`, `**/privacy/**`) raise to strict. A project may
-replace the list, or set it to `[]` to disable path floors.
+Default path floors: the executable harness and delivery surface (`.cursor/hooks.json`,
+`.cursor/cli.json`, `.cursor/runtime/**`, `.cursor/sandbox.json`, `harness/**`, `scripts/**`,
+setup scripts, CI, manifests and lockfiles) and trust boundaries (`**/auth/**`,
+`**/security/**`, `**/secrets/**`, `**/privacy/**`) raise to strict. Skills, rules, docs, and
+`AGENTS.md` follow the module's own attributes. A project may replace the list, or set it to
+`[]` to disable path floors.
 
 ## Fast loans and evidence debt
 
@@ -139,7 +141,7 @@ field is optional; the built-in defaults apply when the file is absent.
     "protectedAttributes": "strict",
     "criticalHighAttributes": "balanced",
     "paths": [
-      { "id": "governance", "patterns": [".cursor/**", "harness/**"], "profile": "strict", "reason": "the governance surface changed" }
+      { "id": "governance", "patterns": [".cursor/hooks.json", ".cursor/runtime/**", "harness/**"], "profile": "strict", "reason": "the executable harness changed" }
     ]
   }
 }

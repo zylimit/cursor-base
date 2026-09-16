@@ -197,8 +197,10 @@ export const DEFAULT_POLICY: AssurancePolicy = Object.freeze({
       {
         id: "governance",
         patterns: [
-          ".cursor/**",
-          "AGENTS.md",
+          ".cursor/hooks.json",
+          ".cursor/cli.json",
+          ".cursor/runtime/**",
+          ".cursor/sandbox.json",
           "harness/**",
           "scripts/**",
           "setup.sh",
@@ -210,7 +212,7 @@ export const DEFAULT_POLICY: AssurancePolicy = Object.freeze({
           "yarn.lock",
         ],
         profile: "strict",
-        reason: "the governance or delivery surface changed",
+        reason: "the executable harness or delivery surface changed",
       },
       {
         id: "trust-boundary",

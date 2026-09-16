@@ -7,8 +7,7 @@
     "tsconfig.json",
     ".gitattributes",
     ".gitignore",
-    ".github/workflows/**",
-    "FRAMEWORK-MANIFEST.json"
+    ".github/workflows/**"
   ],
   "ignored": [
     {
@@ -135,7 +134,8 @@
         "scripts/**",
         "setup.ps1",
         "setup.sh",
-        "harness/**"
+        "harness/**",
+        "FRAMEWORK-MANIFEST.json"
       ],
       "dependsOn": [
         "runtime",

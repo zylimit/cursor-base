@@ -8,8 +8,8 @@ command surface.
 ## Evidence
 
 - A claim of verification names the command that ran, its exit code, and the receipt. `Verified`
-  lists only checks that executed: the `stop` hook follows up when the diff has no passing
-  receipt, and `quality status` is the arbiter.
+  lists only checks that executed: the `stop` hook follows up when tracked files differ from
+  HEAD and the diff has no passing receipt, and `quality status` is the arbiter.
 - Results are `PASS | FAIL | BLOCKED | SKIPPED`. A missing tool is `BLOCKED`, an empty plan is
   `BLOCKED`, and `SKIPPED` is never evidence (`gate`).
 - Evidence binds to the base commit, the canonical diff hash, and the plan hash; changing the
@@ -18,7 +18,7 @@ command surface.
 ## Assurance
 
 - Every change runs under an effective profile — `explore < rapid < balanced < strict` — that
-  floors (task risk, impact, protected and other critical/high attributes, governance paths) may only raise. Read it with
+  floors (task risk, impact, protected and other critical/high attributes, executable-harness paths) may only raise. Read it with
   `profile show`; select with `profile set`; the `sessionStart` hook announces it.
 - Speed is a loan, never a waiver: `fast on --minutes N --reason TEXT` defers only checks the
   matrix pre-declared `allowFastSkip`, records each as debt, and only a later PASS repays it
