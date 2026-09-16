@@ -5,8 +5,10 @@ description: Assembles the proof a release depends on (clean tree, gate under st
 
 # Release Readiness
 
-1. Run `node scripts/harness.mjs release readiness`. Every condition reports
-   `PASS | FAIL | BLOCKED`; a condition that could not be evaluated is `BLOCKED`, never assumed.
+1. Run `node scripts/harness.mjs release readiness` (default `--operation release`). Every
+   condition reports `PASS | FAIL | BLOCKED`; a condition that could not be evaluated is
+   `BLOCKED`, never assumed. `--operation package` is the other subject (`release-build` uses it)
+   and may emit `SKIPPED` for `worktree-clean`.
 2. Resolve failures at their source: commit or revert a dirty tree, run `gate` under the strict
    floor, complete or cancel open tasks, repay loans with `gate`, run the structured review.
 3. Treat `BLOCKED` honestly: no upstream, no CI tooling, or no version means the proof is

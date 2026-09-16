@@ -82,7 +82,7 @@ restated here, so there is one place to change them.
 
 ### Tier vocabulary
 
-Four scales, one word each, never mixed:
+These scales, one word each, never mixed:
 
 | Scale | Values | Set by | Decides |
 | --- | --- | --- | --- |

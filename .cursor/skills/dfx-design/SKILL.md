@@ -63,7 +63,7 @@ file.
 6. Wire it — but map first: the catalog's vocabulary is eight attributes (`security`, `safety`,
    `privacy`, `reliability`, `resilience`, `availability`, `performance`, `maintainability`), not
    thirteen dimensions, and any other name is an `UNKNOWN_ATTRIBUTE` finding that `catalog lint`
-   and `validate` reject. Map each dimension onto its attribute using the dimension table's last
+   rejects (`validate` does not read `module.attributes`). Map each dimension onto its attribute using the dimension table's last
    column in [REFERENCE.md](REFERENCE.md); a dimension with no attribute (installability, cost,
    energy efficiency) stays in `DFX-Spec.md` with its acceptance test and is never declared.
    Then declare tiers in `harness/module-catalog.json` `attributes`; make a matrix check claim

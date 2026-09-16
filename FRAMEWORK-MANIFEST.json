@@ -5,8 +5,8 @@
   "files": [
     {
       "path": ".cursor/agents/debugger.md",
-      "sha256": "2a213f172b21c4204999d44e570e0d72fc4f8c86c201f1c6397b0bfddc16aece",
-      "bytes": 956
+      "sha256": "6bc166dc312ada9b7fc4a8e41c69fad140fd96150b79d5be29a98b6072e59091",
+      "bytes": 1476
     },
     {
       "path": ".cursor/agents/explorer.md",
@@ -80,8 +80,8 @@
     },
     {
       "path": ".cursor/rules/60-product-workflow.mdc",
-      "sha256": "2dbc19037f32be463ea9ed0e444324e8e47b40b8c616fa07de276a4cad958549",
-      "bytes": 3235
+      "sha256": "d7fe5e3fa8fb8d19795bd578132d92e3222d95ad0395aa6284f4a2ff71295334",
+      "bytes": 3244
     },
     {
       "path": ".cursor/rules/documentation.mdc",
@@ -230,8 +230,8 @@
     },
     {
       "path": ".cursor/skills/assurance-profile/SKILL.md",
-      "sha256": "8aa90f2bda45f526d24dd90eb17c442154064cd3d7862c6212ba4f7fcb3726f4",
-      "bytes": 2201
+      "sha256": "c788edc0742b99de3d803d7570065ecb715862a85fed6fa0855398cdef5687fb",
+      "bytes": 2178
     },
     {
       "path": ".cursor/skills/catalog-discovery/SKILL.md",
@@ -370,8 +370,8 @@
     },
     {
       "path": ".cursor/skills/product-spec/SKILL.md",
-      "sha256": "48d98aa2239d53a7688615a731e7907d0a4ecd5f589316e3426dcab930710a4b",
-      "bytes": 6341
+      "sha256": "76302f4ee304b60c371d71c94b01912cdf496673c8d637683916c5bb1a6ff8f4",
+      "bytes": 6474
     },
     {
       "path": ".cursor/skills/product-spec/templates/product-spec-template.md",
@@ -400,8 +400,8 @@
     },
     {
       "path": ".cursor/skills/record-lesson/SKILL.md",
-      "sha256": "fb62544d24c4d1139e69890d5cf43bae2ce36865e593191a70134ad761490a54",
-      "bytes": 4274
+      "sha256": "c2cf6ccc3902b08388bea81294de627b2de1d83af7ad9bbe5fea11408e328bc2",
+      "bytes": 3955
     },
     {
       "path": ".cursor/skills/release-build/REFERENCE.md",
@@ -455,8 +455,8 @@
     },
     {
       "path": ".cursor/skills/skill-authoring/SKILL.md",
-      "sha256": "f6468390c7322b2eb3e3c3c92c6cf1551b6bd72121ef60665dcd13b857210fcd",
-      "bytes": 5850
+      "sha256": "6c1ed5779a17136197b861c2208c75e5f70adfd37f1b976c4a5b1273b0a518ef",
+      "bytes": 6046
     },
     {
       "path": ".cursor/skills/skill-authoring/templates/skill-template.md",
@@ -574,5 +574,5 @@
       "bytes": 185
     }
   ],
-  "digest": "7ea604f9f5c33e7d7067cd63c71ae2b9b7585750037342fd4a72939a1959734a"
+  "digest": "9f2f51444a7e8cfa0a95f707d900c3f5a02af825228cf978195808d549b2e827"
 }
