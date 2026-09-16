@@ -3,7 +3,8 @@
 ## Diagnostic sequence
 
 1. Confirm the working directory is the intended repository root.
-2. Record Node.js and Git availability; Node.js must be version 20 or newer.
+2. Record Node.js and Git availability; Node.js must be version 22 or newer (`validate` errors
+   below 22 and `doctor` marks the check failed, matching `package.json`'s `>=22`).
 3. Check expected setup entrypoints (`setup.ps1` or `setup.sh`) without running them unless requested.
 4. Check that `AGENTS.md`, `.cursor/rules`, `.cursor/agents`, `.cursor/skills`, and required documentation exist.
 5. Run `node scripts/harness.mjs doctor` when the entrypoint exists.

@@ -18,8 +18,81 @@ section contract.
   never satisfy the completion gate.
 - The quality ledger is hash-chained. State migrations must re-sign (see `rechainLedger` in the
   tests); an unsigned mutation is indistinguishable from tampering, by design.
+- Four avoid-overs — over-design, over-testing, over-review, over-trust (the user's standard, put
+  to both siblings on 2026-09-15 and adopted here 2026-09-16): every new gate, test, review layer,
+  or memory layer names what it catches; a control that never fires is removed (`gate-audit`,
+  `feedback list`). Scope: all future changes to this repository and the workflow it installs.
 
 ## Decisions
+
+- 2026-09-16 The product-development workflow of cc-base and codex-base enters as **on-demand
+  skills routed by documents**, not as a persona and not as a fixed sequence. Basis: the user asked
+  for both siblings' skills to be learned in full, nothing skipped; the previous rejection
+  ("this is a governance harness, not a product framework") targeted a persona, a brand, and a
+  nine-phase process — all still rejected — while the skills themselves are exactly the "new
+  capability as an on-demand skill" the 2026-09 review preferred over always-applied text. Scope:
+  nine new skills, ten upgraded ones, one path-scoped rule, `docs/PRODUCT-WORKFLOW.md`; `AGENTS.md`
+  gains three lines. Supersedes: the *Not doing* entry "A product-development persona or
+  nine-phase operating model" (persona and fixed process remain out; the skills are in) and the
+  2026-09 CAPABILITY-MATRIX row, now marked superseded. Rejected: a Chinese-language skill set
+  mirroring the siblings — the repository is English throughout and the agent speaks the user's
+  language regardless.
+
+- 2026-09-16 Task tiers select the existing profiles instead of adding a second assurance axis:
+  LOW (< 50 lines, no contract / parser / auth / migration / payment / hook path, no new
+  dependency) → `rapid`; MEDIUM → `balanced`; HIGH (> 300 lines, two such paths, production bug,
+  migration, security) → `strict`; floors only raise. Basis: cc-base's 2026-09-15 three-chain
+  table is the same decision cursor-base already makes with profiles — the tier is the mechanical
+  reading of the diff that picks the profile, and the independence requirement (none / approving
+  receipt from a non-author / structured review plus non-author tester) is what the profiles
+  already demand. Scope: `phase-build`, `assurance-profile`, `docs/PROTOCOLS.md`. Rejected: a
+  separate tier table with its own review and test rules (two axes that would drift apart).
+
+- 2026-09-16 The dispatch pack gains a seventh field, **Business Context**, and the receipt three
+  optional product fields — Business assumptions, Counter-examples, Domain findings. Basis: a fresh
+  delegate has no history; both siblings found that packs without the spec's why / who / rules
+  made implementers guess and that counter-examples ("code matches the spec, spec fails the
+  business") need a channel that is not a defect report. Scope: product work; internal maintenance
+  states its scope instead. Supersedes: the six-field envelope as the only shape (`PROTOCOLS.md`
+  keeps it for non-product work). Rejected: adding the fields to the harness task JSON — the
+  context is prose for a reader, not state for a machine.
+
+- 2026-09-16 Requirement in doubt is a first-class back-flow: review, test design, debugging,
+  planning, and implementation report a counter-example to `product-spec` iteration mode; nobody
+  patches the code to the spec or edits the spec from a review. Basis: cc-base's downstream
+  three-state exit and codex-base's correction propagation both exist to stop the agent from
+  building a "correct" wrong thing. Scope: all product skills. Rejected: letting the reviewer fix
+  the spec (the reviewer is never the author of the requirement either).
+
+- 2026-09-16 Lessons graduate by two questions — already codified? real cost? — with the
+  three-occurrence count kept as a hint. Basis: cc-base deleted its occurrence counter on
+  2026-09-12 after 39 of 43 lessons sat at one forever; a threshold nobody maintains is a rule
+  nobody applies. Scope: `record-lesson`; `feedback list` output unchanged. Supersedes the
+  2026-08-07 "three recurrences" wording as the sole criterion (the count remains the candidate
+  trigger). Rejected: removing occurrences from the frontmatter (the lint and the risk scan read
+  it; an unused field is cheaper than a migration).
+
+- 2026-09-16 Domain rulings live in `domain/` at the project root as a by-product, never a gate:
+  four-quadrant triage by "who knew this originally?", two admission questions, three basis
+  kinds, seven columns, task-level reading. Basis: cc-base's backfill trials (36 candidates: 24
+  rulings, 8 mixed, 2 scope limits, 2 fact records; 8 backfilled rulings, 4 with every column
+  filled) showed both why a separate carrier is needed and which columns experience forced.
+  Scope: product projects with domain knowledge; the harness repository has no domain and no
+  `domain/`. Rejected: a recorder subagent, a session-start load, a vector index.
+
+- 2026-09-16 No engine change in this round. The siblings' machine checks — `spec-lint`,
+  `predev-lint`, `plan-lint`, `ui-audit`, `ui-slop-scan`, `dfx check`, ADR `Revisit-if` /
+  `Reversal` validation, `recap` reading the spec set — are recorded as follow-ups under TODO.
+  Basis: a check named in a skill before it exists is a phantom; the methods arrive as checklists
+  now and as tested code later. Scope: this task. Rejected: writing the checks in the same batch
+  (the batch is already the largest governance change since 2.0; engine work gets its own
+  strict task with its own tests).
+
+- 2026-09-16 Owned files are edited through the editor tools only. Basis: a shell script that
+  rewrote nine skill descriptions bypassed `afterFileEdit`, the baseline no longer matched, and
+  the next tool write was refused as "changed outside this task" — the mechanism worked as
+  designed and cost a task restart. Scope: any session with an owning task open. Rejected: a
+  harness escape hatch to re-baseline a file (it would make the protection optional).
 
 - 2026-09-05 One assurance axis with monotonic floors, instead of separate "modes" or a fixed
   nine-phase process. `explore < rapid < balanced < strict`; eight controls; selection is a
@@ -180,6 +253,7 @@ section contract.
 - 2026-08-07 Lessons graduate into enforced mechanisms after three recurrences, preferring an
   executable check over rule prose. Rejected: auto-graduation without user confirmation —
   promotion changes repository policy, which is the user's to approve.
+  → superseded 2026-09-16 (the count became a hint; two questions decide)
 
 - 2026-08-07 Cross-worktree path leases stay out (with parallel writer orchestration). Ownership
   is enforced per task; advisory leases without an integration owner reintroduce the problem.
@@ -195,6 +269,23 @@ section contract.
 
 ## Done
 
+- cc-base and codex-base skill families absorbed (2026-09-16, task `task-1789546034211-45136ab7`,
+  unreleased): nine new skills (`product-spec`, `design-brief`, `design-prototype`, `dev-plan`,
+  `phase-build`, `test-design`, `release-build`, `domain-rulings`, `skill-authoring`) with
+  references and seven templates; ten upgraded (`architecture-design` + two templates,
+  `dfx-design` + template, `code-review`, `structured-review`, `root-cause-debugging`,
+  `scoped-implementation`, `finish-branch`, `record-lesson`, `project-memory`,
+  `assurance-profile`); rule `60-product-workflow.mdc`; `docs/PRODUCT-WORKFLOW.md`; `PROTOCOLS`
+  (seventh field, receipt extras, escalation ladder, tiers), `PROJECT-MEMORY`, `LARGE-REPO-GUIDE`,
+  `CAPABILITY-MATRIX` (45 rows for this round); agents `implementer`, `tester`, `reviewer`;
+  `AGENTS.md` §Product work; README; manifest 85 → 114 files. Read in full: cc-base at
+  `61347b1` (18 skills, references, templates, examples, 6 rules, 8 agents, CROSS-POLLINATION,
+  its analysis of this repository, recent Decisions) and codex-base at the 2026-09-15 autonomy
+  refactor (17 skills with references and templates, 9 agent contracts, ROLE-CONTRACTS,
+  RED-BLUE-REVIEW, CROSS-POLLINATION, recent Decisions). Verified so far: `skills-lint` 26 skills
+  0 findings, `rules-audit` 95 rules 0 phantoms 0 unenforced, `agents-lint` 0, `instructions` 0
+  over 77 files, `validate` ok, `manifest --check` ok, `sync-check` ok; the strict gate and the
+  structured review are recorded below when they run.
 - 2.1.1 released (2026-09-07): state-lock lost-update race fixed (unreadable lock judged by
   mtime, never stolen; token-matched release only); `CURSOR_HARNESS_LOCK_WAIT_MS` knob; lock
   test covers empty-fresh and empty-abandoned and runs 3.7s instead of 10s. Found by the
@@ -279,7 +370,154 @@ section contract.
 
 ## In progress
 
-- None.
+- 2026-09-16 Closing the absorption task `task-1789546034211-45136ab7`: all files written and
+  the governance scanners clean; remaining are the strict gate (14 checks), the structured review
+  (a `reviewer` delegate per convened lens; the author of this diff cannot carry the verdict),
+  `task complete`, and the commit. Not pushed until the user says so.
+- 2026-09-16 Review round 1's architecture and maintainability lenses returned; their findings
+  are fixed in the tree, which stales the session, so the review restarts on the new diff hash.
+  Fixed: the two Chinese fragments in English files; the enforcement-view DFX table reduced to the
+  same thirteen dimensions (repairability folded into serviceability, reproducible build into
+  installability, one spelling of normalisation); `docs/feedback/README.md` and `TEMPLATE.md`
+  brought to the two-question graduation and the new lesson body; one home each for the tier
+  criteria (`docs/PRODUCT-WORKFLOW.md`), the waiver refusal list and the counter-example format
+  (`docs/PROTOCOLS.md`), and the fault-class routing (`test-design/REFERENCE.md`); `A11Y-n` and
+  `Q-n` given the tables they were cited from; `envelope` (six fields) and `pack` (seven) defined
+  once; `Risk tier` renamed where it meant something else; the interview's six segments called
+  stages everywhere; the receipt written by the orchestrator, not the read-only reviewer.
+- 2026-09-16 Review round 2's maintainability lens returned no errors; its five warnings and two
+  info items are fixed: the tier thresholds cut from `phase-build/REFERENCE.md` so only
+  `docs/PRODUCT-WORKFLOW.md` carries the numbers; the two finding-severity scales
+  (`error`/`warning`/`info` for a lens, `high`/`medium`/`low` for a whole diff) given a row in
+  §Tier vocabulary and the reviewer contract scoped by mode; the "nothing else is called a pack"
+  absolute narrowed so `context-pack` and `review-pack` output keeps its own name; the feedback
+  corpus contract given a history boundary for the ten pre-2026-09-16 lessons; the last relative
+  cross-skill pointer converted; the matrix row count corrected to 45; `applied-to` de-hyphenated
+  in the changelog and the matrix. Recorded as lesson
+  `edit-owned-files-through-the-tracked-write-path` (occurrences 2): `sed` and `python3` edits to a
+  path the active task owns do not update the task's baseline hash, so the next tracked write to
+  that file is denied — twice in this session, once costing a task restart.
+- 2026-09-16 Gate re-run after the round-2 fixes moved the diff: PASS under the `strict` effective
+  profile, 14 of 14 checks (validate, fitness, adr-check, feedback-lint, instructions, skills-lint,
+  agents-lint, rules-audit, runtime-sync, node-test, doctor, manifest-check, catalog-lint,
+  arch-check), FAIL 0, BLOCKED 0, SKIPPED 0, bound to base `1bc5e38b` and diff
+  `e431a27003a8c6a1cadc5294c0ed465ab024aea24391f20dabe2d0b52c21af6a`. `quality status`:
+  `complete: true`, `closable: false`, one blocker — no approving review receipt on this diff.
+  Decision: hold further edits until the architecture and correctness lenses return, fix their
+  findings in one batch, then run one final gate and one fresh review session so all eight
+  convened lenses are recorded against the same hash. Each intermediate fix stales both the
+  receipts and the session, so chasing them per-finding buys nothing but re-runs.
+- 2026-09-16 Review round 2's architecture lens returned one error and six warnings. Fixed in
+  scope: `dfx-design` step 6 now maps the thirteen dimensions onto the catalog's eight attributes
+  before declaring any (the previous wording would have produced `UNKNOWN_ATTRIBUTE` and failed
+  `catalog lint`); `release-readiness` step 4 names `release-build`, which cannot be
+  model-invoked, so the readiness report is where the user learns the name; rule
+  `60-product-workflow.mdc` gained `spec.md` and PRD globs and its `sync-check` claim is now
+  qualified to the three paths `src/memory.mts:300` actually pairs; `docs/PROJECT-MEMORY.md` is
+  declared the home of the memory contract with the skill keeping the method; `phase-build`'s
+  dispatch-pack restatement points at `docs/PROTOCOLS.md`; the matrix row that listed "a single
+  global active task" as rejected is corrected, since `src/task.mts:81` refuses a second active
+  task and `phase-build` depends on that. **Escalated, not edited:** the lens is right that
+  `.cursor/rules/30-approval-tiers.mdc` reads "Release actions are never taken by the harness" as
+  an absolute that the new `release-build` skill appears to violate. That file is outside this
+  task's owned scope, so `release-build` was given a preamble resolving the conflict in the
+  skill's own words (the engine still performs nothing; publish and deploy stay
+  Stop-for-approval; the skill carries out only what the user already authorised) and the rule
+  wording is put to the user as a scope extension rather than widened silently.
+- 2026-09-16 The user authorised the scope extension, so `.cursor/rules/30-approval-tiers.mdc` is
+  added to this task's writable paths for one edit: the release bullet now says the harness
+  *engine* takes no release action and that an authorised action is carried out only through
+  `release-build`, invoked by name, one approved action at a time, in the user's name. Basis: the
+  absolute reading made the last link of the release chain unreachable for any agent that loads
+  the always-applied rule; the narrower wording keeps publish and deploy in the
+  Stop-for-approval tier, which is the control that actually matters. Scope: the one bullet; the
+  tiers themselves are unchanged. Supersedes the 2026-09-16 entry above that recorded it as
+  escalated-not-edited.
+- 2026-09-16 Review round 2's correctness lens returned three errors, three warnings, one info;
+  all verified against the engine before fixing, all fixed. Errors: `docs/feedback/README.md`
+  claimed the session banner surfaces graduation candidates, but `riskScan` emits them at
+  `severity: "info"` (`src/ops.mts:190`) and `sessionStart` drops `info` (`src/hooks.mts:196`), so
+  it never could — now it names `risk` and says why the banner is silent; `gate-audit` was said
+  to *retire* idle gates twice in `dfx-design/REFERENCE.md`, but `gateAudit` (`src/ops.mts:348`)
+  iterates the twelve hook events, writes nothing, and cannot see matrix checks at all — both rows
+  now say it names hook gates that never intervened and that removal is a human decision, and
+  `AGENTS.md` §Product work is tightened the same way; the DFX tables mapped dimension 9
+  (testability) to `reliability` in one and `maintainability` in the other — now `maintainability`
+  (supporting) in both. Warnings: "risk tier" used for the exposure class in `product-spec`
+  `SKILL.md`, `REFERENCE.md`, and the matrix row; the `tester` agent description was 305
+  characters against the 220 standard that `agents-lint` does not enforce for agent files (it
+  only inspects `AGENTS.md` contracts), now 219. Info, and outside this change: both
+  `harness-doctor` files stated a Node 20 floor while the engine requires 22
+  (`src/install.mts:585`, `doctor`'s `major >= 22`, `package.json` `>=22`) — a diagnosis on Node 20
+  would have reported healthy and then failed `doctor`. Fixed deliberately and declared here
+  rather than left as a known-false claim in an owned skill; it is the only edit in this diff that
+  predates the absorption work.
+- 2026-09-16 The user chose to commit and push the absorption now and finish the structured
+  review afterwards, so the task stays open and `task complete` is not attempted. What the commit
+  carries: a PASS gate, 14 of 14 checks under the `strict` effective profile, bound to its own
+  diff; seven clean governance scanners; three rounds of lens findings (architecture,
+  correctness, maintainability) verified against engine source and fixed. **What is owed:** the
+  structured review is incomplete — stage 1's three lenses were re-dispatched and had not
+  reported when the commit was made, and stage 2 (`testing`) and stage 3 (`reliability`,
+  `resilience`, `security`, `privacy`) have never run on this change at all. There is no
+  approving review receipt, so `quality status` stays `closable: false` and this work is not
+  release-capable until the review completes. Basis for committing anyway: the change is
+  governance assets and documentation with no engine source, the machine-checkable evidence is
+  green, and the remaining lenses mostly examine attributes this diff cannot move. Rejected:
+  lowering the profile to make the block disappear — `strict` is floored by the governance paths
+  and a floor is not an opinion.
+- 2026-09-16 Two process costs from this session, recorded because the repository's own rule is
+  that a control which never fires gets questioned. First, `gate` ran five times at about a
+  minute each, because each fix round ended a turn and the stop hook asked for a fresh receipt;
+  batching the fixes and gating once is the cheaper order and is the orchestrator's job, not the
+  protocol's requirement. Second, and structural: this change touches no engine code, but
+  `FRAMEWORK-MANIFEST.json` is a global path, so the impact closure covers all four modules and
+  convenes the four trust lenses (`security`, `privacy`, `reliability`, `resilience`) to review a
+  documentation diff. See the TODO below.
+
+## TODO
+
+- [P1] `skills-lint` parses the front matter as YAML, or at least refuses an unquoted
+  `description` containing `: ` or starting with a YAML structural character: six skills in the
+  2026-09-16 batch (phase-build, design-brief, domain-rulings, code-review, finish-branch,
+  root-cause-debugging) had their descriptions dropped by the host loader while the lint, which
+  splits at the first colon, reported zero findings — the correctness lens of the structured
+  review caught it, not the lint. Regression test: a description with `: ` must fail.
+- [P1] Engine follow-ups from the 2026-09-16 absorption, each its own strict task with tests:
+  `adr-check` reads `Revisit-if` (a date-only value warns) and `Reversal` (missing warns; "one-way
+  door" is listed); a `plan-lint` that checks `DEV-PLAN.md` for placeholders, the mandatory
+  section anchors, and `REQ-` coverage both ways against a formal spec; a `spec-lint` for the
+  spec's mandatory sections, marker discipline, and the five-column open-questions table; `recap`
+  surfacing the presence of `Product-Spec.md`, its changelog, and `DEV-PLAN.md` for product
+  projects; a static UI cliché scan over `demo/` and `DESIGN.md`'s hard-constraints table.
+- [P1] Finish the deferred structured review of the 2026-09-16 absorption: re-bind to the
+  committed base, run stage 1 (`architecture`, `correctness`, `maintainability`), then stage 2
+  (`testing`) and stage 3 (`reliability`, `resilience`, `security`, `privacy`), and record the
+  verdict. Until then there is no approving receipt on this work and the task cannot close.
+- [P2] Decide whether a diff that changes no engine source should have its impact fanned out to
+  every module by `FRAMEWORK-MANIFEST.json` alone. The manifest is correctly a global path — it
+  describes every asset — but the consequence is that a documentation-only change convenes the
+  four trust lenses, which is the `gate-audit` question asked of the review layer instead: name
+  what those lenses catch on such a diff, or let the manifest fan out to verification breadth
+  without convening the trust stage. Evidence when deciding: whether any trust lens has ever
+  raised a finding on a docs-only change.
+- [P2] Five `SKILL.md` files from the 2026-09-16 batch (architecture-design 7.5KB, dfx-design,
+  phase-build, domain-rulings, product-spec, each 6–7KB) run three to five times the size of the
+  house pattern (`affected-verification`, `fast-lane`, 1–2KB), well under the 24KB loader limit
+  but against progressive disclosure; both the architecture and the maintainability lens flagged
+  it. Sink the explanatory paragraphs into each `REFERENCE.md` and leave numbered steps — after
+  the workflow has run once, so the trimming is guided by which lines were actually used.
+- [P2] A user guide (install → first project → requirements and design → build → review, test,
+  fix → release → memory → gates and profiles) once the workflow has run on a real project, so it
+  documents behaviour rather than intention.
+- [P2] Run the product workflow end to end on one real project and record what the tiers, the
+  dispatch pack, and the four-step close feel like in practice; adjust the skills from that
+  evidence, not from more reading.
+- [P1] `archive` learns to move the oldest `Decisions` whole once the section passes a cap
+  (cc-base archives past 30 with a one-line pointer), or the byte budget is raised in the
+  catalog's `memory` block: the ledger is over its 24KB byte budget (33KB) while under its
+  entry cap, because `Decisions` alone is 18KB and append-only; `recap` stays within its own
+  6,000-character budget, so recovery cost is bounded — the file budget is the maintenance signal.
 
 ## Not doing
 
@@ -288,6 +526,14 @@ section contract.
 - Parallel writer orchestration and cross-worktree path leases (see Decisions 2026-08-07).
 - A global fast-mode bypass window that silences hooks (see Decisions 2026-08-07 and 2026-09-05).
 - A product-development persona or nine-phase operating model; this is a governance harness.
+  → superseded 2026-09-16 in part: the persona, the brand, and the fixed sequence stay out; the
+  workflow's skills are in as document-routed on-demand skills (Decisions 2026-09-16).
+- A product-development persona, an initialisation banner, or a fixed stage sequence the agent
+  walks regardless of the documents (2026-09-16).
+- Provider-specific generator services, hosted design studios, or workflow-scripting APIs the
+  host does not offer; the methods are kept, the tools are not (2026-09-16).
+- Recorder, observer, runner, or deployer subagents; the orchestrator writes memory, lessons, and
+  rulings itself, and no role holds a release authorisation (2026-09-16).
 - Automatic tag, push, publish, or deploy on green; `release readiness` reports and stops.
 
 ## Risks

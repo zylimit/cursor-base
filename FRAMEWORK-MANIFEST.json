@@ -20,18 +20,18 @@
     },
     {
       "path": ".cursor/agents/implementer.md",
-      "sha256": "3dbaa5db2b90e862f1860a1ae7d60c187b998521b15d3cfb656b9366a85dc126",
-      "bytes": 1028
+      "sha256": "e5cabc4da1ef2198294bfdc57b88b0ffc9271473c8c5ac55af2d1f1aaaf643ec",
+      "bytes": 2502
     },
     {
       "path": ".cursor/agents/reviewer.md",
-      "sha256": "282c17877b756509a8c534d7439f860facb0b07873267d26ac3d1d3a3f579cec",
-      "bytes": 2046
+      "sha256": "f3d46ff65da0c21d73477929d0b12ad21a15090af30f0b932a89abae62217f80",
+      "bytes": 3456
     },
     {
       "path": ".cursor/agents/tester.md",
-      "sha256": "a02e42548163a330605d78309c08f44b27b3b2970e770af1ea65adf4748f96e1",
-      "bytes": 1039
+      "sha256": "6ba003f0bdd86576ffce396ccf5164e532415314a417da44beefd4beeead2ccb",
+      "bytes": 2980
     },
     {
       "path": ".cursor/cli.json",
@@ -65,8 +65,8 @@
     },
     {
       "path": ".cursor/rules/30-approval-tiers.mdc",
-      "sha256": "deb86db4e9a939400ea8790b90d435b61af72415d417e57caf6e0a6590d84dc2",
-      "bytes": 1261
+      "sha256": "8b12329cc3e9de470a43bb8926e7ad22eeffd0cca57c4cbe12daaf97fd341396",
+      "bytes": 1519
     },
     {
       "path": ".cursor/rules/40-assurance.mdc",
@@ -77,6 +77,11 @@
       "path": ".cursor/rules/50-memory-and-review.mdc",
       "sha256": "0f61ac51e0d18267b11ab7367ec8aa26f5d1f19d8d8f3a23a04085ec60614ea4",
       "bytes": 1317
+    },
+    {
+      "path": ".cursor/rules/60-product-workflow.mdc",
+      "sha256": "2dbc19037f32be463ea9ed0e444324e8e47b40b8c616fa07de276a4cad958549",
+      "bytes": 3235
     },
     {
       "path": ".cursor/rules/documentation.mdc",
@@ -205,18 +210,28 @@
     },
     {
       "path": ".cursor/skills/architecture-design/REFERENCE.md",
-      "sha256": "86723fad942bb52667f48c022462ab0baad90e77a9b2f0196e02dc62a94b4e6b",
-      "bytes": 5061
+      "sha256": "1be0a6fd91711975592e6500377a9cb458b030f62095b858bbddf415a7c3bf49",
+      "bytes": 24424
     },
     {
       "path": ".cursor/skills/architecture-design/SKILL.md",
-      "sha256": "522684dccb7045f8abe5053ee9810f99e2c092fe61124d247b7edf11f4b6e00e",
-      "bytes": 1499
+      "sha256": "ae48064860b76045392e0abba20a21f48f57b67364e6063da9e4932d1bb76aa7",
+      "bytes": 7602
+    },
+    {
+      "path": ".cursor/skills/architecture-design/templates/adr-template.md",
+      "sha256": "2c203bdf1cb7f066dd38ba9299fabe044de10fa6ca75f8ccb8836573492167a0",
+      "bytes": 2351
+    },
+    {
+      "path": ".cursor/skills/architecture-design/templates/architecture-design-template.md",
+      "sha256": "26195a1a6b6aa04e3d91ea756296acb69d3a0e3f7fa4fc52aa8c75842c4b2049",
+      "bytes": 6965
     },
     {
       "path": ".cursor/skills/assurance-profile/SKILL.md",
-      "sha256": "4a3e373e9fc2bc3052d9e512cd6305c14c3633ce199aee59016e452d71796bf7",
-      "bytes": 1697
+      "sha256": "8aa90f2bda45f526d24dd90eb17c442154064cd3d7862c6212ba4f7fcb3726f4",
+      "bytes": 2201
     },
     {
       "path": ".cursor/skills/catalog-discovery/SKILL.md",
@@ -225,23 +240,83 @@
     },
     {
       "path": ".cursor/skills/code-review/REFERENCE.md",
-      "sha256": "3eb3882d2c2c66ae8434408961087fcf4d7c9b867b2cdb6791b2dd3bd616c4c8",
-      "bytes": 1065
+      "sha256": "b3cb6a657c44f4a03ef5a42695e64882627d267c621adc60933613ed037949f7",
+      "bytes": 4594
     },
     {
       "path": ".cursor/skills/code-review/SKILL.md",
-      "sha256": "1160b7eb19404a51581610dee07e379917f4508676bcf4578f79c469b959b835",
-      "bytes": 1254
+      "sha256": "83f87dfc62b33b97dfff7f3fedb329181bdc8496949ccdb0eeb039711a14afa0",
+      "bytes": 6542
+    },
+    {
+      "path": ".cursor/skills/design-brief/REFERENCE.md",
+      "sha256": "ded3112c68174443c117f51068d52b227b084f19e95b930735d925f438525165",
+      "bytes": 28517
+    },
+    {
+      "path": ".cursor/skills/design-brief/SKILL.md",
+      "sha256": "e2ca6968cc8023b9865060e6216122a061d1074a090f5b0242d360627bbfe3d1",
+      "bytes": 5806
+    },
+    {
+      "path": ".cursor/skills/design-brief/templates/design-brief-template.md",
+      "sha256": "97b693bd67e8f9eeda1f61376f6ef080530744729aea6f47eefe15445bb10e19",
+      "bytes": 8243
+    },
+    {
+      "path": ".cursor/skills/design-brief/templates/design-md-template.md",
+      "sha256": "40c21f755f3d62ec51efc6139a8de006cc7d2af95d9d902c52c0717dbae672b3",
+      "bytes": 7653
+    },
+    {
+      "path": ".cursor/skills/design-prototype/REFERENCE.md",
+      "sha256": "e778a3a07d16dc0270dd6ae76a718cba4d449d5eab9d5cc90987c135f1e3af97",
+      "bytes": 12601
+    },
+    {
+      "path": ".cursor/skills/design-prototype/SKILL.md",
+      "sha256": "8ed69189cf98bd00f517ce507c603c41dba5e12e932b0fce5bcaf6f86124174c",
+      "bytes": 5375
+    },
+    {
+      "path": ".cursor/skills/dev-plan/REFERENCE.md",
+      "sha256": "e5379db7e2ad647dc7f701555e1239ff11eda41dc6931ce72df101529b65f31c",
+      "bytes": 8171
+    },
+    {
+      "path": ".cursor/skills/dev-plan/SKILL.md",
+      "sha256": "500ab3c6a6cace07425c34e3e342e1391c6e52775fe98cabf133ce990ffe854c",
+      "bytes": 5590
+    },
+    {
+      "path": ".cursor/skills/dev-plan/templates/dev-plan-template.md",
+      "sha256": "e8a90fc3acbe74cd979e0b8c61e9bffb9cdfb2350037bfe82948949cb112fda6",
+      "bytes": 4975
     },
     {
       "path": ".cursor/skills/dfx-design/REFERENCE.md",
-      "sha256": "04001bee69e8875fcb3c804e1dd14f903cf1a79851e2bf690c30151c39e184c0",
-      "bytes": 5072
+      "sha256": "c09f83335cba2975fcf70329a685561c3f28a6501e705c643935d8dd050a3a0a",
+      "bytes": 18528
     },
     {
       "path": ".cursor/skills/dfx-design/SKILL.md",
-      "sha256": "7beaaf871570ccaff881821dd0d18decab85ad9c26406bca9f9a8f018fdc4c31",
-      "bytes": 2005
+      "sha256": "bae0be31c4dadae6a944b0ff2284c552268caf1e0c15c4430595dfa0a8d98e69",
+      "bytes": 7437
+    },
+    {
+      "path": ".cursor/skills/dfx-design/templates/dfx-spec-template.md",
+      "sha256": "f63853b59f53fd1636abf72fcbc40d4f199e0ff274beba1188dd67fa412dc3ab",
+      "bytes": 8457
+    },
+    {
+      "path": ".cursor/skills/domain-rulings/REFERENCE.md",
+      "sha256": "f1ec92a0c8ce47a5b847be992e6777a2705ef20fbef6648826310a64b875cb48",
+      "bytes": 10796
+    },
+    {
+      "path": ".cursor/skills/domain-rulings/SKILL.md",
+      "sha256": "a0b652c4a883331fdf27fa23b2c14a16ac167236a1836313151b5031b6a0f99d",
+      "bytes": 6412
     },
     {
       "path": ".cursor/skills/fast-lane/SKILL.md",
@@ -250,23 +325,33 @@
     },
     {
       "path": ".cursor/skills/finish-branch/REFERENCE.md",
-      "sha256": "8dd6d0afc6f12a0d6afc403b7fc985d748093ed434d4b586642a6c8f93c57780",
-      "bytes": 971
+      "sha256": "82b5026eec93047f5c5d4c13416292820b2d19ada96c24740d21d24be1655e82",
+      "bytes": 3223
     },
     {
       "path": ".cursor/skills/finish-branch/SKILL.md",
-      "sha256": "7176431199ad451649e377f3e28488116c0023784af40945004f38a28350ab93",
-      "bytes": 1323
+      "sha256": "d2bdb5133d6dbdac58512b534ccb0a92f7b31e8e9b6b1bd841919bd3976ff02c",
+      "bytes": 4376
     },
     {
       "path": ".cursor/skills/harness-doctor/REFERENCE.md",
-      "sha256": "80a736fcff7f12f9e5671c52fcaede1a774efaa5e168953739e8874ce39550a9",
-      "bytes": 1110
+      "sha256": "b275bd6c45bf2a63122471777ad74091e49405c373abad18fa0ed46a250273b5",
+      "bytes": 1212
     },
     {
       "path": ".cursor/skills/harness-doctor/SKILL.md",
-      "sha256": "303e4a0ec83abe705bbee85d8983ee7d92278e29d040751768ce8f520c7c1b7c",
+      "sha256": "ea7d8a8e3f01ef4ce36ba0a179865d77ea77b15704057feb52c354129ecaac99",
       "bytes": 938
+    },
+    {
+      "path": ".cursor/skills/phase-build/REFERENCE.md",
+      "sha256": "5c874663feb10748f0f9910f0b4066acb3a0d4f7f9064ec04b445804d1e6dfd5",
+      "bytes": 14480
+    },
+    {
+      "path": ".cursor/skills/phase-build/SKILL.md",
+      "sha256": "04262ac7e7dc86da9de5b0fabdc6794557397e1eb12fde7b4c548d075780b827",
+      "bytes": 6903
     },
     {
       "path": ".cursor/skills/plan-change/REFERENCE.md",
@@ -279,49 +364,79 @@
       "bytes": 827
     },
     {
+      "path": ".cursor/skills/product-spec/REFERENCE.md",
+      "sha256": "dcf1ba91b3a009f22e5890cdb8cab44016af3ca4947e335ed6eb95e115fea286",
+      "bytes": 28683
+    },
+    {
+      "path": ".cursor/skills/product-spec/SKILL.md",
+      "sha256": "48d98aa2239d53a7688615a731e7907d0a4ecd5f589316e3426dcab930710a4b",
+      "bytes": 6341
+    },
+    {
+      "path": ".cursor/skills/product-spec/templates/product-spec-template.md",
+      "sha256": "3ee7ff7e8f94efe9b5af523403c3507a0db6a9fcd68fae4a455952824596e23a",
+      "bytes": 7664
+    },
+    {
+      "path": ".cursor/skills/product-spec/templates/spec-changelog-template.md",
+      "sha256": "787621df2eb7d079f335b4aebbf7b03de6b92b4a693a4213b19821f3f695729a",
+      "bytes": 3196
+    },
+    {
       "path": ".cursor/skills/project-memory/REFERENCE.md",
-      "sha256": "4db81edf182ab49f4b8def2e2a7e4d1d3bfeaac03fafe696a5c6bacefddfe1f8",
-      "bytes": 2167
+      "sha256": "2906498ed8212bdca4d687e0ebccf4edc5542e28b0487ba197fabe4591fedb15",
+      "bytes": 4536
     },
     {
       "path": ".cursor/skills/project-memory/SKILL.md",
-      "sha256": "e90ad6cdd04af387ebfebc742fa4388d3f82fe8a31c061385787c8e68d6d25f8",
-      "bytes": 1414
+      "sha256": "689f102ed0daced6ee07c7acea5b8acec61750ea4fc1f66aef58824cba6d345c",
+      "bytes": 3804
     },
     {
       "path": ".cursor/skills/record-lesson/REFERENCE.md",
-      "sha256": "a343b18bcbf1e1f8b1b56ddce020db2ba1da6dc8d54d6245243847905b230687",
-      "bytes": 2411
+      "sha256": "0877d3fdf1f27e0381c81c75c9f4bc382174b5b0e177588472bad298e4615831",
+      "bytes": 8054
     },
     {
       "path": ".cursor/skills/record-lesson/SKILL.md",
-      "sha256": "66039597ef5171f0b8fa5b6fcb4c6199adbc55cd3aca7eae02a54fdf66184f43",
-      "bytes": 1780
+      "sha256": "fb62544d24c4d1139e69890d5cf43bae2ce36865e593191a70134ad761490a54",
+      "bytes": 4274
+    },
+    {
+      "path": ".cursor/skills/release-build/REFERENCE.md",
+      "sha256": "cd678f22c2783ab1e072046acd6318a9da58c60da5f2c5271d8024a0a6d64e11",
+      "bytes": 6816
+    },
+    {
+      "path": ".cursor/skills/release-build/SKILL.md",
+      "sha256": "e106e576d99c7f6be5cb69c0b56b4becb9e80b926645714fbd4207c7586b01ce",
+      "bytes": 5795
     },
     {
       "path": ".cursor/skills/release-readiness/SKILL.md",
-      "sha256": "5aabb120aea95f1ed895afee08ee843214e333cf1ea1cf117e2958a2cdd45f99",
-      "bytes": 1089
+      "sha256": "e6b16cd0c54bc847a14265aa9a7db71540952bd059a6ec7a10bf7820187fc32f",
+      "bytes": 1270
     },
     {
       "path": ".cursor/skills/root-cause-debugging/REFERENCE.md",
-      "sha256": "024bddd0a657cdd195883d30f719fa9dbcbacb837dfff8ab4cee73cc617db186",
-      "bytes": 1166
+      "sha256": "17566cf6c46c112a01456466dc1682d463d7ece00ba5eca60314129e13c75dd4",
+      "bytes": 5362
     },
     {
       "path": ".cursor/skills/root-cause-debugging/SKILL.md",
-      "sha256": "9e5b3c35544f112b15129a8bf55e550449093494c86dce549f0849949ae40bba",
-      "bytes": 873
+      "sha256": "6198c1dbdf48b8daf9f087980c5653c35a32456db166c03e9bd4e28912b9a47b",
+      "bytes": 5216
     },
     {
       "path": ".cursor/skills/scoped-implementation/REFERENCE.md",
-      "sha256": "dba0b71a1735abd2a41026df3503f8379b3215c25a64c76c2c4082b8d59aa69a",
-      "bytes": 1139
+      "sha256": "f5a109d098f56af92d9347923e9f13955effc0a5f3c312cf9ef3339ea53d0a03",
+      "bytes": 6120
     },
     {
       "path": ".cursor/skills/scoped-implementation/SKILL.md",
-      "sha256": "01a5ec88e9db82a372cd10c05a333e948a11c48197c9723699e409503b1c5dd5",
-      "bytes": 860
+      "sha256": "f65626d4296ebc3df4a6cde8b5f7c7cb12469154e835b95a5519346727117169",
+      "bytes": 3660
     },
     {
       "path": ".cursor/skills/service-operations/REFERENCE.md",
@@ -334,9 +449,39 @@
       "bytes": 1540
     },
     {
+      "path": ".cursor/skills/skill-authoring/REFERENCE.md",
+      "sha256": "302e5e71e29b45a4956488bdb62f844f51878ddf0c6e51a90d2a6e40730a7b75",
+      "bytes": 7233
+    },
+    {
+      "path": ".cursor/skills/skill-authoring/SKILL.md",
+      "sha256": "f6468390c7322b2eb3e3c3c92c6cf1551b6bd72121ef60665dcd13b857210fcd",
+      "bytes": 5850
+    },
+    {
+      "path": ".cursor/skills/skill-authoring/templates/skill-template.md",
+      "sha256": "592e9136f84e87953b87737741c4829ffd1d9ec0a9df73eb2580761a8ad2995d",
+      "bytes": 3416
+    },
+    {
       "path": ".cursor/skills/structured-review/SKILL.md",
-      "sha256": "0cb683028e8cfe5693731240f9734898317abc63c7ceebb00c9fbadfc89fa5ca",
-      "bytes": 1798
+      "sha256": "660b7b074a35aa899bde5f36e5ed467a4c3562f5e1c78b05316d45d25afb466e",
+      "bytes": 2726
+    },
+    {
+      "path": ".cursor/skills/test-design/REFERENCE.md",
+      "sha256": "b2577ee67c02eae6c7e2109d77b1ab997b81411aea451c41f9a6bd92c11d95d2",
+      "bytes": 10322
+    },
+    {
+      "path": ".cursor/skills/test-design/SKILL.md",
+      "sha256": "1c8fe5e1df06e2f806aab43a2ca3a7ac58f5f62535c31d3c60fd23fdcb69840c",
+      "bytes": 5167
+    },
+    {
+      "path": ".cursor/skills/test-design/templates/test-scaffold.md",
+      "sha256": "45f351f495536c8aab3dc4e51fd3756b445a1ae87ead29a52044b30b107e802e",
+      "bytes": 4532
     },
     {
       "path": ".cursor/worktrees.json",
@@ -355,8 +500,8 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "44457a3d25ae71917925de090c3a2e28974e9ffeefe90bda8a853e6351dc3cf5",
-      "bytes": 3560
+      "sha256": "9d12aff3ae63c4e852a9d5e7000c4cbe83c481de074ad1a067b9b8bd2b0d210d",
+      "bytes": 4373
     },
     {
       "path": "harness/adapters.json",
@@ -429,5 +574,5 @@
       "bytes": 185
     }
   ],
-  "digest": "9a08eab055e7c226694a6ebd83fa0950d24cbe3a944ae61e6a07dd680e1ab22c"
+  "digest": "7ea604f9f5c33e7d7067cd63c71ae2b9b7585750037342fd4a72939a1959734a"
 }

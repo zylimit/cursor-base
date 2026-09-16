@@ -1,19 +1,35 @@
 # Work Protocols
 
-## Task envelope
+## Task envelope and dispatch pack
 
-Every delegated task uses the same envelope:
+Two names, one object: the **envelope** is the six fields every delegated task carries; the
+**pack** is the envelope plus **Business Context**, seven fields, required on every coding,
+review, and test dispatch of product work. No other *dispatch* artefact is called either name.
+The evidence artefacts are named for the command that builds them — the **context pack**
+(`context-pack`) and the **review pack** (`review-pack`) — and a bare "the pack" always means
+the dispatch pack.
 
 ```text
-Goal: Observable outcome.
+Goal: Observable outcome. On product work the first line names the tier (LOW / MEDIUM / HIGH).
 Scope: Owned modules, files, symbols, and allowed side effects.
 Out of Scope: Explicit exclusions and unrelated work to preserve.
 Existing Pattern: Relevant implementation, convention, or "not yet located".
-Verification: Commands or evidence required for completion.
+Business Context: Why this task exists and who benefits; the spec's rules and exceptions that
+  apply; the progress.md Pinned and Decisions entries that apply, cited by date; the recorded
+  lessons the user taught that apply; the domain rulings that match — copied from those sources,
+  never composed from memory. Required on every coding, review, and test dispatch of product
+  work; internal maintenance states its scope instead ("fixes an internal documentation link; no
+  product behaviour changes"). Never "N/A".
+Verification: Commands or evidence required for completion; an explicit user exemption is written.
 Escalation: Conditions that require stopping and returning control.
 ```
 
-Missing information is not permission. A role may inspect read-only context to fill low-risk gaps; it must escalate when a gap changes scope, safety, public behavior, or ownership.
+Missing information is not permission. A role may inspect read-only context to fill low-risk
+gaps; it must escalate when a gap changes scope, safety, public behavior, or ownership. A pack
+carries file paths and quoted rules, not a summary of earlier tasks — a fresh delegate inherits no
+history, and a pack built from history is mostly noise. A LOW or MEDIUM pack fits in "file:line,
+change to what, one verify command" and expects about six tool calls; a HIGH pack writes its
+budget under Verification; a delegation expected to run over an hour is a decomposition failure.
 
 ## Completion receipt
 
@@ -28,7 +44,56 @@ Needs review by: Human or role required next, or "none".
 Evidence: Commands, focused output, paths, commits, hashes, or reproduced behavior.
 ```
 
-Do not infer success from silence. `Verified` contains only executed checks.
+Product work adds three fields; each is `None` when empty and never padded:
+
+```text
+Business assumptions: judgements the spec did not make and the role made itself.
+Counter-examples: the code matches the spec while the spec fails the business —
+  scenario → what the spec gives → what the business needs → basis. Reported as
+  "requirement in doubt"; handled by product-spec iteration mode, never patched in code.
+Domain findings: how something is counted in this field, met while working, with the evidence
+  in hand (a measured value, a field's real format, a store's real state, an interface's real
+  behaviour). A clue, not a ruling: the orchestrator triages it (domain-rulings); without
+  evidence it is not written.
+```
+
+Do not infer success from silence. `Verified` contains only executed checks. The orchestrator
+judges against the diff and the runner's raw output, never against the report; reading evidence
+may be delegated, the pass-or-fail judgement is not. A new file is not proved by `git diff`
+(empty output and exit 0 look exactly like "unchanged") but by `git status`, a line count, and a
+content anchor.
+
+## Escalation ladder
+
+A role that returns `blocked` or asks for context is re-dispatched only after one variable
+changes, in this order: supply the missing context and re-dispatch a fresh instance; cut the
+scope and re-slice the task; switch a defect to root-cause analysis; escalate to the user. The
+same prompt to the same configuration is a wager, not a retry. Three consecutive failures of one
+check redirect to root-cause analysis instead of a fourth run (`quality status`, `risk`).
+
+## Task tiers
+
+On product work each task is tiered mechanically before dispatch — LOW, MEDIUM, HIGH — from the
+expected diff size, the path classes it touches, and whether it adds a dependency; any criterion
+met raises the tier, unsure means higher. The tier selects the profile (`rapid`, `balanced`,
+`strict`) and with it the independence required; the floors may only raise it. The criteria, the
+profile, and the independence are one table, in `docs/PRODUCT-WORKFLOW.md`; the numbers are not
+restated here, so there is one place to change them.
+
+### Tier vocabulary
+
+Four scales, one word each, never mixed:
+
+| Scale | Values | Set by | Decides |
+| --- | --- | --- | --- |
+| task tier | LOW / MEDIUM / HIGH | diff size, path classes, new dependencies | the profile and the independence for one task |
+| intrinsic risk | low / medium / high | `task start --risk`, the spec's risk input | the profile floor |
+| attribute tier | critical / high / … / none | the module catalog per quality attribute | which gaps block and what may never be waived |
+| exposure class | personal / internal / external / money / regulated | the spec's Overview | interview depth and acceptance rigour |
+| finding severity | error / warning / info in a review lens; high / medium / low in a whole-diff review | the reviewer, per finding | what blocks: `review lens` accepts only the first set and one `error` sets `FIX_REQUIRED`; a whole-diff review blocks on `high` |
+
+"S / M / L" in a design document is a sizing estimate, not any of these. The two severity scales
+are not interchangeable spellings: submitting `high` to `review lens` is refused.
 
 ## Verification receipt
 
@@ -70,7 +135,10 @@ A waiver defers one named check on one exact diff: it records `check`, `diff_sha
 approval happened — an audit record, not an identity proof). A waiver applies only to a check
 that could not run (`MISSING`, `BLOCKED`, `SKIPPED`); an executed `FAIL` is evidence of a
 defect and is never waivable. Security-class checks and checks evidencing a critical-tier
-attribute refuse waivers at creation. Any edit moves the diff and silently expires the waiver.
+attribute refuse waivers at creation, and so does a `reason` or `scope` whose words name a
+safety or external-side-effect control — `safety`, `security`, `secret`, `credential`,
+`destructive`, `push`, `deploy`, `production`. Any edit moves the diff and silently expires the
+waiver.
 
 ## Service state
 
@@ -166,3 +234,11 @@ Rounds:    each FIX_REQUIRED counts; at maxRounds (3) the verdict sets escalate
 - The implementer owns scoped writes; the tester reports failures without opportunistic production edits.
 - Parallel reads are safe by default. Parallel writes require explicit, disjoint path ownership and a stated integration owner.
 - A blocked role returns partial evidence immediately rather than widening scope.
+- Every delegate is a fresh instance with no session history; what it needs is given explicitly.
+  The tester is a different instance from the implementer of the code under test.
+- Fan-out is for read-only, independently summarisable work — review lenses, test targets,
+  exploration; coding stays serial by default. Parallel delegation multiplies token cost several
+  times over and needs the user's explicit opt-in; "faster" is asked for by cutting scope, not
+  by spreading writers.
+- A role speaks to the orchestrator only; the orchestrator is the single voice to the user, and
+  the only one who fetches missing business facts from them.

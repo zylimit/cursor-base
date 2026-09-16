@@ -1,0 +1,19 @@
+---
+description: Stage machine, sign-off gates, dispatch context, and back-flows for product work — spec, design, plan, build, test, release
+globs: "{Product-Spec.md,Product-Spec-CHANGELOG.md,spec.md,spec-CHANGELOG.md,PRD.md,PRD-CHANGELOG.md,DEV-PLAN.md,Architecture-Design.md,DFX-Spec.md,Design-Brief.md,DESIGN.md,domain/**,docs/requirements/**,demo/**}"
+alwaysApply: false
+---
+
+# Product Workflow
+
+- Route by which documents exist, not by what the user seems to want: no spec → `product-spec`; spec but no plan or code → offer `architecture-design`, `dfx-design`, `design-brief`, then `dev-plan`; spec and plan, no code → `phase-build` initialisation; code but no plan → `dev-plan`; all three → `phase-build` continues (prompt-only; `docs/PRODUCT-WORKFLOW.md`).
+- A spec is signed off by **replaying the user's own case** until they find no fault — never by a separate approval ceremony; nothing enters `dev-plan` before the replay passes (prompt-only).
+- A spec edit travels with its changelog entry in the same change; the entry names why, which judgement was wrong, and what is affected (`sync-check` pairs the two files when the specification is `Product-Spec.md`, `spec.md`, or lives under `docs/requirements/`; under any other name, and for the entry's content, the pairing is prompt-only).
+- Every coding, review, or test dispatch on product work carries a **Business Context** copied from the spec, `progress.md`, the feedback corpus, and `domain/` — never `N/A`; a fresh implementer without it is guessing (prompt-only; `docs/PROTOCOLS.md`).
+- Each task is tiered before dispatch — LOW / MEDIUM / HIGH by diff size, touched path classes, and new dependencies — and the tier selects the profile, `rapid`, `balanced`, or `strict`, which the floors may only raise (`profile`, `gate`).
+- A phase closes through four steps with fresh evidence — code review, test completeness by a non-author, compile, functional — and a four-state gate; **WAIVED** never covers security or data loss (`waiver` refuses security-class checks and critical-tier attributes; the data-loss refusal and the rest are prompt-only).
+- Code that matches the spec while the spec fails the business is a **requirement in doubt**: it returns to `product-spec` iteration mode as a counter-example and is never patched in code or edited into the spec by the reviewer (prompt-only).
+- Independence follows the profile: an approving receipt from someone other than the author at `balanced`, structured review and a tester who did not write the code at `strict`; a self-review cannot carry an approval (`authorship`, `review`).
+- Release is invoked by name and performed only inside explicit authorisation; readiness is proved first and the deployment is verified by three independent facts (`release`; the rest prompt-only).
+- Domain knowledge met while working is a **clue**, reported under Domain findings with its evidence; it becomes a ruling in `domain/` only after triage and two basis kinds, and rulings are read at dispatch time, never at session start (prompt-only; `domain-rulings` skill).
+- Recovery reads the set — `progress.md`, the spec, its changelog, the plan — not `progress.md` alone (`recap`; the rest prompt-only).

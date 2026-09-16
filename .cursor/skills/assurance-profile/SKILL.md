@@ -12,6 +12,12 @@ description: Reads, selects, or explains the assurance profile (explore, rapid, 
    - `rapid` — small, low-risk, self-contained changes. Changed modules only; no review receipt.
    - `balanced` — the default for delivery. Dependents verified; approving receipt to close.
    - `strict` — governance, trust boundaries, releases. Everything verified; lens-covered review.
+   For a task read the tier mechanically off the expected diff and the paths it touches — any
+   criterion met raises it, unsure means higher — and take the profile the tier selects: **LOW** →
+   `rapid`, **MEDIUM** → `balanced`, **HIGH** → `strict`. The criteria are the table in
+   `docs/PRODUCT-WORKFLOW.md`. Running the heaviest chain on every task costs three to five times more for a
+   self-review that is not load-bearing; running the lightest on a payment path is how defects
+   ship.
 3. Set it for the project (`profile set NAME`) or one task (`profile set NAME --task ID`);
    `adaptive` returns to the policy default plus floors.
 4. Never argue with a floor. If task risk, unmapped or shared impact, a protected or other

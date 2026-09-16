@@ -6,7 +6,7 @@ description: Diagnoses Cursor harness prerequisites, asset integrity, and expect
 # Harness Doctor
 
 1. Establish **Goal / Scope / Out of Scope / Existing Pattern / Verification / Escalation**.
-2. Check Node.js 20+, repository root, Git availability, and governance asset structure.
+2. Check Node.js 22+, repository root, Git availability, and governance asset structure.
 3. When available, run `node scripts/harness.mjs doctor`.
 4. Use `node scripts/harness.mjs validate` only when validation is requested.
 5. Report missing prerequisites; do not install or globally configure them.

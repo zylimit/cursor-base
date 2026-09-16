@@ -2,10 +2,102 @@
 
 All notable changes to this project are documented here. The format follows Keep a Changelog, and versions use Semantic Versioning.
 
+## [Unreleased]
+
+The product-development skill families of `cc-base` and `codex-base`, read skill by skill, are
+absorbed as on-demand Cursor skills routed by which documents exist, under the profile the task's
+tier selects. `docs/CAPABILITY-MATRIX.md` records every mechanism absorbed, adapted, or rejected
+(the persona, the brand, the fixed sequence, the generator daemon, the "main agent never codes"
+hook, the 300-line file limit, the ratio gate, the session-start evolution scan, per-role agent
+memory, and recorder / deployer subagents among the rejections). No engine change.
+
+### Added
+
+- Skills `product-spec` (learn the business from a real event; four statement kinds; sign off by
+  replaying the user's case; iteration mode with change classes and correction propagation),
+  `design-brief` (task and form before colour; feeling → attribute; binary axes; eight states;
+  surface closure; `Design-Brief.md` + `DESIGN.md`), `design-prototype` (offline self-contained
+  HTML written in-repo; coverage matrix; two-pass plan and cliché review; action contracts; task
+  walkthrough), `dev-plan` (value and unknowns first; worst-executor tasks; evidence producers),
+  `phase-build` (LOW / MEDIUM / HIGH task tiers select `rapid` / `balanced` / `strict`;
+  seven-field dispatch pack; four-step phase close; four-state gate), `test-design`
+  (business-scenario cases; P0 / P1 / P2; independent oracles; three-way failure triage;
+  ratio as a diagnostic; ageing), `release-build` (explicit-only; artefact privacy audit;
+  install-from-package testing; three-fact deployment verification; rollback vs forward fix),
+  `domain-rulings` (a `domain/` library of how things are counted in the field: seven columns,
+  four-quadrant triage, three basis kinds, four ageing kinds, read at dispatch time), and
+  `skill-authoring` (template first; pattern by interaction type; scenarios with honest
+  RED→GREEN; provenance and copy treatment). Each ships a `REFERENCE.md`; `product-spec`,
+  `design-brief`, `dev-plan`, `test-design`, and `skill-authoring` ship templates.
+- Rule `.cursor/rules/60-product-workflow.mdc`, activated by the product documents, and
+  `docs/PRODUCT-WORKFLOW.md`: routing by project state, sign-off gates (spec replay, four-step
+  phase close, explicit release), task tiers, dispatch and receipt fields, the four back-flows
+  (requirement in doubt, domain clue, method lesson, business fact), the project root layout.
+- `docs/PROTOCOLS.md`: the seventh dispatch field **Business Context** (spec rules, `progress.md`
+  entries by date, lessons, domain rulings; never `N/A`), the receipt fields **Business
+  assumptions / Counter-examples / Domain findings**, the escalation ladder (change one variable
+  before re-dispatch), task tiers, and delegation rules (fresh instances, read-only fan-out on
+  opt-in, one voice to the user).
+- `AGENTS.md` §Product work: document-routed skills under the tier's profile; learn before
+  specifying, replay to sign off, requirement in doubt goes back not into a patch; the four
+  avoid-overs (design, testing, review, trust) as the test for every new gate, test, review layer,
+  or memory layer.
+
+### Changed
+
+- `architecture-design`: business-event walkthrough, fact ownership and invariants, break points,
+  same-scenario candidate comparison, sensitive assumptions, refutation-first experiments, state
+  ownership; S / M / L sizing; the invariant test; the deployment envelope in three states; ADRs
+  gain `Revisit-if` (a condition, never a date) and `Reversal` (or one-way door) — prompt-only
+  until `adr-check` learns them; document and ADR templates added.
+- `dfx-design`: thirteen dimensions with the ISO/IEC 25010:2023 mapping; loss-derived targets;
+  six-element scenarios; implicit-compliance scan; nine-trigger threat table; latency and retry
+  budget with one retrying layer; three arithmetic pre-checks; AI product addendum; per-module
+  tiers by three questions; priority stack; measurement semantics; review-mode scorecard;
+  template added.
+- `code-review`: adversarial stance with real reproduction; stage 0 static gate, stage 1 spec
+  conformance with four verdicts including **requirement in doubt**, stage 2 quality including
+  test truthfulness and spec drift; decidable questions; report grouping; fix routing; one-round
+  convergence; scope by tier.
+- `structured-review`: blue / red / judge named; deletions read first for governance assets;
+  domain clues routed rather than dismissed; no round resets, no reviewer voting.
+- `root-cause-debugging`: expected behaviour fixed before the stack trace; user questions from
+  experience; normal-path comparison and first observable divergence; one-condition experiments;
+  negative results; red-lock; three-miss breaker; stop-loss kept apart from the root fix;
+  requirement in doubt.
+- `scoped-implementation`: Business Context required; existing values and read paths; success
+  response traced to the applied result; isolation consumed by real entry points; group refactor
+  of real duplication; failure visibility; lockfile tool version; counter-example reporting.
+- `finish-branch`: environment probe (branch / linked worktree / detached, submodule false
+  positive); test gate first; conditional menu of at most three options; per-action
+  authorisation; HUMAN / AGENT description sections; cleanup that never deletes unmerged work.
+- `record-lesson`: business fact vs method lesson; apply before recording; scope, exceptions,
+  supersedes, applied to; five signals; evidence-only scoring; what each stage proves;
+  graduation by two questions (codified already? real cost?) with the occurrence count as a hint.
+- `project-memory`: decisions with basis, scope, and supersession, and the supersession check;
+  Pinned ≤ 15, Decisions ≤ 30 then archive; recovery reads the spec, changelog, and plan as well;
+  the three memories and their boundaries (`docs/PROJECT-MEMORY.md`).
+- `assurance-profile`: the LOW / MEDIUM / HIGH tier criteria that select `rapid` / `balanced` /
+  `strict`.
+- Agents `implementer`, `tester`, `reviewer`: Business Context required on product work;
+  `NEEDS_CONTEXT` with what was read and what can proceed; independent expectations; the three
+  product receipt fields; the reviewer's adversarial stance and requirement-in-doubt reporting.
+  **`tester` is now `readonly: false`** so it can write the tests it designs — its write scope
+  is the dispatched test paths (test files, fixtures, authorised test configuration) and its
+  `Changed` may list nothing else; exploration, impact analysis, debugging, and review stay
+  read-only as `governance-assets.mdc` requires.
+- `docs/LARGE-REPO-GUIDE.md`: pointer-only packs need excerpts; semantic consumers beyond the
+  import graph; fan-out economics. `README.md`: the skill catalogue in two families.
+
 ## [2.1.1] - 2026-09-07
 
 ### Fixed
 
+- **`harness-doctor` stated a Node 20 floor while the engine requires 22.** `SKILL.md` and
+  `REFERENCE.md` both said 20 or newer; `validate` errors below 22, `doctor` records its check as
+  `major >= 22`, and `package.json` declares `>=22`, so a diagnosis on Node 20 reported healthy
+  and the next `doctor` run failed. Found by the correctness lens of this change's review; it is
+  the only fix here that predates the absorption work.
 - **State lock could be stolen in another process's create-then-write window, losing an update.**
   `withStateLock` judged a lock's age from its JSON body; an exclusive create and the write of
   that body are two steps, so a concurrent waiter could read an empty file, parse nothing, treat

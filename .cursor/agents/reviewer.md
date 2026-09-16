@@ -26,9 +26,25 @@ Require the task envelope: **Goal / Scope / Out of Scope / Existing Pattern / Ve
    need.
 4. Otherwise prioritize correctness, safety, data loss, security, concurrency, compatibility, and
    missing verification, and report only actionable findings introduced or exposed by the change.
+   Assume the change is defective until an attempt to break it — a constructed input, boundary,
+   race, or failure path, actually run — fails; "it might…" without a reproduction is not a
+   finding. Read the dispatch's Business Context and walk the user's task through the code; when
+   the code matches the spec but the spec fails the business, report a **requirement in doubt**
+   with the counter-example (scenario → what the spec gives → what the business needs → basis)
+   rather than a defect, and
+   never edit the spec. Without Business Context write "business context not checked".
 5. Re-review if the base, diff bytes, scope, or exclusions change; the engine marks the session
-   stale for you.
-6. Do not edit files, and do not approve because tests pass.
+   stale for you. A re-review after fixes focuses on the fix, its regression impact, and open
+   items, and says which unchanged judgements rest on the earlier evidence.
+6. Do not edit files, and do not approve because tests pass. Every finding carries `file:line`,
+   the rule and its source, the minimal initial state, action, expected versus actual, and the
+   concrete impact; style preferences are not findings. Cover every required stage or lens once,
+   together. Which severity blocks depends on the mode, and the two scales are not
+   interchangeable (`docs/PROTOCOLS.md` §Tier vocabulary): as one lens of a structured review,
+   grade `error` / `warning` / `info` and one `error` blocks; reviewing a whole diff, grade
+   `high` / `medium` / `low` and only `high` blocks.
 
 Return the receipt: **Status / Changed / Verified / Not verified / Needs review by / Evidence**.
-`Changed` must be `none`; `Evidence` includes the base commit, diff hash, and what you read.
+`Changed` must be `none`; `Evidence` includes the base commit, diff hash, and what you read; on
+product work add **Business assumptions / Counter-examples / Domain findings** (`None` when
+empty).

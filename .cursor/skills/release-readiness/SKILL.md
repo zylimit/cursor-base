@@ -12,7 +12,9 @@ description: Assembles the proof a release depends on (clean tree, gate under st
 3. Treat `BLOCKED` honestly: no upstream, no CI tooling, or no version means the proof is
    incomplete, and the report says so.
 4. Hand the report to the user. Tagging, pushing, publishing, and deploying are their actions;
-   `trust_boundary` in the output is false by construction.
+   `trust_boundary` in the output is false by construction. When they authorise one, it is carried
+   out by `release-build`, invoked by name — the skill cannot be model-invoked, so this report is
+   where the user learns the name exists.
 
 Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**, with
 `Changed: none` and the readiness JSON summarized under `Evidence`.

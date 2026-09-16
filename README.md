@@ -117,12 +117,29 @@ See [docs/ADOPTION.md](docs/ADOPTION.md) for existing repositories and upgrades.
 
 ## How to use
 
-1. Start with a task envelope: **Goal, Scope, Out of Scope, Existing Pattern, Verification, Escalation**.
+1. Start with a task envelope: **Goal, Scope, Out of Scope, Existing Pattern, Verification, Escalation**
+   — plus **Business Context** on product work.
 2. Use `explorer` for discovery and `impact-analyst` before cross-module or contract changes.
 3. Use the matching skill for the workflow; keep writes serialized unless file ownership is explicitly disjoint.
 4. Finish with a receipt: **Status, Changed, Verified, Not verified, Needs review by, Evidence**.
 5. Run `node scripts/harness.mjs gate` to execute the affected checks; it records a receipt bound
    to the current diff, and the completion gate stays closed until those receipts pass.
+
+## Skills
+
+Harness and change management: `plan-change`, `scoped-implementation`, `affected-verification`,
+`code-review`, `structured-review`, `root-cause-debugging`, `finish-branch`, `release-readiness`,
+`assurance-profile`, `fast-lane`, `catalog-discovery`, `harness-doctor`, `service-operations`,
+`project-memory`, `record-lesson`, `skill-authoring`.
+
+Product development, from an idea to a verified release (`docs/PRODUCT-WORKFLOW.md`):
+`product-spec` (learn the business, sign off by replaying the user's case), `architecture-design`
+and `dfx-design` (boundaries and measurable quality targets, wired into the catalog),
+`design-brief` and `design-prototype` (how it works, how it looks, a walkable offline mock-up),
+`dev-plan` (phases by value and risky unknowns), `phase-build` (tiered tasks, four-step phase
+close), `test-design` (business-scenario tests with independent expectations), `release-build`
+(explicit-only, artefact audited, deployment verified), `domain-rulings` (how things are counted
+in the field, kept outside the code).
 
 For operating policy, see [docs/GOVERNANCE.md](docs/GOVERNANCE.md). For the structure and scaling model, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/LARGE-REPO-GUIDE.md](docs/LARGE-REPO-GUIDE.md).
 

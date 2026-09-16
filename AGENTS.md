@@ -46,10 +46,22 @@ command surface.
 ## Memory
 
 - Record decisions, constraints, and in-flight work in `progress.md` as they happen; governed
-  code that moves without it is reported (`sync-check`, `recap`) and blocks the turn under
-  `strict` (`stop`).
+ code that moves without it is reported (`sync-check`, `recap`) and blocks the turn under
+ `strict` (`stop`).
 - After a compaction, re-read the re-injected invariants before continuing (`postToolUse`,
-  `invariants`).
+ `invariants`).
+
+## Product work
+
+- Building a product runs through on-demand skills — `product-spec`, `dev-plan`, `phase-build`
+ and the rest — routed by which documents exist, under the profile the task's tier selects;
+ the workflow is `docs/PRODUCT-WORKFLOW.md`, the rule activates on the product documents
+ (`profile`, `gate`; routing prompt-only).
+- Code that matches the spec while the spec fails the business is a requirement in doubt: it goes
+ back to the spec, never into a patch and never into a reviewer's edit of the spec (prompt-only).
+- Avoid over-design, over-testing, over-review, and over-trust: every gate, test, review layer,
+ or memory layer added must name what it catches, and a control that never fires is removed
+ (`gate-audit` and `feedback list` name the idle ones; the removal itself is prompt-only).
 
 ## Approval and safety
 

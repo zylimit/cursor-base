@@ -5,7 +5,7 @@ description: Runs the staged multi-lens review whose verdict the harness compute
 
 # Structured Review
 
-1. Build the evidence pack and read it, deletions first: `node scripts/harness.mjs review-pack`.
+1. Build the review pack and read it, deletions first: `node scripts/harness.mjs review-pack`.
 2. Open the session on the current diff: `node scripts/harness.mjs review start`. Note the
    convened lenses and why the others were excused (`review team` shows the same).
 3. Blue states what was verified, with evidence, as JSON on stdin:
@@ -21,7 +21,18 @@ description: Runs the staged multi-lens review whose verdict the harness compute
    supply exactly what the lens named. `ACCEPT` at the final stage writes the receipt that
    completion requires.
 
-Stop after three rejected rounds (`escalate: true`) and take the disagreement to the user.
+The three passes are blue, red, judge. Blue's self-account is a target for the red lenses, never
+grounds for passing anything; red defaults to disproving — boundaries, rollback, the second
+platform, security corners — and "no finding" is true only after the attack was made; the judge
+(the engine, from the lens reports) admits only located evidence and never a role's wording. When
+the change touches this repository's own governance assets — hooks, rules, skills, agents — read
+the pack's deletions section for rules removed by accident. Findings that are not defects but
+"so that is how this domain works" are domain clues: route them to `domain-rulings`, do not dismiss
+them as invalid. Fixes go back through the normal chain; a re-review binds the new diff and
+focuses on the fix, its regression impact, and open items.
+
+Stop after three rejected rounds (`escalate: true`) and take the disagreement to the user — the
+change or the standard is wrong; nobody resets the count or votes with a fresh reviewer.
 
 Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**, with the
 verdict and receipt path in `Evidence`.
