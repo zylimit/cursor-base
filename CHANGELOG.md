@@ -89,8 +89,6 @@ memory, and recorder / deployer subagents among the rejections). No engine chang
 - `docs/LARGE-REPO-GUIDE.md`: pointer-only packs need excerpts; semantic consumers beyond the
   import graph; fan-out economics. `README.md`: the skill catalogue in two families.
 
-## [2.1.1] - 2026-09-07
-
 ### Fixed
 
 - **`harness-doctor` stated a Node 20 floor while the engine requires 22.** `SKILL.md` and
@@ -98,6 +96,11 @@ memory, and recorder / deployer subagents among the rejections). No engine chang
   `major >= 22`, and `package.json` declares `>=22`, so a diagnosis on Node 20 reported healthy
   and the next `doctor` run failed. Found by the correctness lens of this change's review; it is
   the only fix here that predates the absorption work.
+
+## [2.1.1] - 2026-09-07
+
+### Fixed
+
 - **State lock could be stolen in another process's create-then-write window, losing an update.**
   `withStateLock` judged a lock's age from its JSON body; an exclusive create and the write of
   that body are two steps, so a concurrent waiter could read an empty file, parse nothing, treat

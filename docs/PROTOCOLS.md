@@ -91,6 +91,7 @@ Four scales, one word each, never mixed:
 | attribute tier | critical / high / … / none | the module catalog per quality attribute | which gaps block and what may never be waived |
 | exposure class | personal / internal / external / money / regulated | the spec's Overview | interview depth and acceptance rigour |
 | finding severity | error / warning / info in a review lens; high / medium / low in a whole-diff review | the reviewer, per finding | what blocks: `review lens` accepts only the first set and one `error` sets `FIX_REQUIRED`; a whole-diff review blocks on `high` |
+| review stage | `code-review` pass 0 / 1 / 2 (static, spec, quality); structured-review stage 1 / 2 / 3 (code, functional, trust) | the review skill in force | which work that skill runs; the two numberings are not interchangeable |
 
 "S / M / L" in a design document is a sizing estimate, not any of these. The two severity scales
 are not interchangeable spellings: submitting `high` to `review lens` is refused.

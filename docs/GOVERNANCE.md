@@ -41,9 +41,8 @@ Binding: base commit and canonical diff hash, recorded at creation
 ```
 
 Waivers must be visible in the completion receipt. Expired, unowned, broad, or safety-related
-waivers are invalid. A waiver defers evidence that could not be produced (`MISSING`, `BLOCKED`,
-`SKIPPED`); it never excuses an executed failure, never covers a security-class check or a
-critical-tier attribute, and dies with the diff it was bound to. A waiver does not convert an
+waivers are invalid. What may be refused, and the exact fields, live in `docs/PROTOCOLS.md`
+§Waiver binding, which wins where this section and that one differ. A waiver does not convert an
 unrun check into a passing check.
 
 ## Concurrency and ownership

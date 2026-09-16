@@ -46,13 +46,14 @@ leave the agent able to act, not just informed. Revising keeps what already work
    never enter a skill directory. A skill may detect or suggest a dependency; it never installs
    one.
 6. Verify what can be verified and say the rest plainly. `node scripts/harness.mjs skills-lint`
-   (name equals folder, kebab-case, description present and under 220 characters, lowercase
-   `disable-model-invocation` as a bare boolean, body under 24KB) and `instructions` (no endpoint
-   redirects, credentials, verification bypasses, or hidden characters) are mechanical and
-   must pass. One check the lint does not make yet is made by eye: the `description` is a YAML
-   plain scalar, so it contains no `: ` and does not start with `#`, `[`, `{`, `*`, `&`, `!`,
-   `|`, `>`, `'`, `"`, `%`, or `@` — otherwise the host drops it silently and the skill stops
-   routing while the lint stays green. Where the environment allows, run the scenarios against
+   **errors** on a missing or mismatched `name`, a missing `description`, a camelCase key, a
+   non-boolean `disable-model-invocation`, or a description over 500 characters; it **warns**
+   above 220 characters and 24KB — a warning is not a fail. `instructions` (no endpoint
+   redirects, credentials, verification bypasses, or hidden characters) must pass. One check the
+   lint does not make yet is made by eye: the `description` is a YAML plain scalar, so it contains
+   no `: ` and does not start with `#`, `[`, `{`, `*`, `&`, `!`, `|`, `>`, `'`, `"`, `%`, or `@`
+   — otherwise the host drops it silently and the skill stops routing while the lint stays green.
+   Where the environment allows, run the scenarios against
    the current version with
    frozen inputs, then against the revision with the same visible inputs; RED→GREEN is claimed
    only for a scenario the old version actually failed and the new one passes on the same
@@ -61,7 +62,8 @@ leave the agent able to act, not just informed. Revising keeps what already work
    as unrun.
 7. Register: the skill list in `README.md` and `docs/CAPABILITY-MATRIX.md`; a rule or
    `docs/PRODUCT-WORKFLOW.md` entry when the skill takes a place in a workflow; a `progress.md`
-   decision when it changes what the repository does. Self-check before finishing: every kept
+   decision when it changes what the repository does; `node scripts/harness.mjs manifest --write`
+   so the new files enter `FRAMEWORK-MANIFEST.json` (`manifest --check` is a gate). Self-check before finishing: every kept
    method has a trigger, a judgement, and a handoff; a user's business correction updates a source
    of truth and the affected tasks, not only a note; mechanical rules reuse existing checks; the
    end state is `complete`, `draft` (dirty paths, unverified items, continuation listed), or

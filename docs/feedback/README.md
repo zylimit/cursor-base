@@ -51,8 +51,11 @@ either way: an unmaintained counter is not evidence that a rule has been paid fo
 
 Promotion targets, in order of preference: an executable check, then a skill step, then rule
 text. It needs the user's confirmation — it changes repository policy — after which
-`graduated: true` is set. The file stays: it is the record of why the rule exists. The method
-is the `record-lesson` skill; this file is the corpus contract.
+`graduated: true` is set. The file stays: it is the record of why the rule exists.
+
+This file is the corpus contract (frontmatter, body sections, what `feedback list` and `risk`
+surface). The method — when a lesson qualifies, how to write one, how to run the two questions,
+what each stage proves — lives in the `record-lesson` skill and wins where the two differ.
 
 Prefer graduating into an executable check over more always-applied prose. Instruction text
 costs context on every request; a check costs nothing until it fires.

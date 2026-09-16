@@ -22,7 +22,8 @@ items it touches; edit the spec and record the change in `Product-Spec-CHANGELOG
    - **direct** — clear, backed by the spec, cheap to undo (a label, a default): change it and
      say what changed in one sentence.
    - **confirm** — the inference would change behaviour: one question with an inference and a
-     recommendation the user can answer in a word. At most two questions per turn.
+     recommendation the user can answer in a word. One question per turn, at most one sub-question
+     on the same decision (`product-spec/REFERENCE.md` §Interview rules).
    - **explore** — why, who benefits, how it is done today, or where the exceptions are is
      unclear *and* being wrong is expensive: learn the business (step 3) within a question
      budget set by the exposure class asked in the first turn (personal tool 6–8, internal 8–12,
@@ -30,7 +31,8 @@ items it touches; edit the spec and record the change in `Product-Spec-CHANGELOG
    - **delegated** — "you decide": decide, record it under decision basis as *agent decided
      (delegated)*, and never ask again.
 3. Learn the business along four lines, one at a time, each until it can be replayed as one
-   concrete case. Ask about *the last time*, not *in general*; one or two questions per turn:
+   concrete case. Ask about *the last time*, not *in general*; one question per turn, at most one
+   sub-question on the same decision:
    - **how it is done today** — who, did what, with what, then what, and why that way;
    - **why, and who benefits** — who pays for today's state (time, money, risk), who gains,
      who may lose (losers are where the hidden rules live);

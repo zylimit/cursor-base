@@ -78,9 +78,9 @@ recognised only in `progress.md`.
 
 ## Recovery
 
-To resume cold: read `progress.md`, then `node scripts/harness.mjs task status`, then
-`node scripts/harness.mjs quality status`. The first tells you the intent, the second tells you
-what was in flight, and the third tells you what is still unproven. A product project adds its
+To resume cold: `node scripts/harness.mjs recap`, then `task status`, then `quality status`.
+`recap` derives the intent from `progress.md` (and stays inside its character budget); the file
+itself is not the first thing a recovery reads. A product project adds its
 spec, spec changelog, and plan (`Product-Spec.md`, `Product-Spec-CHANGELOG.md`, `DEV-PLAN.md` by
 default; a project that chose other names keeps them) — reading `progress.md` alone is not
 recovery, and a missing document is named and the recovery degraded, never replaced by a second

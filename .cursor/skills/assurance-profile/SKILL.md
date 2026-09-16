@@ -26,7 +26,7 @@ description: Reads, selects, or explains the assurance profile (explore, rapid, 
 5. Re-run `node scripts/harness.mjs gate` after changing the profile: receipts are bound to the
    controls that produced them.
 
-Under time pressure use the [fast-lane](../fast-lane/SKILL.md) skill, not a weaker profile.
+Under time pressure use the `fast-lane` skill, not a weaker profile.
 
 Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**, naming the
 effective profile in `Evidence`.

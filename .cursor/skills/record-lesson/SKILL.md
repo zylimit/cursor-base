@@ -20,14 +20,11 @@ description: Records a correction, incident, or recurring pattern as a lesson wi
    looked like, not a counter), `last_seen`, and `occurrences` only for an independent new event —
    re-reading, restating, or several roles citing the same event add nothing. A conflicting old
    lesson is superseded by name, and the old file notes what corrected it.
-4. Otherwise copy `docs/feedback/TEMPLATE.md` to `docs/feedback/<kebab-case-id>.md` with the
-   frontmatter (`id` equal to the filename, `occurrences`, dates, `graduated: false`) and a body
-   of: one-sentence title as an instruction; what happened and how the user corrected it, quoting
-   them; the scenario; what to do instead; **scope** (which stages, roles, project kinds),
-   **exceptions** (when it does not apply; a rule without a range is applied where it should not
-   be), **supersedes** (which rule or lesson it replaces; two coexisting rules fight); **applied
-   to** (the file and section, the decision date, or the dispatch where this correction already
-   landed — `pending` means it has not taken effect yet); the evidence.
+4. Otherwise copy `docs/feedback/TEMPLATE.md` to `docs/feedback/<kebab-case-id>.md`. The body
+   contract — title, what happened, scenario, what to do instead, scope, exceptions, supersedes,
+   applied to, evidence — lives in `docs/feedback/README.md`, which wins where this skill and the
+   README differ; the template is the shape. Frontmatter: `id` equal to the filename,
+   `occurrences`, dates, `graduated: false`.
 5. Score a skill's effectiveness only after a real run and only with evidence per score (accuracy
    against what was known at the time — a later fact is not an earlier mistake; coverage by actual
    gaps, not step counts; efficiency by avoidable repetition, not by turns — teaching takes turns;

@@ -277,8 +277,9 @@ section contract.
   `scoped-implementation`, `finish-branch`, `record-lesson`, `project-memory`,
   `assurance-profile`); rule `60-product-workflow.mdc`; `docs/PRODUCT-WORKFLOW.md`; `PROTOCOLS`
   (seventh field, receipt extras, escalation ladder, tiers), `PROJECT-MEMORY`, `LARGE-REPO-GUIDE`,
-  `CAPABILITY-MATRIX` (45 rows for this round); agents `implementer`, `tester`, `reviewer`;
-  `AGENTS.md` §Product work; README; manifest 85 → 114 files. Read in full: cc-base at
+  `CAPABILITY-MATRIX` (45 rows for this round); agents `implementer`, `tester`, `reviewer`,
+  `debugger` (product receipt fields); `harness-doctor` Node floor 20 → 22 (pre-existing, found
+  in review); `AGENTS.md` §Product work; README; manifest 85 → 114 files. Read in full: cc-base at
   `61347b1` (18 skills, references, templates, examples, 6 rules, 8 agents, CROSS-POLLINATION,
   its analysis of this repository, recent Decisions) and codex-base at the 2026-09-15 autonomy
   refactor (17 skills with references and templates, 9 agent contracts, ROLE-CONTRACTS,
@@ -370,10 +371,9 @@ section contract.
 
 ## In progress
 
-- 2026-09-16 Closing the absorption task `task-1789546034211-45136ab7`: all files written and
-  the governance scanners clean; remaining are the strict gate (14 checks), the structured review
-  (a `reviewer` delegate per convened lens; the author of this diff cannot carry the verdict),
-  `task complete`, and the commit. Not pushed until the user says so.
+- 2026-09-16 Absorption committed and pushed as `9e4fd3e`; task still open because structured
+  review is owed (`closable: false`). User asked for a senior-engineer self-evolution pass
+  rather than more skill text; diagnosis recorded as a Decision, no engine edit in this turn.
 - 2026-09-16 Review round 1's architecture and maintainability lenses returned; their findings
   are fixed in the tree, which stales the session, so the review restarts on the new diff hash.
   Fixed: the two Chinese fragments in English files; the enforcement-view DFX table reduced to the
@@ -475,6 +475,21 @@ section contract.
   convenes the four trust lenses (`security`, `privacy`, `reliability`, `resilience`) to review a
   documentation diff. See the TODO below.
 
+- 2026-09-16 After absorbing the siblings, the next work is **engine cuts that match what a
+  current model is actually good and bad at**, not more skills. Basis: this session's own run —
+  five `gate` re-runs, a stop-hook that asks for a memory write which then stales the receipts it
+  just demanded, a docs-only change floored to `strict` by `.cursor/**` and then fanned to every
+  module by `FRAMEWORK-MANIFEST.json`, three review rounds spent reconciling duplicated rules the
+  engine does not parse. Current models follow one contract, write well, and claim verification
+  they did not run; they do not keep seven copies of a table in sync, and they do not become a
+  second mind when spawned as a `reviewer` with a different prompt. Scope: diagnosis only in this
+  turn; the ten cuts and the recommended first three live in the 2026-09-16 evolution note (the
+  chat) and the TODOs below. Rejected: starting the refactor in the still-open absorption task
+  (scope explosion), adding a fifth profile or a second review engine (over-design), deleting
+  hash-bound receipts (that is the control that actually stops fake verification). Supersedes
+  none of the product-skill decisions — those stay; what they revealed is that the *engine's*
+  cost model is now the bottleneck.
+
 ## TODO
 
 - [P1] `skills-lint` parses the front matter as YAML, or at least refuses an unquoted
@@ -494,13 +509,22 @@ section contract.
   committed base, run stage 1 (`architecture`, `correctness`, `maintainability`), then stage 2
   (`testing`) and stage 3 (`reliability`, `resilience`, `security`, `privacy`), and record the
   verdict. Until then there is no approving receipt on this work and the task cannot close.
-- [P2] Decide whether a diff that changes no engine source should have its impact fanned out to
-  every module by `FRAMEWORK-MANIFEST.json` alone. The manifest is correctly a global path — it
-  describes every asset — but the consequence is that a documentation-only change convenes the
-  four trust lenses, which is the `gate-audit` question asked of the review layer instead: name
-  what those lenses catch on such a diff, or let the manifest fan out to verification breadth
-  without convening the trust stage. Evidence when deciding: whether any trust lens has ever
-  raised a finding on a docs-only change.
+- [P1] Stop-hook follow-up must not demand a `progress.md` write on the same turn as `gate`:
+  under `strict`, that write is governed code, it moves the diff, and the receipts the hook just
+  required are immediately MISSING. Split "verify this tree" from "record the decision"; the
+  hook should ask for `gate` only, and memory sync should fire on the *next* turn if still
+  behind. Evidence: this session, five full gates at ~60s, three of them caused by the hook's
+  own instruction.
+- [P1] Governance-path floor and global-path fan-out must distinguish "this file is policy"
+  from "this change can break runtime security". A `.cursor/skills/**` edit plus
+  `FRAMEWORK-MANIFEST.json` currently pulls `runtime`/`distribution` critical attributes and
+  eight review lenses. Recommended: path-floor `strict` only for `src/**`, hooks, `cli.json`,
+  `harness/**`, installers; skills/docs stay at the module's own attributes (governance
+  `maintainability: high` → `balanced`); `FRAMEWORK-MANIFEST.json` fans verification breadth,
+  not trust-lens convening.
+- [P1] `skills-lint` (and agent frontmatter) must parse YAML, not split on the first colon:
+  six skills in the absorption had descriptions the host loader dropped while the lint reported
+  zero findings. This is the cheap check the model cannot be trusted to keep by eye.
 - [P2] Five `SKILL.md` files from the 2026-09-16 batch (architecture-design 7.5KB, dfx-design,
   phase-build, domain-rulings, product-spec, each 6–7KB) run three to five times the size of the
   house pattern (`affected-verification`, `fast-lane`, 1–2KB), well under the 24KB loader limit

@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Product Workflow
 
-- Route by which documents exist, not by what the user seems to want: no spec → `product-spec`; spec but no plan or code → offer `architecture-design`, `dfx-design`, `design-brief`, then `dev-plan`; spec and plan, no code → `phase-build` initialisation; code but no plan → `dev-plan`; all three → `phase-build` continues (prompt-only; `docs/PRODUCT-WORKFLOW.md`).
+- Route by which documents exist, not by what the user seems to want: no spec → `product-spec`; spec but no plan or code → offer `architecture-design`, `dfx-design`, `design-brief`, then `dev-plan`; spec and plan, no code → `phase-build` initialisation; spec and code but no plan → `dev-plan`; all three → `phase-build` continues (prompt-only; `docs/PRODUCT-WORKFLOW.md`).
 - A spec is signed off by **replaying the user's own case** until they find no fault — never by a separate approval ceremony; nothing enters `dev-plan` before the replay passes (prompt-only).
 - A spec edit travels with its changelog entry in the same change; the entry names why, which judgement was wrong, and what is affected (`sync-check` pairs the two files when the specification is `Product-Spec.md`, `spec.md`, or lives under `docs/requirements/`; under any other name, and for the entry's content, the pairing is prompt-only).
 - Every coding, review, or test dispatch on product work carries a **Business Context** copied from the spec, `progress.md`, the feedback corpus, and `domain/` — never `N/A`; a fresh implementer without it is guessing (prompt-only; `docs/PROTOCOLS.md`).
