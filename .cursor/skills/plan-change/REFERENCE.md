@@ -14,15 +14,17 @@ Known evidence:
 Decisions:
 Risks and mitigations:
 Steps:
-  1. Owned paths/symbols
-     Change
-     Dependencies
-     Verification
+  N. Files (create / modify / test, exact paths)
+     Change (one sentence that is true afterwards)
+     Command (exact)
+     Expected (exit code and the observable for this step)
 Escalation points:
 Not included:
 ```
 
 Each step must be coherent, path-bounded, and testable. Put shared contracts before consumers and cleanup after behavior. Do not schedule parallel writes to shared manifests, generated output, migrations, or overlapping paths.
+
+These are plan failures, never drafts: "TBD", "similar to step N", "add appropriate error handling", "write tests for the above" without Command and Expected. Repeat the files and command when a later step needs them; the executor may read one step.
 
 ## Verification design
 

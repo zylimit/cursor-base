@@ -13,8 +13,11 @@ accept a vague answer, stop early, or ask from a template.
 - Ask about concrete past events, not hypothetical futures. "How did you do it last time" beats
   "would you use this". Rewrite every "would you…" into "last time, did you…". People are
   systematically over-optimistic about imagined futures and willingness to pay.
-- One question per turn (at most one sub-question about the same decision). Bundled questions
-  get the easiest one answered and the important one dropped.
+- Confirm depth: one question per turn (at most one sub-question about the same decision).
+  Explore depth: a **frontier round** — every question whose prerequisites are already settled,
+  each with a recommended answer; wait for that round before asking anything that depends on it.
+  Bundled *unrelated* questions (position, users, features, platform) still get the easiest one
+  answered and the important one dropped; a frontier is not a bundle.
 - Open context-free: who uses it, what problem, what does success look like — the least biased
   opening there is.
 - Close every stage with the meta-question: "what should I have asked and did not; who else
@@ -43,7 +46,8 @@ and 15:00".
   meta-question, and "anything else?" before generating.
 - Asking from priors: interviewing from your domain template instead of their situation.
   Defence: context-free opening, follow their answers, not a fixed script.
-- Bundled questions. Defence: one per turn.
+- Bundled questions. Defence: confirm stays one per turn; explore uses a frontier, never five
+  topic questions that do not depend on settled answers.
 - Leading questions ("wouldn't a dashboard be better?"). Defence: neutral how/what/walk-me-through
   about current behaviour, never opinions about your proposal.
 - Praise as data ("I like it, I would use it"). Defence: only commitments and past behaviour
@@ -99,6 +103,19 @@ tried); mirror the user's words ("by 'stuck' you mean…"); step back when the u
 defensive; park new ideas — "good one, it goes on the later list so it is not lost; let us pin
 the core first".
 
+## Frontier rounds (explore)
+
+The four foundation lines, and later question-bank dimensions, form a design tree. A child
+question is not on the frontier until its parent is settled. First round: as-is only. After a
+replayable as-is case, who-benefits, exceptions, and history are usually independent and may
+share a round. A question that needs another answer from the same round waits.
+
+Look up facts (repo, files, public docs). Put decisions to the user. Dispatch lookup; do not
+block the rest of the frontier on it.
+
+Load this section before computing the next round. Load §Hearing answers before accepting a
+reply. Load §This answer changes the next step after the round lands.
+
 ## Hearing answers
 
 Treat the reply as evidence to classify, not as a requirement to write down.
@@ -141,7 +158,7 @@ Treat the reply as evidence to classify, not as a requirement to write down.
 - All four foundation lines have a replayable case and every open question has an owner →
   generate the spec from the template; run the requirements self-review on that file (a
   rework gap goes back to the interview); open dimensions 12–13 only when the product uses
-  AI or is an agent; then replay the written spec (SKILL.md steps 7–8).
+  AI or is an agent; then replay the written spec (SKILL.md Method step 5).
 
 ## Question bank
 

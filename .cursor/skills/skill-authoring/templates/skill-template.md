@@ -9,7 +9,7 @@ Copy, replace the brackets, delete what the skill does not need. The loader read
 ```markdown
 ---
 name: skill-name-in-kebab-case-equal-to-the-folder
-description: Trigger conditions in one or two sentences, under 220 characters — what situation, what it produces; not a summary of the steps; a plain YAML scalar with no colon-space and no leading bracket, hash, or quote.
+description: Trigger conditions in one or two sentences, under 220 characters — what situation, what it produces, and one near-miss when not to use it; a plain YAML scalar with no colon-space and no leading bracket, hash, or quote.
 ---
 
 # [Title]
@@ -36,7 +36,7 @@ description: Trigger conditions in one or two sentences, under 220 characters �
 Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**.
 
 ## Example
-[Optional. One short dialogue or anti-example. Long examples go to REFERENCE.md.]
+[Optional. One short dialogue or anti-example. Long examples go to REFERENCE.md or examples/.]
 
 Load [REFERENCE.md](REFERENCE.md) for [the tables it holds].
 ```
@@ -74,7 +74,7 @@ disable-model-invocation: true
 | folder | `.cursor/skills/<name>/` |
 | entry | `SKILL.md`; detail in `REFERENCE.md`; artefacts in `templates/` |
 | front matter | `name`, `description`; `disable-model-invocation` only when needed |
-| description | trigger conditions, < 220 characters, no unquoted `: ` |
-| body | Task / Preconditions / Invariants / Method; accept and reject in Method |
+| description | trigger and one near-miss, < 220 characters, no unquoted `: ` |
+| body | Task / Preconditions / Invariants / Method; accept and reject in Method; why, not MUST-walls |
 | language | technology-neutral; repository-relative POSIX paths |
-| checks | `node scripts/harness.mjs skills-lint`, `node scripts/harness.mjs instructions` |
+| checks | `node scripts/harness.mjs skills-lint`, `node scripts/harness.mjs instructions`; five stranger questions answered from the files |

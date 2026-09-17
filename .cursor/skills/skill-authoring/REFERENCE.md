@@ -26,14 +26,17 @@ never filled in from habit.
 
 ## Progressive disclosure
 
-- `SKILL.md` keeps triggers, preconditions, the decisive branches, the continue-or-pause
-  conditions, the handoff targets, and the receipt line — the whole thing readable in one screen.
+- `SKILL.md` keeps triggers (including one near-miss not-to-use), preconditions, the decisive
+  branches, the continue-or-pause conditions, the handoff targets, and the receipt line.
 - Detailed examples, counter-examples from other domains, walkthrough methods, and long tables go
   to `REFERENCE.md`, with the load moment stated in `SKILL.md` ("load for …").
 - Templates carry an interpretation that already exists; they never compress a rich method into
   table headers, and a reference file with a path but no load moment is never read.
 - On a revision, list what already works and where the concrete gap is, then rewrite that part;
   length is not quality, and load-bearing examples are not cut to save lines.
+- **Reader test:** five questions a stranger would ask, answered from the skill files alone.
+  A miss is a hole in the skill. This is not an eval harness, not a with-skill subagent farm,
+  and not a description-optimizer loop — those stay out of this repository.
 
 ## Scenario design
 
@@ -98,3 +101,5 @@ quote the value.
 - Deleting the old version's working paths to make the comparison look like an improvement.
 - A skill directory carrying a task log, a session transcript, or a generated report.
 - A skill that installs a tool because it needed one.
+- An eval harness, description-optimizer, or with-skill / without-skill farm added "to be sure".
+- A description with no near-miss: it will fire on copy tweaks, or never fire at all.

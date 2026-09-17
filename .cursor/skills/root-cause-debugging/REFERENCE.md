@@ -63,7 +63,8 @@ The evidence sufficient for a fix: the confirmed rule, a reproducible divergence
 explains the key observations, and a lock that fails for that cause before the fix. No
 reproduction means returning the excluded conditions and the concrete gap, not a promise that the
 cause was found. If a new fact shows the test's premise was wrong, the orchestrator recalibrates
-the basis explicitly; nobody weakens the lock to go green.
+the basis explicitly; nobody weakens the lock to go green. Commenting out the assertion, marking
+xfail, or hard-coding the expected output is not a fix; SKILL.md lists the common rationalisations.
 
 ## Handing to the re-verifier
 

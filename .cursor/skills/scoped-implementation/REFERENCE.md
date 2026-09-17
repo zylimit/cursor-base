@@ -13,6 +13,9 @@
   not a rule understood. Example: "repaired but unpaid tickets stay on the settlement list" and its
   source must travel with a task that says "implement the completed-status filter", or the filter
   condition is a guess.
+- Present the intended change (files, approach, verify command and expected output) and wait for
+  a yes unless the user already delegated. Starting in the same breath as the design skips the
+  gate; SKILL.md Method step 3 is the rule.
 
 ## During editing
 

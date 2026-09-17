@@ -170,6 +170,19 @@ are formal methods (Task / Preconditions / Invariants / Method with accept-rejec
 | Release independence | `claimed` cannot close `--operation release` | `src/release.mts` |
 | Skill form | Required headings; product factory sleeps except `product-spec` | `skills-lint`, `.cursor/skills/` |
 
+## 2026-09-17 human-interaction skill plump
+
+Five skills only. Sleeping product-factory skills stay asleep. No eval harness.
+
+| Source | Borrowed | Rejected | Where it lives |
+| --- | --- | --- | --- |
+| cc-base `product-spec-builder` | Four lines, markers, replay, marked after-sales fragment | Chinese paste; spec-lint | `product-spec/` |
+| mattpocock/skills grilling | Design tree; frontier rounds; facts vs decisions; recommended answer per Q | `/grill` as the only trigger; a second `CONTEXT.md` constitution | `product-spec` Method step 2 |
+| obra/superpowers | Spike/bounded/architectural class said out loud; design-before-code; red-flag tables; no-placeholder plans; three-miss architecture | MUST brainstorm before any creative work; visual companion; plan-as-full-source | `product-spec`, `scoped-implementation`, `root-cause-debugging`, `plan-change` |
+| anthropics/skills | Why over MUST; one near-miss in the description; once-per-conversation discernment; stranger reader test | Skill eval harness; description-optimizer scripts | `product-spec` step 5; `skill-authoring` |
+| openai/skills `define-goal` | End state, evidence, stop-and-ask | Codex `create_goal` tool | `product-spec` verification invariant |
+| trailofbits/skills `goal-prompt` | Close easy-outs (delete the caller, skip the test, claim without output) | Audit plugin farm; executable skill scripts | `scoped-implementation`, `root-cause-debugging`, `plan-change` |
+
 ## 2026-09-16 engine cost-model cut
 
 Four mechanical changes, no fifth profile, no second review engine, hash-bound receipts stay.

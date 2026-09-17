@@ -330,6 +330,21 @@ section contract.
   eval harness before a product run, making every prompt-only rule a hook, deleting product
   skills. Task `task-1789611957261-5d256372`.
 
+- 2026-09-17 Five human-interaction skills plump. `product-spec` explore uses design-tree
+  frontier rounds (facts looked up, decisions asked, each Q with a recommendation); confirm
+  stays one question; a marked after-sales example ships beside the skill. `scoped-implementation`
+  presents the design and stops for a yes. `root-cause-debugging` adds a red-flag table and
+  treats three misses as an architecture question. `plan-change` requires Files / Change /
+  Command / Expected per step. `skill-authoring` requires a near-miss in the description, a
+  why not a MUST-wall, and a five-question reader test; still no eval harness. Basis: cc-base
+  product-spec density, plus GitHub `mattpocock/skills` (grilling), `obra/superpowers`
+  (brainstorming, plans, debugging), `anthropics/skills` (why over MUST, discernment once),
+  `openai/skills` define-goal, `trailofbits/skills` goal-prompt easy-outs. Scope: those five
+  skills and this note; sleeping product-factory skills stay asleep. Rejected: always-on
+  "MUST brainstorm before any creative work"; copying 440-skill hubs; skill eval harness;
+  Chinese paste from cc-base. Task `task-1789615987412-ba55a54f`. Supersedes in part the
+  2026-09-17 model-capability "skills are formal headings" as sufficient plumpness.
+
 ## Done
 
 - cc-base and codex-base skill families absorbed (2026-09-16, task `task-1789546034211-45136ab7`,
@@ -435,10 +450,9 @@ section contract.
 
 ## In progress
 
-- Model-capability cut in `task-1789611957261-5d256372` is landed (engine, always-on rules,
-  skill form, product-factory sleep). Gate PASS 14/14 on the current diff. Close is blocked on
-  an independent structured review (correctness + security); this author cannot write that
-  receipt. Not a release.
+- Five human-interaction skills plump in `task-1789615987412-ba55a54f`. The model-capability
+  cut shipped as `1e1559e`; its high-risk task was cancelled (not closable: independent
+  structured review still owed, recorded under TODO).
 
 ## TODO
 

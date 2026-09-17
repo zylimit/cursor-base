@@ -7,7 +7,9 @@ All notable changes to this project are documented here. The format follows Keep
 The product-development skill families of `cc-base` and `codex-base` are absorbed as on-demand
 Cursor skills. The 2026-09-17 model-capability cut then shrinks always-on instruction, makes
 `balanced` close on a passing gate, sleeps the product factory except `product-spec`, and
-formalizes every skill as Task / Preconditions / Invariants / Method.
+formalizes every skill as Task / Preconditions / Invariants / Method. Five human-interaction
+skills then take operational density from cc-base plus public GitHub sources (grilling,
+design-before-code, red-flag tables, no-placeholder plans, reader tests).
 
 ### Added
 
@@ -16,7 +18,9 @@ formalizes every skill as Task / Preconditions / Invariants / Method.
   `## Task`, `## Preconditions`, `## Invariants`, `## Method`. Release readiness fails
   `review-independence` when a release review is only `claimed`.
 - Skills `product-spec` (learn the business from a real event; four statement kinds; sign off by
-  replaying the user's case; iteration mode with change classes and correction propagation),
+  replaying the user's case; iteration mode with change classes and correction propagation;
+  explore as design-tree frontier rounds; marked example at
+  `examples/after-sales-dispatch.md`),
   `design-brief` (task and form before colour; feeling → attribute; binary axes; eight states;
   surface closure; `Design-Brief.md` + `DESIGN.md`), `design-prototype` (offline self-contained
   HTML written in-repo; coverage matrix; two-pass plan and cliché review; action contracts; task
@@ -55,6 +59,13 @@ formalizes every skill as Task / Preconditions / Invariants / Method.
   and warn-and-adopts owned drift; `sessionStart` is a short banner; `afterShellExecution` is
   optional in `hooks.json`; product-factory skills sleep except `product-spec`; every skill uses
   Task / Preconditions / Invariants / Method with accept-reject.
+- Five human-interaction skills plump: `product-spec` explore uses frontier rounds and ships
+  `examples/after-sales-dispatch.md`; `scoped-implementation` presents the design and waits for
+  a yes; `root-cause-debugging` adds a red-flag table and treats three misses as architecture;
+  `plan-change` requires Files / Change / Command / Expected per step; `skill-authoring`
+  requires a near-miss trigger, a why, and a five-question reader test. No eval harness.
+  Provenance: cc-base density; mattpocock grilling; obra superpowers; Anthropic discernment;
+  OpenAI define-goal; Trail of Bits easy-outs.
 - `product-spec`: restores operational density the 2026-09-16 condensation cut — hearing
   answers, what an answer changes next, a five-part question bank, and a marked spec fragment.
   SKILL.md stays the spine. Not a copy of cc-base's seven files.
