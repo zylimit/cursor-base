@@ -42,6 +42,9 @@ pays a full-engine review, and so the stop hook cannot loop a clean tree.
 
 ### Changed
 
+- `product-spec`: restores operational density the 2026-09-16 condensation cut — hearing
+  answers, what an answer changes next, a five-part question bank, and a marked spec fragment.
+  SKILL.md stays the spine. Not a copy of cc-base's seven files.
 - Stop hook: a clean tracked tree (untracked tooling only) is not unverified work; missing
   receipts ask for `gate` only; memory sync waits until receipts exist and does not share that
   turn. Hash-bound receipts are unchanged.

@@ -365,13 +365,13 @@
     },
     {
       "path": ".cursor/skills/product-spec/REFERENCE.md",
-      "sha256": "dcf1ba91b3a009f22e5890cdb8cab44016af3ca4947e335ed6eb95e115fea286",
-      "bytes": 28683
+      "sha256": "835b8d417e6ccdbfe49c702d91f2fcb28c50559d0302cd426e23c6685d598313",
+      "bytes": 39088
     },
     {
       "path": ".cursor/skills/product-spec/SKILL.md",
-      "sha256": "76302f4ee304b60c371d71c94b01912cdf496673c8d637683916c5bb1a6ff8f4",
-      "bytes": 6474
+      "sha256": "d8bfda3bdfab5f2db69c065287212ce55da4cb14e38abd4e2e179d30e5a64df0",
+      "bytes": 6950
     },
     {
       "path": ".cursor/skills/product-spec/templates/product-spec-template.md",
@@ -574,5 +574,5 @@
       "bytes": 185
     }
   ],
-  "digest": "f99efbee3757e2cb2f222a58e3360a5fdac59e8f5d92e51ce866ec23bd224264"
+  "digest": "299acc4492927da9fadafdad9dd53a335e66436d1d2d5f7c1ee3d226e9daefc2"
 }

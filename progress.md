@@ -280,6 +280,31 @@ section contract.
   `.cursor/**` edit as a trust-boundary change; adding `src/**` to the default path floor (that
   would make every host-project source change `strict`).
 
+- 2026-09-17 `product-spec` keeps the spine (four lines, four statement kinds, replay sign-off)
+  and restores the operational layer that the 2026-09-16 condensation cut: hearing answers, what
+  an answer changes next, and a five-part question bank (intent / main / follow-up / accept /
+  reject) plus a marked spec fragment. Basis: the condensed table left the model able to fill a
+  template and unable to reject "usually" or choose the next question; that is over-trust on the
+  highest-leverage skill. Scope: `product-spec` only; SKILL.md stays the spine and points at
+  REFERENCE. Rejected: pasting cc-base's seven files or a Chinese skill; thickening architecture
+  / DFX / design the same way before this one has run on a real product. Provenance: cc-base
+  `product-spec-builder` references, synthesized. Task `task-1789605792080-2aa1ff6a`.
+  Supersedes: the 2026-09-16 condensation of the interview bank to a 13-row table.
+  → superseded 2026-09-17 in part: the operational text landed; the user rejected it as the
+  fix for skill scaffolding (see Decisions 2026-09-17 user correction).
+
+- 2026-09-17 User correction: skill scaffolding is unsolved; a REFERENCE thicken plus three
+  rounds of structured review and repeated full gates is over-review and over-testing, not
+  depth. Basis: after the thicken closed, the user said the skill 花架子 was not fixed and
+  that over-inspection / over-testing had started again. Scope: product skills and this
+  repo's workflow; does not waive safety controls or hash-bound receipts when the executable
+  harness changes. Rejected: treating 「继续」 after a stop-hook gate report as a mandate to
+  run eight-lens structured review; treating `task complete` under `strict` as the work;
+  thickening other skills the same way. What to do instead: stop; wait for one real product
+  and judge the skill by that run. Supersedes: reading the 2026-09-17 `product-spec` thicken
+  as the answer to 「架子 / 缺乏深度思考」. Method already pinned (four avoid-overs) and
+  graduated as `gates-earn-their-place-with-evidence`.
+
 ## Done
 
 - cc-base and codex-base skill families absorbed (2026-09-16, task `task-1789546034211-45136ab7`,
@@ -385,11 +410,9 @@ section contract.
 
 ## In progress
 
-- 2026-09-16 Engine cost-model cut (task `task-1789560518616-691d2e33`, high). Absorption task
-  `task-1789546034211-45136ab7` cancelled; its structured review remains owed (TODO). First cut
-  compiled (`npm run build` exit 0). Gate 1 FAIL: `node-test` 230 pass / 2 fail — stop skipped
-  untracked *source* (NO_COMMIT trees and new `src/**` files) because it ignored every untracked
-  path. Fix: skip only untracked ignored/unmapped scratch; mapped untracked still counts.
+- Skill-family depth is unsolved. Do not thicken another skill, do not run structured
+  review or a full gate on the uncommitted `product-spec` text, and do not treat a stop-hook
+  follow-up on that diff as the next job. Next evidence is one real product run (TODO P2).
 
 ## TODO
 
@@ -446,6 +469,8 @@ section contract.
 - Recorder, observer, runner, or deployer subagents; the orchestrator writes memory, lessons, and
   rulings itself, and no role holds a release authorisation (2026-09-16).
 - Automatic tag, push, publish, or deploy on green; `release readiness` reports and stops.
+- Using structured review or a 14-check gate as the response to "skills are scaffolding"
+  (2026-09-17). The closable receipt is not depth.
 
 ## Risks
 

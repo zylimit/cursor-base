@@ -41,7 +41,10 @@ items it touches; edit the spec and record the change in `Product-Spec-CHANGELOG
    - **who decides, and history** — what was tried, why it failed, what is settled and off the
      table, who signs.
    Mark the source of everything heard: witnessed / relayed / guessed. Relayed and guessed are
-   inferences, never confirmations.
+   inferences, never confirmations. Before treating a reply as a fact, load
+   [REFERENCE.md](REFERENCE.md) §Hearing answers. Before choosing the next question, load
+   §This answer changes the next step. The question bank is five-part per dimension (intent,
+   main question, follow-up, accept, reject), not a table to walk in order.
 4. Keep four kinds of statement apart, in conversation and in the document: `[confirmed]` a fact
    the user confirmed with a source, `[inferred]` the agent's inference with its basis,
    `[default]` a low-risk default the user may veto, `[open]` an unresolved question that lives
@@ -58,14 +61,16 @@ items it touches; edit the spec and record the change in `Product-Spec-CHANGELOG
    and Y is better, say the reason and cost once, then do X and record the disagreement. Do not
    add AI features unless the as-is story contains judgement, generation, recognition, or
    classification done by a person today, and only after saying who catches the error.
-7. Sign off by **replaying the case**: tell how the user's own case will happen after launch —
-   who opens what, sees what, the system does what, how the exception runs, how the failure
-   recovers — ending each part with a concrete "is that what happens?". No fault found is
-   approval; there is no separate approval ceremony. Before replaying, run the requirements
-   self-review in [REFERENCE.md](REFERENCE.md); for external, money, or regulated products
-   offer three to five elicitation methods and run at most two.
-8. Generate from `templates/product-spec-template.md`; the changelog follows
-   `templates/spec-changelog-template.md`. Then hand off: dev-plan gets the value order and the
+7. Generate from `templates/product-spec-template.md`; the changelog follows
+   `templates/spec-changelog-template.md`. Missing "how it is done today" or "who benefits"
+   blocks generation.
+8. Run the requirements self-review in [REFERENCE.md](REFERENCE.md) on that file; a rework
+   gap goes back to the interview. For external, money, or regulated products offer three to
+   five elicitation methods and run at most two. Then sign off by **replaying the written
+   spec**: tell how the user's own case will happen after launch — who opens what, sees what,
+   the system does what, how the exception runs, how the failure recovers — ending each part
+   with a concrete "is that what happens?". No fault found is approval; there is no separate
+   approval ceremony. Then hand off: dev-plan gets the value order and the
    `[inferred]`/`[default]`/`[open]` list to test first; design-brief gets context of use, the
    primary action, personas, and named flows; architecture-design and dfx-design get data
    ownership, failure consequences, and implicit compliance; `progress.md` gets the decisions
@@ -80,6 +85,6 @@ today" or "who benefits" does — those are the foundation.
 Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**; for product
 work add **Business assumptions / Counter-examples / Domain findings** (`docs/PROTOCOLS.md`).
 
-Load [REFERENCE.md](REFERENCE.md) for the interview rules, the question bank, the discovery
-methods for hard unknowns, the requirements self-review, iteration-mode rules, and worked
-dialogues.
+Load [REFERENCE.md](REFERENCE.md) for §Interview rules, §Hearing answers, §This answer
+changes the next step, §Question bank, the discovery methods for hard unknowns, the
+requirements self-review, iteration-mode rules, and worked dialogues.

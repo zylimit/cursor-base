@@ -99,28 +99,205 @@ tried); mirror the user's words ("by 'stuck' you mean…"); step back when the u
 defensive; park new ideas — "good one, it goes on the later list so it is not lost; let us pin
 the core first".
 
+## Hearing answers
+
+Treat the reply as evidence to classify, not as a requirement to write down.
+
+- "Usually / generally / should / normally" → inference, not fact. Mark `[inferred]` and ask for
+  one dated instance.
+- "All of it / the more the better / everything is important" → no trade-off. Ask "if you can
+  keep only one, which?" — that answer is the priority.
+- Two earlier statements that cannot both hold → put both lines in front of the user; do not
+  smooth them. The choice goes under decision basis.
+- Emotion ("the old one was terrible") → a real pain. Ask which time, and what it cost that time.
+- Cannot name a "last time" → the need may be imagined. Say so, mark `[inferred]`, and suggest
+  validating before building.
+- Answers a different question → the question was at the wrong level. Re-ask about a concrete
+  object they already named; do not repeat the original wording.
+- Names another product as the answer ("like WeChat") → which one action or experience; never
+  accept a whole product.
+- Relayed speech ("ops will…", "customers usually…") → "did you see that, or are you estimating?"
+  Relayed and guessed stay `[inferred]`.
+- Dashboards, reports, or metric cards while data or the core flow is still unstable → park them
+  on the later list. They look finished and are not; do not design them in the first version.
+- A heavy-compute item before sign-off needs a cost guess at realistic volume, or a sample
+  measurement; if neither exists it goes to the open-questions table, not into a signed P0.
+
+## This answer changes the next step
+
+- Manual hand-off, double entry, or "someone remembers" in the as-is story → that is the core
+  value candidate; later trade-offs are judged against it.
+- More than three exceptions to one rule → not one feature; split the flow or cut the exceptions.
+- Beneficiary and payer are different people → two user flows, one each.
+- "Already decided, not up for discussion" → decision basis as *settled, user will not reopen*;
+  do not offer alternatives again.
+- "You decide" → delegated tier; write the decision and stop asking.
+- Upload, canvas, generation, long jobs, external APIs, delete or overwrite → raise one or two
+  companion requirements from the companion-requirements table under Question bank and name
+  their cost; the rest goes later.
+- The industry itself carries implied rules (health, payments, personal data, physical equipment)
+  → name the gap even if the user did not; `[open]` for dfx-design, never answered on their
+  behalf.
+- All four foundation lines have a replayable case and every open question has an owner →
+  generate the spec from the template; run the requirements self-review on that file (a
+  rework gap goes back to the interview); open dimensions 12–13 only when the product uses
+  AI or is an agent; then replay the written spec (SKILL.md steps 7–8).
+
 ## Question bank
 
-Thirteen dimensions. Each has an intent, a main question, a follow-up for evasive answers, an
-acceptance bar, and answers that must be rejected. Dimensions 1–4 are the foundation and must
-pass; 5–11 are trimmed to the product; 12–13 open only when the product uses AI or is itself an
-agent. Anything the user has already covered is absorbed, not re-asked.
+Thirteen dimensions. Five parts each: **Intent** (the em-dash after the heading), Main,
+Follow-up, Accept, Reject. Use the main question when about to ask at random; the follow-up
+when about to accept a vague answer; the accept line when about to stop; the reject line when
+the answer must be sent back. Dimension numbers stay internal. Dimensions 1–4 must pass; 5–11
+are trimmed to the product and absorbed when the user already covered them; 12–13 open only
+when the product uses AI or is itself an agent.
 
-| # | Dimension | Main question | Reject |
-| --- | --- | --- | --- |
-| 1 | How it is done today | "When did this last happen? Who moved first, with what, then what, how did it end?" | "everyone / users"; assertions without an instance; a description of their solution instead of their situation |
-| 2 | Why, and who benefits | "Who breathes easier when this works? Who will be unhappy? Who pays today in time, money, or risk?" | future willingness without past behaviour; "would pay" as validation; "annoying / slow" without a number |
-| 3 | Rules and exceptions | "Was there a time this was not handled this way? Why? Who decided to break the rule?" | "by the book" with no book; an exception nobody can date |
-| 4 | Who decides, history | "Was this tried before? Where did it stall? What is settled and not up for discussion? Who signs?" | "no history" on a second attempt; nobody can name the signer |
-| 5 | Success criteria | "Three months after launch, which number must have moved before you call it a success? What is it today?" | "better experience / smarter"; sign-ups or downloads as the north star; anything uncountable |
-| 6 | Scope and non-goals | "What does this version deliberately not do — at least three things? If only one feature ships, which?" | "all of it"; no not-doing list; no minimum set |
-| 7 | Key flow and failure path | "After launch, how will last month's case run, step by step, until they breathe out? Where does it most likely fail, what do they see, how do they continue without losing anything?" | skipped steps; only the happy path; "friendly message / try later" without a next step |
-| 8 | Data and permissions | "What are the core objects, how do they relate, who changes each, who only reads, what happens on delete or archive, who can undo a wrong change?" | building without knowing the structure; anything creatable that cannot be removed |
-| 9 | Product shape and context of use | "Standing or sitting, one hand or two, seconds or hours, focused or interrupted, which device? What is the one action that matters most on this screen?" | choosing a platform to look premium; talking colours before context |
-| 10 | Non-functional and implicit compliance | "How fast is fast enough? How many at once? How does it recover, can data be lost? Which devices? Does this industry carry rules — personal data, payments, health, physical equipment?" | "fast and secure" without numbers; six empty rows; inventing compliance the user never asked for; inventing a security console for a personal tool |
-| 11 | Terms and contradictions | "What do you call this internally? Any other names? You want A and B; in X they conflict — which wins?" | "depends" with no rule; a contradiction left standing |
-| 12 | AI capability (conditional) | Litmus first: "if the AI were replaced by fixed rules or a search box, does the core value survive?" Then five good and five embarrassing outputs; the hit rate you would ship at and the one that triggers an alarm; suggest-then-confirm or act automatically; the most expensive error and what it must never do; latency and cost per day | "more accurate" without a number; no fallback; no trigger mode; "use AI" without saying which kind |
-| 13 | Agent specifics (conditional) | Autonomy per action class (suggest / confirm / auto-reversible / auto-irreversible); tools and their permission levels; context and memory; single vs sub-agents; evaluation set and observability; cost cap and runaway control; stuck-loop detection and hand-back; session resume | "fully automatic" without classes; no evaluation; no cost cap; assuming the agent always recovers itself |
+**1. How it is done today** — Lock one named person and one real event. Core value hides in
+hand-offs, re-entry, and "someone remembers".
+- Main: "When did this last happen? Who moved first, with what, then what, how did it end?"
+- Follow-up: "I generally…" → "not generally — when was the last time, walk that one."
+  "Everyone will use it" → "everyone is no one; who is the first version for, and who is it
+  not for?" A judgement with no story → "give me one time it actually happened."
+  "Nobody handles this" → "what is the workaround today — which tool or spreadsheet? if there
+  is none, this may not hurt."
+- Accept: a named protagonist, one dated instance, tools and steps, and where it stuck.
+- Reject: "everyone / users"; a hypothesis with no instance; a description of their solution.
+
+**2. Why, and who benefits** — Who pays decides whether to build; who gains decides for whom;
+who loses is where hidden rules live.
+- Main: "Who breathes easier when this works? Who will be unhappy? Who pays today in time,
+  money, or risk?"
+- Follow-up: "it takes time" → "how long last time, how often, what is that per month?"
+  "everyone benefits" → "who gains a step? how does the person who used to shout in a group
+  feel about clicking?" "they would pay" → "have they already spent money or built a
+  workaround? if not, why not?"
+- Accept: beneficiary, payer, and possible loser named apart; a number on the cost; evidence
+  of effort or money already spent.
+- Reject: future willingness with no past behaviour; "would pay" as validation; "annoying /
+  slow" with no number.
+
+**3. Rules and exceptions** — The rule is the bone; the exception is its edge. The first
+undocumented exception is the first wrong routing.
+- Main: "Was there a time this was not handled this way? Why? Who decided to break the rule?"
+- Follow-up: "basically always" → "what was the time it was not?" More than three exceptions
+  → "this is a class of flows — split them or cut the exceptions." "special cases by hand" →
+  "whose hand, and must the system know the case left the happy path?"
+- Accept: every rule has an example and an exception, or an explicit "none"; exceptions have
+  a trigger and an owner.
+- Reject: "by the book" with no book; an exception nobody can date.
+
+**4. Who decides, history** — Settled decisions are off the table; failed attempts are not
+retried; a spec nobody can sign never closes.
+- Main: "Was this tried before? Where did it stall? What is settled and not up for discussion?
+  Who signs?"
+- Follow-up: "leadership decided" → "the goal or the method? which part can still move?"
+  "the old one was terrible" → "which time, what did it cost, what must this version avoid?"
+- Accept: a settled-decision list; a failed attempt with a cause; a signer and anyone who
+  must be heard but cannot decide.
+- Reject: "no history" on a second attempt; nobody can name the signer.
+
+**5. Success criteria** — Uncountable success is a feeling; vanity metrics steer the product.
+- Main: "Three months after launch, which number must have moved? What is it today?"
+- Follow-up: a pile of metrics → "one north star tied to the job the user finishes — not
+  sign-ups." "it should feel smooth" → "how many steps, how many seconds, how long did the
+  last unsmooth time take?" Only a positive metric → "what rising number would hide a worse
+  job? give a guard metric."
+- Accept: one to three countable, technology-free criteria from the user's or the business's
+  view, with a baseline, and at least one guard.
+- Reject: "better / smarter"; sign-ups or downloads as the star; anything uncountable.
+
+**6. Scope and non-goals** — Nail what this version will not do; a first version that is all
+P0 has no first version.
+- Main: "What does this version deliberately not do — at least three things? If only one
+  feature ships, which?"
+- Follow-up: "do it all first" → "then it never ships; which one stays, which are you willing
+  to wait for?" A new idea mid-interview → later list, pin the core. Everything marked P0 →
+  "which absence makes launch impossible?"
+- Accept: at least three explicit non-goals; each P0 is a usable, testable slice on its own;
+  later-list and non-goals kept apart.
+- Reject: "all of it"; no not-doing list; no minimum set.
+
+**7. Key flow and failure path** — Replay last month's case after launch; failure is product
+behaviour, and the likeliest fail has a recovery.
+- Main: "After launch, how will last month's case run, step by step, until they breathe out?
+  Where does it most likely fail, what do they see, how do they continue without losing
+  anything?"
+- Follow-up: "and then they are done" → "the middle step — what did they click or type?"
+  Happy path only → "they typed it wrong, data is empty, the network drops — then what?"
+  "show an error" → "retry, edit, restore, or exit? is what they just typed still there?"
+- Accept: one unbroken flow with a named protagonist and a climax; at least one failure with
+  trigger, message, data protection, and a next step.
+- Reject: skipped steps; only the happy path; "friendly message / try later" with no next step.
+
+**8. Data and permissions** — Functions read and write; without objects, writers, and a
+delete path, implementers guess. Anything creatable is removable.
+- Main: "What are the core objects, how do they relate, who changes each, who only reads,
+  what happens on delete or archive, who can undo a wrong change?"
+- Follow-up: features with no data → "what is stored, which fields?" No delete → "everything
+  that can be created or imported must be removable; what happens to references?"
+  "everyone can see it" → "who sees the phone number? still, after they leave?"
+- Accept: entities, relations, a single writer, visibility, delete or archive (skippable for
+  a pure front-end).
+- Reject: building with no structure; create-only with no way out.
+
+**9. Product shape and context of use** — Form follows where it is used, not taste. Context
+and the primary action start design; colour and layout do not belong here.
+- Main: "Standing or sitting, one hand or two, seconds or hours, focused or interrupted,
+  which device? What is the one action that matters most on this screen?"
+- Follow-up: "web and phone" → "which one must work in the first version?" "you pick the UI"
+  → "layout is design-brief; here only where they use it and the one action."
+- Accept: form (web / desktop / CLI / mobile / conversational / embedded) derived from
+  context; a first-version platform; one sentence each for context and primary action.
+- Reject: a platform chosen to look premium; colours before context.
+
+**10. Non-functional and implicit compliance** — Six classes each get a number or "not
+required". Industry rules the user did not mention are still gaps.
+- Main: "How fast is fast enough? How many at once? How does it recover, can data be lost?
+  Which devices? Does this industry carry rules — personal data, payments, health, physical
+  equipment?"
+- Follow-up: "fast and secure" → "seconds, concurrency, login or encryption or permission —
+  a number we can accept." A personal tool plus "full security" → protect secrets and local
+  data; do not invent a compliance console. Health / payments / personal data / equipment
+  unmentioned → name the usual rule, mark `[open]` for dfx-design, do not answer it.
+- Accept: each of the six classes required or explicitly not; implied compliance named as
+  `[confirmed]` or `[open]`.
+- Reject: "fast and secure" with no number; six empty rows; a security console for a
+  personal tool; compliance invented on the user's behalf.
+
+**11. Terms and contradictions** — Two names for one thing split the downstream work; two
+requirements that cannot both hold must be chosen now.
+- Main: "What do you call this internally? Any other names? You want A and B; in X they
+  conflict — which wins?"
+- Follow-up: "both matter" → "keep only one — which?"
+- Accept: one name per thing in the spec; every contradiction has the user's choice in
+  decision basis.
+- Reject: "depends" with no rule; a contradiction left standing.
+
+**12. AI capability** (only if the product uses AI) — Probability needs a quality bar, a
+trigger, a never-do list, and a cost. Litmus first.
+- Main: "If the AI were replaced by fixed rules or a search box, does the core value
+  survive?" Then five good and five embarrassing outputs; the hit rate you would ship at and
+  the alarm line; suggest-then-confirm or act; the most expensive error and what it must
+  never do; latency and cost per day.
+- Follow-up: "just use AI" → "generate, see, or answer from your own documents? the last
+  needs retrieval." "we want an agent" → "does it act across tools, or only suggest?"
+- Accept: litmus passed; quality bar; trigger; never-do; uncertainty behaviour; degradation;
+  latency and cost.
+- Reject: "more accurate" with no number; no fallback; no trigger; "use AI" with no kind.
+
+**13. Agent specifics** (only if the product is an agent) — The first decision is the
+autonomy boundary; evaluation and cost are the usual omissions.
+- Main: autonomy per action class (suggest / confirm / auto-reversible / auto-irreversible);
+  tools and permission levels; context and memory; one agent or sub-agents; evaluation set
+  and observability; cost cap and runaway control; stuck-loop detection and hand-back;
+  session resume.
+- Follow-up: "fully automatic" → "deletes, spends, or sends too? the most expensive step
+  gets a gate." No eval → "what re-runnable set tells you it got worse?" No cost → "what
+  is the per-task cap, and does it trip a breaker?"
+- Accept: a classed autonomy map; tools with permissions; eval and a cap; a hand-back
+  condition.
+- Reject: "fully automatic" with no classes; no evaluation; no cost cap; the agent always
+  recovers itself.
 
 Companion requirements: when the user names a main action, raise only the one or two most
 relevant companions with their cost; the rest goes on the later list.
@@ -386,3 +563,26 @@ These are judgements, not orders; a skipped line and its reason go to `progress.
   today's spreadsheet) and put the open row in the table.
 - Asking "what UI do you want" — layout belongs to design-brief; here only context of use and
   the primary action.
+
+**Marked fragment** (how a spec section looks after the dialogue above — not a full spec):
+
+```text
+### Dispatch
+[confirmed] Lead picks a capable free technician → system records the assignment and the
+skill used → the ticket reaches that technician (source: last month's wrong-model
+dispatch; the customer waited two more days; found via complaint).
+[confirmed] VIP ticket arrives → system assigns Zhang → Zhang sees it first (source:
+user, same session).
+[default] Zhang is away → system assigns the lead → VIP is still logged (basis: keeps
+logging unblocked; user may veto).
+[inferred] Customer wait time is a core success metric (basis: complaint was the
+detection channel — confirm).
+
+## Open questions
+| ID | Question | Impacts | Who can answer | Due | Meanwhile do |
+| --- | --- | --- | --- | --- | --- |
+| Q-1 | VIP when Zhang is away | dispatch fallback | user or Zhang | before phase 2 | the default above |
+```
+
+A functional item never carries `[open]`. The open row lives only in the table. Unmarked
+prose in a generated spec is treated as `[inferred]` and is a defect in the self-review.
