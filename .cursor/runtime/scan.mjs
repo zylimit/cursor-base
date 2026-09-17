@@ -469,6 +469,7 @@ export function instructionsCommand(options) {
 // likely to be dropped is the one that enforces something. Cursor reads `name` (kebab-case,
 // equal to the folder), `description`, `paths`, `disable-model-invocation`, `metadata`.
 export const SKILL_ROOTS = [".cursor/skills", ".agents/skills"];
+export const SKILL_REQUIRED_SECTIONS = ["Task", "Preconditions", "Invariants", "Method"];
 /** The host loader parses skill front matter as YAML. An unquoted `: ` or a structural
  *  indicator makes Cursor drop the skill while a first-colon split still "succeeds". */
 function yamlUnsafeUnquoted(raw) {
@@ -503,6 +504,7 @@ export function skillsLint(root) {
                 continue;
             }
             const meta = parseFrontmatter(text);
+            const body = normalized.slice(normalized.indexOf("\n---\n", 4) + 5);
             const name = meta.name ?? "";
             if (!name)
                 findings.push({ file, severity: "error", code: "NO_NAME", message: "frontmatter requires name" });
@@ -546,6 +548,11 @@ export function skillsLint(root) {
             }
             if (meta["disable-model-invocation"] !== undefined && !["true", "false"].includes(meta["disable-model-invocation"])) {
                 findings.push({ file, severity: "error", code: "NON_BOOLEAN_INVOCATION", message: "disable-model-invocation must be a bare true or false" });
+            }
+            for (const heading of SKILL_REQUIRED_SECTIONS) {
+                if (!new RegExp(`^## ${heading}\\b`, "m").test(body)) {
+                    findings.push({ file, severity: "error", code: "MISSING_SECTION", message: `skill is missing ## ${heading}` });
+                }
             }
             const bytes = Buffer.byteLength(text, "utf8");
             if (bytes > 24_000)

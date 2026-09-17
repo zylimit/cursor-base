@@ -697,17 +697,41 @@ export function acceptingReceipt(root, bound, options = {}) {
     }
     return null;
 }
+function reviewIndependence(value) {
+    return value?.independence === "enforced" ? "enforced" : "claimed";
+}
 function reviewRequirement(root, plan) {
     const mode = plan.assurance.controls.reviewMode;
     if (mode === "none") {
-        return { mode, satisfied: true, receipt: null, missing_lenses: [], reason: "The effective profile requires no review receipt." };
+        return {
+            mode,
+            satisfied: true,
+            receipt: null,
+            missing_lenses: [],
+            reason: "The effective profile requires no review receipt.",
+            independence: "not-required",
+        };
     }
     if (mode === "receipt") {
         const accepting = acceptingReceipt(root, plan);
         if (!accepting) {
-            return { mode, satisfied: false, receipt: null, missing_lenses: [], reason: "no approving review receipt is bound to the current diff" };
+            return {
+                mode,
+                satisfied: false,
+                receipt: null,
+                missing_lenses: [],
+                reason: "no approving review receipt is bound to the current diff",
+                independence: "claimed",
+            };
         }
-        return { mode, satisfied: true, receipt: accepting.path, missing_lenses: [], reason: `Approved by ${accepting.value.reviewer}.` };
+        return {
+            mode,
+            satisfied: true,
+            receipt: accepting.path,
+            missing_lenses: [],
+            reason: `Approved by ${accepting.value.reviewer}.`,
+            independence: reviewIndependence(accepting.value),
+        };
     }
     // Structured review is computed, not asserted: only a receipt the review engine wrote counts,
     // and the newest such receipt is the one consulted, so a hand-written approval recorded later
@@ -723,10 +747,12 @@ function reviewRequirement(root, plan) {
             reason: handWritten
                 ? "the approving receipt was written by hand, not by the review engine; structured review needs a computed verdict (`review verdict`)"
                 : "no approving review receipt is bound to the current diff",
+            independence: "claimed",
         };
     }
     const recorded = new Set(Array.isArray(accepting.value.lenses) ? accepting.value.lenses : []);
     const missing = convenedForModules(root, plan.affected_modules, plan.assurance.controls).convened.filter((lens) => !recorded.has(lens));
+    const independence = reviewIndependence(accepting.value);
     return {
         mode,
         satisfied: missing.length === 0,
@@ -735,6 +761,7 @@ function reviewRequirement(root, plan) {
         reason: missing.length === 0
             ? `Structured review covered ${[...recorded].sort().join(", ")}.`
             : `the approving receipt records no coverage for lens(es) ${missing.join(", ")}; a verdict reached without structured disagreement is consensus`,
+        independence,
     };
 }
 /** Marker the review engine writes into the receipts it produces. */
@@ -1093,6 +1120,8 @@ export function writeReviewReceipt(root, request) {
     }
     if (request.source)
         value.source = request.source;
+    if (request.independence)
+        value.independence = request.independence;
     if (!["approve", "comment", "request-changes"].includes(value.decision)) {
         throw new Error("receipt --decision must be approve, comment, or request-changes.");
     }

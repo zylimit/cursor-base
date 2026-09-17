@@ -10,11 +10,11 @@ import { RISK_LEVELS, matrix, validateCatalog } from "./catalog.mjs";
 import { discoverCatalog, isUneditedTemplate, writeDiscoveredCatalog } from "./graph.mjs";
 import type { RiskLevel } from "./catalog.mjs";
 import {
-  EVENTS,
   HARNESS_ROOT,
   INSTALL_MANIFEST_REL,
   LIVE_CONTRACTS,
   templatePath,
+  REQUIRED_HOOK_EVENTS,
   SECURITY_EVENTS,
   SOURCE_MANIFEST_REL,
   VERSION,
@@ -483,7 +483,7 @@ export function validate(options: CliOptions): void {
     if (existsSync(resolve(root, ".cursor/hooks.json"))) {
       const config = readJson(resolve(root, ".cursor/hooks.json"));
       if (config.version !== 1) errors.push(".cursor/hooks.json must use version 1.");
-      for (const event of EVENTS) {
+      for (const event of REQUIRED_HOOK_EVENTS) {
         const definitions = config.hooks?.[event];
         if (!Array.isArray(definitions) || definitions.length !== 1) {
           errors.push(`.cursor/hooks.json must define exactly one ${event} hook.`);

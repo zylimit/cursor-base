@@ -54,18 +54,19 @@ Files that still match the previous normalized SHA-256 are updated. Modified fil
 
 What changes for a repository that already runs the harness:
 
-- **Completion needs review by default.** The default assurance profile is `balanced`, under
-  which `task complete` requires an approving review receipt bound to the diff
-  (`receipt --reviewer NAME --decision approve`, or the structured review's final `ACCEPT`).
-  Teams that want the 1.x behavior for small work select `rapid`
+- **Completion follows the profile.** The default is `balanced`, under which `task complete`
+  requires a passing affected gate, not a review receipt. `strict` (governance paths, protected
+  attributes, high-risk tasks, releases) still requires structured review. Teams that want
+  1.x-style small work select `rapid`
   (`node scripts/harness.mjs profile set rapid`), which closes low-risk tasks on a passing gate
   alone. Floors still apply: medium or high risk, unmapped or shared impact, protected and
   other critical/high attributes, and governance paths raise the profile regardless of the
   selection.
 - **New hook event.** `.cursor/hooks.json` gains `postToolUse` (invariant re-injection after a
-  compaction), and `validate` requires exactly one hook per event. If your `hooks.json` was
-  modified, `upgrade` leaves it in place and writes `hooks.json.cursor-harness-new` beside it;
-  merge the `postToolUse` entry by hand.
+  compaction). `validate` requires exactly one hook per required event; `afterShellExecution`
+  is optional (the handler remains for tests). If your `hooks.json` was modified, `upgrade`
+  leaves it in place and writes `hooks.json.cursor-harness-new` beside it; merge the
+  `postToolUse` entry by hand.
 - **New contract file.** `harness/assurance-policy.json` is seeded from
   `harness/default-assurance-policy.json` when absent (the built-in defaults). Every field is
   optional; delete it to run on built-in defaults, or edit it to add named profiles, raise

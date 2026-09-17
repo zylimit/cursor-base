@@ -21,7 +21,6 @@
       "command": "node scripts/harness.mjs validate --sync-only",
       "required": true,
       "attributes": [
-        "security",
         "reliability"
       ]
     },
@@ -47,7 +46,7 @@
       "required": true,
       "attributes": [
         "reliability",
-        "security"
+        "resilience"
       ]
     },
     "manifest-check": {
@@ -64,8 +63,7 @@
       "command": "node scripts/harness.mjs catalog lint",
       "required": true,
       "attributes": [
-        "maintainability",
-        "safety"
+        "maintainability"
       ]
     },
     "arch-check": {
@@ -73,9 +71,7 @@
       "command": "node scripts/harness.mjs arch-check",
       "required": true,
       "attributes": [
-        "maintainability",
-        "security",
-        "privacy"
+        "maintainability"
       ]
     },
     "fitness": {
@@ -83,11 +79,7 @@
       "command": "node scripts/harness.mjs fitness --all",
       "required": true,
       "attributes": [
-        "security",
-        "privacy",
-        "reliability",
-        "resilience",
-        "safety"
+        "maintainability"
       ]
     },
     "adr-check": {
@@ -95,8 +87,7 @@
       "command": "node scripts/harness.mjs adr-check",
       "required": true,
       "attributes": [
-        "maintainability",
-        "safety"
+        "maintainability"
       ]
     },
     "instructions": {

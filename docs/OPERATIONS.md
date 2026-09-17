@@ -57,7 +57,7 @@ node scripts/harness.mjs debt list
 node scripts/harness.mjs review-pack
 node scripts/harness.mjs review start
 node scripts/harness.mjs review blue  < claims.json
-node scripts/harness.mjs review lens correctness --agent <id> < findings.json
+node scripts/harness.mjs review lens correctness --agent <id> --file findings.md
 node scripts/harness.mjs review verdict --reviewer <name>
 ```
 

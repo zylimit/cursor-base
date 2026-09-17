@@ -29,6 +29,7 @@ import {
   printJson,
   readJson,
   stdinJson,
+  stdinText,
   targetFrom,
   withStateLock,
   writeJson,
@@ -49,6 +50,37 @@ export interface Finding {
   summary: string;
   location?: string;
   reproduction?: string;
+}
+
+/** JSON (tests and tools) or a findings.md line list: `- error path:line summary`. */
+export function parseReviewPayload(raw: string): Record<string, unknown> {
+  const trimmed = raw.trim();
+  if (!trimmed) return { findings: [] };
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    return JSON.parse(trimmed) as Record<string, unknown>;
+  }
+  const findings: Finding[] = [];
+  for (const line of trimmed.split(/\n/)) {
+    const match = line.match(/^(?:[-*]\s+)?(?:\*\*)?(error|warning|info)(?:\*\*)?\s+`?(\S+?:\d+)`?\s+(.+)$/i);
+    if (match) {
+      findings.push({
+        severity: match[1].toLowerCase() as Finding["severity"],
+        location: match[2],
+        summary: match[3].trim(),
+      });
+    }
+  }
+  const unable = /^\s*unable:\s*true\b/im.test(trimmed);
+  const reasonMatch = trimmed.match(/^\s*unableReason:\s*(.+)$/im);
+  return { findings, unable, unableReason: reasonMatch ? reasonMatch[1].trim() : null };
+}
+
+async function readReviewInput(root: string, options: CliOptions): Promise<Record<string, unknown>> {
+  if (options.file) {
+    const path = resolve(root, String(options.file));
+    return parseReviewPayload(readFileSync(path, "utf8"));
+  }
+  return parseReviewPayload(await stdinText());
 }
 
 export interface ReviewSession extends DiffBinding {
@@ -392,6 +424,7 @@ export function reviewVerdict(root: string, reviewer: string, notes: string): Ve
       findings: reports.flatMap(([lens, report]) => report.findings.map((finding) => ({ lens, ...finding }))),
       notReviewed: current.excluded_lenses.map((entry) => `${entry.lens}: ${entry.reason}`).join("; "),
       lenses: current.required_lenses,
+      independence: authorshipEnforced ? "enforced" : "claimed",
     });
     receipt = posix(relative(root, written.path));
   }
@@ -581,8 +614,8 @@ export async function reviewCommand(positional: string[], options: CliOptions): 
       max_rounds: maxRounds(root),
       protocol: [
         "1. review-pack: assemble the evidence, including the deletion audit",
-        "2. review blue < claims.json: the author states what was verified, with evidence",
-        "3. review lens <name> [--agent ID] < findings.json: one independent report per convened lens, every finding located",
+        "2. review blue [--file claims.md]: the author states what was verified, with evidence",
+        "3. review lens <name> [--agent ID] [--file findings.md]: one report per convened lens, every finding located",
         "4. review verdict: computed from what was recorded, never asserted",
       ],
     });
@@ -590,7 +623,7 @@ export async function reviewCommand(positional: string[], options: CliOptions): 
   }
 
   if (subcommand === "blue") {
-    const payload = await stdinJson();
+    const payload = await readReviewInput(root, options);
     const result = recordBlue(root, payload);
     printJson({ command: "review blue", target: root, ...result });
     if (!result.ok) process.exitCode = result.stale ? EXIT.STALE : EXIT.VIOLATION;
@@ -600,7 +633,7 @@ export async function reviewCommand(positional: string[], options: CliOptions): 
   if (subcommand === "lens") {
     const lens = positional[1];
     if (!lens) throw new Error("review lens requires a lens name.");
-    const payload = await stdinJson();
+    const payload = await readReviewInput(root, options);
     const result = recordLens(root, lens, payload, options.agent === undefined ? null : String(options.agent));
     printJson({ command: "review lens", target: root, lens, ...result });
     if (!result.ok) process.exitCode = result.stale ? EXIT.STALE : EXIT.VIOLATION;

@@ -28,9 +28,13 @@ removed. `review team` shows the convened lenses and why each excluded one was l
 node scripts/harness.mjs review-pack                       # 1. evidence pack, deletions and renames in their own sections
 node scripts/harness.mjs review start                      # 2. bind the session to the current diff
 node scripts/harness.mjs review blue  < claims.json        # 3. the author states what was verified, with evidence
-node scripts/harness.mjs review lens correctness --agent ID < findings.json   # 4. one report per convened lens
+node scripts/harness.mjs review lens correctness --agent ID --file findings.md
+                                                           # 4. one report per convened lens (JSON stdin still works)
 node scripts/harness.mjs review verdict --reviewer panel   # 5. computed, never asserted
 ```
+
+`findings.md` lines look like `- error src/app.js:1 off by one`. JSON stdin remains valid for
+tests and tools.
 
 Input contracts (stdin JSON):
 
@@ -70,8 +74,10 @@ not count, so "computed, not asserted" holds structurally.
 The reviewer is never the author. `afterFileEdit` records which conversation edited which file;
 `authorship record` can add identities explicitly. A lens that names its `--agent` and matches an
 author of the diff cannot carry an `ACCEPT`. When no identity was recorded the verdict reports
-`authorship_enforced: false` and says so, rather than pretending it checked. On this host the
-recorded identity is a claim about who edited, not an authenticated one.
+`authorship_enforced: false` and the receipt carries `independence: claimed`. A release
+(`release readiness --operation release`) fails `review-independence` unless independence is
+`enforced`. On this host the recorded identity is a claim about who edited, not an authenticated
+one, so enforcement is only as strong as `afterFileEdit` actually firing.
 
 Reviewer subagents are `readonly`, so they cannot run `review lens` themselves: each returns its
 findings JSON and the orchestrating agent submits it with

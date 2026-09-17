@@ -14,30 +14,40 @@ description: Trigger conditions in one or two sentences, under 220 characters �
 
 # [Title]
 
-[One or two sentences: what this skill does and what it refuses to do. Modes, if several.]
+## Task
+[What this skill produces. Modes, if several. What it refuses to do.]
 
-1. Write the envelope: **Goal / Scope / Out of Scope / Existing Pattern / Verification / Escalation**.
-   [Preconditions: which sources or files it needs; how a missing one degrades; what is
-   escalated rather than guessed.]
-2. [Method step as a decision: when this applies, what evidence to gather, how to judge, what a
-   wrong answer looks like.]
-3. [Method step.]
-4. [Method step with the harness command it uses, e.g. `node scripts/harness.mjs affected`.]
-5. [Convergence: what "done" looks like, stated so someone else could check it.]
+## Preconditions
+[Files, user input, repository state. How a missing one degrades. Escalation versus guessing.]
 
-[Handoff: what goes to which skill, role, or file (`progress.md`, `docs/…`).]
+## Invariants
+- [A first principle. Accept / reject in the same bullet when it helps.]
+- [Another. Name the command that enforces it, or say it is prompt-only.]
 
-Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**[; for product
-work add **Business assumptions / Counter-examples / Domain findings**].
+## Method
+1. [Decision: when this applies, what evidence, how to judge.]
+   Accept: [the answer that counts]. Reject: [the plausible wrong move].
+2. [Next decision, with the harness command it uses.]
+3. [Convergence: what "done" looks like, stated so someone else could check it.]
 
-Load [REFERENCE.md](REFERENCE.md) for [the tables, examples, and rules it holds].
+## Handoff
+[What goes to which skill, role, or file. Receipt line.]
+
+Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**.
+
+## Example
+[Optional. One short dialogue or anti-example. Long examples go to REFERENCE.md.]
+
+Load [REFERENCE.md](REFERENCE.md) for [the tables it holds].
 ```
 
-Optional front-matter key for side-effecting workflows the user must invoke by name:
+Optional front-matter key for side-effecting or sleeping workflows the user must invoke by name:
 
 ```yaml
 disable-model-invocation: true
 ```
+
+`skills-lint` requires `## Task`, `## Preconditions`, `## Invariants`, and `## Method`.
 
 ## REFERENCE.md
 
@@ -50,25 +60,12 @@ disable-model-invocation: true
 ## [Domain checklist or dimension table]
 [What to look at; where each item becomes enforceable, if anywhere.]
 
-## [Method]
-[How: the evidence, the judgement, the branches, the convergence.]
+## Method notes
+[Evidence, judgement, branches, convergence — detail the SKILL.md pointed at.]
 
 ## Worked examples
-[One good dialogue or walk-through; a short list of anti-examples.]
+[One good dialogue; a short list of anti-examples.]
 ```
-
-## Optional sections
-
-- **Sufficiency judgement** (collection and analysis skills): what must be known before producing;
-  what may stay open and where it is parked.
-- **Iteration mode** (skills with a living artefact): how a change is located, what is touched,
-  what is only flagged for another skill.
-- **Pressure cases**: the requests that push toward over-design, tier inflation, or skipping
-  evidence, and the refusal each gets.
-- **Rollback** (release and deployment skills).
-- **Scenarios** (kept while authoring, not shipped in the skill): trigger sentence; facts known at
-  that turn; behaviour to keep or edge to watch; checkable expectation; actual result on the old
-  and the new version, or "not run".
 
 ## Quick check
 
@@ -77,7 +74,7 @@ disable-model-invocation: true
 | folder | `.cursor/skills/<name>/` |
 | entry | `SKILL.md`; detail in `REFERENCE.md`; artefacts in `templates/` |
 | front matter | `name`, `description`; `disable-model-invocation` only when needed |
-| description | trigger conditions, < 220 characters |
-| body | one screen; numbered steps; commands as `node scripts/harness.mjs …` |
-| language | technology-neutral; repository-relative POSIX paths; no secrets, personal paths, placeholders |
+| description | trigger conditions, < 220 characters, no unquoted `: ` |
+| body | Task / Preconditions / Invariants / Method; accept and reject in Method |
+| language | technology-neutral; repository-relative POSIX paths |
 | checks | `node scripts/harness.mjs skills-lint`, `node scripts/harness.mjs instructions` |

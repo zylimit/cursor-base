@@ -127,14 +127,16 @@ See [docs/ADOPTION.md](docs/ADOPTION.md) for existing repositories and upgrades.
 
 ## Skills
 
-Harness and change management: `plan-change`, `scoped-implementation`, `affected-verification`,
-`code-review`, `structured-review`, `root-cause-debugging`, `finish-branch`, `release-readiness`,
-`assurance-profile`, `fast-lane`, `catalog-discovery`, `harness-doctor`, `service-operations`,
-`project-memory`, `record-lesson`, `skill-authoring`.
+Harness and change management (auto-routed): `plan-change`, `scoped-implementation`,
+`affected-verification`, `root-cause-debugging`, `catalog-discovery`, `harness-doctor`,
+`project-memory`, `record-lesson`.
 
-Product development, from an idea to a verified release (`docs/PRODUCT-WORKFLOW.md`):
-`product-spec` (learn the business, sign off by replaying the user's case), `architecture-design`
-and `dfx-design` (boundaries and measurable quality targets, wired into the catalog),
+Sleep until invoked by name: `code-review`, `structured-review`, `finish-branch`,
+`release-readiness`, `assurance-profile`, `fast-lane`, `service-operations`, `skill-authoring`.
+
+Product development, from an idea to a verified release (`docs/PRODUCT-WORKFLOW.md`).
+`product-spec` auto-routes. The rest sleep until invoked or until product documents exist:
+`architecture-design` and `dfx-design` (boundaries and measurable quality targets),
 `design-brief` and `design-prototype` (how it works, how it looks, a walkable offline mock-up),
 `dev-plan` (phases by value and risky unknowns), `phase-build` (tiered tasks, four-step phase
 close), `test-design` (business-scenario tests with independent expectations), `release-build`

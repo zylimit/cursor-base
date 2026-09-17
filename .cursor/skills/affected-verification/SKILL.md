@@ -5,17 +5,37 @@ description: Selects and executes diff- and module-focused checks, then expands 
 
 # Affected Verification
 
-1. Confirm **Goal / Scope / Out of Scope / Existing Pattern / Verification / Escalation**.
-2. Inspect the complete diff and impact map (`node scripts/harness.mjs affected`).
-3. Read the plan before running it: `verify-plan` shows the selected checks, the effective
-   assurance profile, and every floor that widened the plan.
-4. Run `node scripts/harness.mjs gate` to execute the plan and record diff-bound receipts, then
-   `quality status` to confirm nothing is still missing.
-5. Classify failures and report unrun checks honestly: `BLOCKED` is a missing tool, `SKIPPED`
-   under a loan is debt, neither is a pass.
+## Task
 
-`validate` checks harness structure only and is never evidence that project behavior works.
+Run the smallest honest check set for this diff and report four-state results. Expand only when
+dependency risk says so.
 
-Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**.
+## Preconditions
+
+- A complete diff (or named paths). Git unavailable → impact floor raises the profile; say so.
+- Catalog and matrix present. Missing either is `BLOCKED`, not a skip.
+
+## Invariants
+
+- `validate` checks harness structure only and is never evidence that project behaviour works.
+- A missing tool is `BLOCKED`. `SKIPPED` under a loan is debt. Neither is a pass.
+- Security, safety, and privacy checks are never fast-skipped.
+
+## Method
+
+1. Confirm the envelope. Inspect the complete diff and impact map
+   (`node scripts/harness.mjs affected`).
+2. Read the plan before running it: `verify-plan` shows the selected checks, the effective
+   profile, and every floor that widened the plan. Accept: the plan names commands. Reject:
+   running a remembered suite instead of the plan.
+3. Run `node scripts/harness.mjs gate`, then `quality status`. Quote exit codes and receipts
+   from this turn.
+4. Classify failures. A FAIL-streak of three on one check goes to `root-cause-debugging`, not
+   a fourth run.
+
+## Handoff
+
+Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**. Unrun checks
+belong under `Not verified`.
 
 Load [REFERENCE.md](REFERENCE.md) for the verification ladder and waiver rules.

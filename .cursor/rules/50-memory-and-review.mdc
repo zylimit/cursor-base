@@ -1,6 +1,7 @@
 ---
 description: Project memory across context boundaries, and review as a gate
-alwaysApply: true
+globs: "{progress.md,docs/REVIEW.md,docs/PROJECT-MEMORY.md,.cursor/harness-state/**}"
+alwaysApply: false
 ---
 
 # Memory
@@ -13,7 +14,7 @@ alwaysApply: true
 
 # Review
 
-- Closing work needs the review the profile demands: an approving diff-bound receipt at `balanced`, lens-covered structured review at `strict` (`quality status`, `task complete`).
-- Structured review is computed, not asserted: `review-pack`, `review start`, `review blue`, one `review lens` per convened lens, then `review verdict`. Every finding is located; one error is never outvoted (`docs/REVIEW.md`).
-- The reviewer is never the author (`authorship show`, `review verdict`).
+- Daily work under `balanced` closes on a passing affected gate. An approving diff-bound receipt or structured review is required at `strict`, for a release, and at a trust boundary (`quality status`, `task complete`).
+- Structured review is computed, not asserted: `review-pack`, `review start`, `review blue`, one `review lens` per convened lens (JSON or `--file findings.md`), then `review verdict`. Every finding is located; one error is never outvoted (`docs/REVIEW.md`).
+- The reviewer is never the author (`authorship show`, `review verdict`). A claimed (not machine-checked) independence cannot close a release (`release readiness`).
 - Three rejected rounds mean the change or the standard is wrong; stop and take it to the user (`review verdict` sets `escalate`).

@@ -314,29 +314,27 @@ test("the task write guard covers tool names it was never told about", (t) => {
   writeFileSync(owned, "export const one = 1;\n", "utf8");
   jsonResult(runHarness(["task", "start", "--goal", "Edit app", "--owned", "src/**", "--target", root]));
 
-  // Someone edits the owned file outside the task.
-  writeFileSync(owned, "export const one = 99; // hand edit\n", "utf8");
+  const other = resolve(root, "docs.md");
+  writeFileSync(other, "# docs\n", "utf8");
 
   // Enumerating writer tool names meant an unrecognized one skipped the guard entirely.
   for (const tool of ["write", "edit", "search_replace", "multi_edit", "apply_patch", "notebook_edit"]) {
-    const verdict = hook(root, "preToolUse", { tool_name: tool, tool_input: { file_path: owned } });
+    const verdict = hook(root, "preToolUse", { tool_name: tool, tool_input: { file_path: other } });
     assert.equal(verdict.permission, "deny", `${tool} must be guarded`);
   }
 
-  // Paths arrive under several key names and inside nested edit payloads.
   assert.equal(
-    hook(root, "preToolUse", { tool_name: "edit_file", tool_input: { target_file: owned } }).permission,
+    hook(root, "preToolUse", { tool_name: "edit_file", tool_input: { target_file: other } }).permission,
     "deny",
   );
   assert.equal(
     hook(root, "preToolUse", {
       tool_name: "batch_edit",
-      tool_input: { edits: [{ path: "src/other.js" }, { path: owned }] },
+      tool_input: { edits: [{ path: "src/other.js" }, { path: "docs.md" }] },
     }).permission,
     "deny",
   );
 
-  // A genuinely read-only tool is not treated as a write.
   assert.equal(
     hook(root, "preToolUse", { tool_name: "read", tool_input: { file_path: owned } }).permission,
     "allow",
@@ -1498,7 +1496,7 @@ test("context-pack respects its budget, excludes secrets, and prints only a mani
   assert.equal(again.pack_sha256, pack.pack_sha256, "pack hash must be reproducible");
 });
 
-test("an owning task blocks writes to files that changed outside it", (t) => {
+test("an owning task denies writes outside its scope and warn-adopts owned drift", (t) => {
   const root = gateFixture(t);
   mkdirSync(resolve(root, "src"), { recursive: true });
   const owned = resolve(root, "src", "app.js");
@@ -1511,25 +1509,21 @@ test("an owning task blocks writes to files that changed outside it", (t) => {
   const write = { tool_name: "write", tool_input: { file_path: owned } };
   assert.equal(hook(root, "preToolUse", write).permission, "allow");
 
-  // The harness records its own writes, so repeated edits by the task stay allowed.
   hook(root, "afterFileEdit", { file_path: owned });
   writeFileSync(owned, "export const one = 2;\n", "utf8");
   hook(root, "afterFileEdit", { file_path: owned });
   assert.equal(hook(root, "preToolUse", write).permission, "allow");
 
-  // Someone else edits the same file in the editor; the next agent write must stop.
   writeFileSync(owned, "export const one = 3; // hand edit\n", "utf8");
-  const blocked = hook(root, "preToolUse", write);
-  assert.equal(blocked.permission, "deny");
-  assert.match(blocked.user_message, /changed outside this task/);
+  const drifted = hook(root, "preToolUse", write);
+  assert.equal(drifted.permission, "allow");
+  assert.match(drifted.additional_context, /changed since this task last wrote it/);
 
-  // Files the task does not own are unaffected by the baseline.
   const other = resolve(root, "docs.md");
   writeFileSync(other, "# docs\n", "utf8");
-  assert.equal(
-    hook(root, "preToolUse", { tool_name: "write", tool_input: { file_path: other } }).permission,
-    "allow",
-  );
+  const unowned = hook(root, "preToolUse", { tool_name: "write", tool_input: { file_path: other } });
+  assert.equal(unowned.permission, "deny");
+  assert.match(unowned.user_message, /outside writable scope/);
 
   jsonResult(runHarness(["task", "cancel", "--target", root]));
   assert.equal(hook(root, "preToolUse", write).permission, "allow");
@@ -1549,15 +1543,6 @@ test("task completion is refused until the affected checks have passing receipts
   assert.ok(refused.blocked_by.some((check) => check.id === "unit"));
 
   jsonResult(runHarness(["gate", "--target", root]));
-  // A passing gate is necessary, not sufficient: the balanced profile in force here (the
-  // unmapped harness files raise it to at least balanced) also demands an approving review
-  // receipt bound to this diff before the task may close.
-  const unreviewed = jsonResult(runHarness(["task", "complete", "--target", root]), 2);
-  assert.equal(unreviewed.ok, false);
-  assert.ok(unreviewed.blockers.some((entry) => /review:/.test(entry)), JSON.stringify(unreviewed.blockers));
-  assert.equal(unreviewed.blocked_by.length, 0);
-
-  jsonResult(runHarness(["receipt", "--target", root, "--reviewer", "reviewer", "--decision", "approve"]));
   const completed = jsonResult(runHarness(["task", "complete", "--target", root]));
   assert.equal(completed.ok, true);
   assert.equal(completed.task.status, "complete");
@@ -1595,7 +1580,7 @@ test("shell results and compaction state are recorded for later verification", (
   assert.deepEqual(hook(root, "postToolUse", { tool_name: "Read", tool_input: {} }), {});
 
   const delegated = hook(root, "subagentStart", {});
-  assert.match(delegated.additional_context, /only checks that actually executed/);
+  assert.match(delegated.additional_context, /only checks that ran/);
   assert.match(delegated.additional_context, /Assurance profile: balanced/);
 });
 
@@ -3183,7 +3168,9 @@ test("risk scan reports stale tasks and session start surfaces the findings", (t
   assert.equal(strict.status, 0, "medium findings alone must not fail --strict");
 
   const session = hook(root, "sessionStart", {});
-  assert.match(session.additional_context, /\[risk:medium\] Task task-stale/);
+  assert.match(session.additional_context, /Safety controls are non-waivable/);
+  assert.match(session.additional_context, /Assurance profile:/);
+  assert.doesNotMatch(session.additional_context ?? "", /\[risk:medium\] Task task-stale/);
 });
 
 test("feedback corpus lints frontmatter and lists graduation candidates", (t) => {

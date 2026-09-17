@@ -4,7 +4,7 @@ import { releaseCommand } from "./release.mjs";
 import { authorshipCommand, reviewCommand, reviewPackCommand } from "./review.mjs";
 import { catalogLint } from "./catalog.mjs";
 import { contextPack } from "./context.mjs";
-import { VERSION, parseArgs } from "./core.mjs";
+import { VERSION, boolOption, parseArgs } from "./core.mjs";
 import { affected, archCheck, catalogDiscover, repoMap } from "./graph.mjs";
 import { hook } from "./hooks.mjs";
 import { doctor, installLike, manifest, testHarness, uninstall, validate } from "./install.mjs";
@@ -27,9 +27,28 @@ export const COMMANDS = [
     "review", "review-pack", "authorship", "recap", "invariants", "sync-check", "archive", "feedback",
     "release", "help",
 ];
-export function usage() {
+/** The verbs a model should reach for. Everything else is implementation. */
+export const MODEL_COMMANDS = ["doctor", "affected", "gate", "task", "profile", "risk", "recap", "release"];
+export function usage(forModel = false) {
+    if (forModel) {
+        process.stdout.write(`Cursor repository harness ${VERSION}
+Model-facing commands: node scripts/harness.mjs <command>
+  doctor             Diagnose prerequisites and harness integrity
+  affected [paths]   Resolve affected modules from paths
+  gate [checks]      Run the verification plan and record diff-bound receipts
+  task <sub>         start, status, complete, or cancel the write lease
+  profile <sub>      show, list, or set explore|rapid|balanced|strict|adaptive
+  risk               Scan harness state for stale tasks and broken evidence
+  recap              Budgeted digest of project memory plus live state
+  release readiness  Report every release condition; performs no release action
+Other commands exist for hooks and implementation. Do not reach for them unless a loaded skill names one.
+`);
+        return;
+    }
     process.stdout.write(`Cursor repository harness ${VERSION}
 Usage: node scripts/harness.mjs <command> [arguments] [--target PATH] [--dry-run]
+Model-facing: doctor, affected, gate, task, profile, risk, recap, release readiness
+  (node scripts/harness.mjs help --for-model)
 Commands:
   hook <event>       Evaluate a Cursor hook event from JSON stdin
   doctor             Diagnose prerequisites and harness integrity
@@ -215,7 +234,7 @@ export async function main(argv = process.argv.slice(2)) {
         case "help":
         case "--help":
         case "-h":
-            usage();
+            usage(boolOption(options, "for-model"));
             break;
         default:
             throw new Error(`Unknown command: ${command}`);

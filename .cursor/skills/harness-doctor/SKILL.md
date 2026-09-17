@@ -5,14 +5,34 @@ description: Diagnoses Cursor harness prerequisites, asset integrity, and expect
 
 # Harness Doctor
 
-1. Establish **Goal / Scope / Out of Scope / Existing Pattern / Verification / Escalation**.
-2. Check Node.js 22+, repository root, Git availability, and governance asset structure.
-3. When available, run `node scripts/harness.mjs doctor`.
-4. Use `node scripts/harness.mjs validate` only when validation is requested.
-5. Report missing prerequisites; do not install or globally configure them.
+## Task
 
-Never infer success from this documentation or treat Windows sandboxing as an absolute boundary.
+Report whether this machine and this tree can run the harness. Change nothing.
 
-Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**, with `Changed: none`.
+## Preconditions
+
+- Repository root. Node.js 22+ is the floor (`doctor` says so if it is not).
+- `node scripts/harness.mjs doctor` when the CLI is present. `validate` only when validation
+  was requested.
+
+## Invariants
+
+- Do not install, globally configure, or infer success from documentation.
+- Windows sandboxing is not an absolute boundary.
+- A missing prerequisite is `BLOCKED` / reported missing, never a pass.
+
+## Method
+
+1. Write the envelope. Check Node.js 22+, repository root, Git availability, and governance
+   asset structure.
+2. Run `node scripts/harness.mjs doctor`. Quote its JSON. Accept: named missing items.
+   Reject: "looks fine" without the command; running `npm install` as a "fix".
+3. Run `validate` only if asked. Runtime parity failures mean edit `src/*.mts` and
+   `npm run build`, not the generated `.cursor/runtime/*.mjs`.
+
+## Handoff
+
+Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**, with
+`Changed: none`.
 
 Load [REFERENCE.md](REFERENCE.md) for diagnostics and safe remediation boundaries.

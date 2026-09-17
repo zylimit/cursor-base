@@ -81,7 +81,6 @@
       "dependsOn": [
         "governance"
       ],
-      "shared": true,
       "verification": [
         "runtime-sync",
         "validate",
@@ -90,11 +89,20 @@
       ],
       "owners": [],
       "attributes": {
-        "security": "critical",
-        "reliability": "critical",
-        "privacy": "high",
+        "reliability": "high",
         "resilience": "high",
-        "safety": "high",
+        "security": {
+          "tier": "low",
+          "reason": "Trust-boundary behavior lives in hooks and shell-policy; those files floor to strict by path."
+        },
+        "privacy": {
+          "tier": "low",
+          "reason": "The CLI stores no end-user data; secret redaction is a path-floored control."
+        },
+        "safety": {
+          "tier": "low",
+          "reason": "Destructive-command denial is path-floored on hooks and shell-policy, not on every src file."
+        },
         "availability": {
           "tier": "none",
           "reason": "A local CLI has no service to keep available."

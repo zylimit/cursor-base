@@ -45,43 +45,43 @@
     },
     {
       "path": ".cursor/hooks.json",
-      "sha256": "c42362cc8ae17d678ef63e3ca158e5d6acbde194b8a20206e7e165f045299593",
-      "bytes": 1902
+      "sha256": "238a0def764b7b5ecbefba05dcafed59a6841ad78c648be1ac1d6610983681c6",
+      "bytes": 1748
     },
     {
       "path": ".cursor/rules/00-safety.mdc",
-      "sha256": "397cd9f1d62ece171d856b2683ff10d1f88d27821d9a82358ddfe67fd7a989cf",
-      "bytes": 1143
+      "sha256": "208250d7219c3d21a9eb00d0f5d47d65bfd037b17ae8ec2a26f10e05e3472961",
+      "bytes": 1228
     },
     {
       "path": ".cursor/rules/10-task-contract.mdc",
-      "sha256": "3a2e4bdec004b6b13a8b2236ff7fcf357cb0cd04104674078e060fef5797b947",
-      "bytes": 1320
+      "sha256": "1421ecab50357b9af88c2f992a25d18c201d105a666cbfe3079c68e48d9ff895",
+      "bytes": 1374
     },
     {
       "path": ".cursor/rules/20-large-repository.mdc",
-      "sha256": "81324a82c4e597b15a7240569ab79449d823d21effdaca0e509daaf47e9965db",
-      "bytes": 1181
+      "sha256": "b6ab35c4656280016c2c6d4dc6898c7b1b008a200b4d31869c0aebf42ee98ed3",
+      "bytes": 1289
     },
     {
       "path": ".cursor/rules/30-approval-tiers.mdc",
-      "sha256": "8b12329cc3e9de470a43bb8926e7ad22eeffd0cca57c4cbe12daaf97fd341396",
-      "bytes": 1519
+      "sha256": "2a4c7d335049d256ba66a7532f2f5fe8901614599b8e3b940ea24297811ee159",
+      "bytes": 1621
     },
     {
       "path": ".cursor/rules/40-assurance.mdc",
-      "sha256": "b06830a9d435c4883f4f8b3e95ca3c54206b3772bb25b6d7dd6d6514977c1f4a",
-      "bytes": 1499
+      "sha256": "b99c32f23f72de092b0b5a1cab8bbc6664013c193d202c146b36a0e25c75012e",
+      "bytes": 1673
     },
     {
       "path": ".cursor/rules/50-memory-and-review.mdc",
-      "sha256": "0f61ac51e0d18267b11ab7367ec8aa26f5d1f19d8d8f3a23a04085ec60614ea4",
-      "bytes": 1317
+      "sha256": "4727699ee5b4fedeb7036f8bb530c00a1b7f0a53d591f43d4bd71a568a2a6fb1",
+      "bytes": 1565
     },
     {
       "path": ".cursor/rules/60-product-workflow.mdc",
-      "sha256": "d7fe5e3fa8fb8d19795bd578132d92e3222d95ad0395aa6284f4a2ff71295334",
-      "bytes": 3244
+      "sha256": "bca67d205f97c37d9d8320e602646613679a6ca9c550e992c375efda18b0ea26",
+      "bytes": 3341
     },
     {
       "path": ".cursor/rules/documentation.mdc",
@@ -90,8 +90,8 @@
     },
     {
       "path": ".cursor/rules/governance-assets.mdc",
-      "sha256": "7a9c418968f43883621fb7d10bf914e12f6902ecc3d2da798fa5a1345822a153",
-      "bytes": 1274
+      "sha256": "30ca54c6934143448bb36ea6dea1ff971a741664816068f4a990722f3ae7190f",
+      "bytes": 1348
     },
     {
       "path": ".cursor/rules/tests-and-verification.mdc",
@@ -100,8 +100,8 @@
     },
     {
       "path": ".cursor/runtime/assurance.mjs",
-      "sha256": "feccbadf12cc650972aca2d7711084612c83899ffe567a0db96bcf4864ffe0a3",
-      "bytes": 34103
+      "sha256": "bdf2898723b3a886ef0d4919eb5cf18035d7c118ee05e730926eef8c24d296e4",
+      "bytes": 34357
     },
     {
       "path": ".cursor/runtime/catalog.mjs",
@@ -110,8 +110,8 @@
     },
     {
       "path": ".cursor/runtime/cli.mjs",
-      "sha256": "9a750896f70cdcaa4167233bb6aa188cee22890a640bb70b1879a0ab5d6c1f18",
-      "bytes": 10107
+      "sha256": "18e3f8b0b61d7142a47b43323b8e38d1ab8cc37e5b17a54382f0e784fcdb6d8b",
+      "bytes": 11340
     },
     {
       "path": ".cursor/runtime/context.mjs",
@@ -120,8 +120,8 @@
     },
     {
       "path": ".cursor/runtime/core.mjs",
-      "sha256": "4bf731e77b3ac8eaa1a3ccbbed00f2bd7962bf252b804f7431858211b883b56f",
-      "bytes": 37295
+      "sha256": "0ca506bcabb9fa43adc0929aece44d1eef4ecf6abc0f4abfdfff5f7c446e5913",
+      "bytes": 37676
     },
     {
       "path": ".cursor/runtime/graph.mjs",
@@ -135,13 +135,13 @@
     },
     {
       "path": ".cursor/runtime/hooks.mjs",
-      "sha256": "daa30ff591d8a2e28c85e256c1eecaaf72799ef134441f5931169666a03c7d52",
-      "bytes": 26173
+      "sha256": "583a33865ac40033616a3fa342c80a4f2bf199fa086396f61ba7dc9003bd9dc0",
+      "bytes": 23941
     },
     {
       "path": ".cursor/runtime/install.mjs",
-      "sha256": "2f30d7483c34bdd5da2f75b13678cead75efdf95c7357805dbc8a0e1c9daa271",
-      "bytes": 30848
+      "sha256": "bccce1e5da08e9a664a95852bf1f5baef19105310cd540f979cc90813dd1dbdd",
+      "bytes": 30876
     },
     {
       "path": ".cursor/runtime/memory.mjs",
@@ -155,23 +155,23 @@
     },
     {
       "path": ".cursor/runtime/quality.mjs",
-      "sha256": "96b3b5148c3fc91d60f0f9fb0a7b2e90c4ba2929d9e216e79b76fac1a828c909",
-      "bytes": 57885
+      "sha256": "83e0d5bac28af937909b72dbabc268ca31f97c959f8b7b47d42f23e4c1a11428",
+      "bytes": 58575
     },
     {
       "path": ".cursor/runtime/release.mjs",
-      "sha256": "87e0ae8f28fd6b577e99d0383753c02d602fe3119b19f20e5a0f232d768b5139",
-      "bytes": 12602
+      "sha256": "8a6b05c850052ed3f41096643f9d4b71623cea08b579d2841c2ed2dbfe00b9d7",
+      "bytes": 13071
     },
     {
       "path": ".cursor/runtime/review.mjs",
-      "sha256": "08e615721561c30486589f53613d86cc21e9f5ae4dc3b396545ec955ce2dec5b",
-      "bytes": 28941
+      "sha256": "ae77002744e379f542493551081c94b5b4733c76a594668e4e33540551fa52bb",
+      "bytes": 30243
     },
     {
       "path": ".cursor/runtime/scan.mjs",
-      "sha256": "50cb06195a64142cf0f4565ec1cbba591fbbd4ed3b235f06ad79718945e39780",
-      "bytes": 39337
+      "sha256": "81f0d3932f11852f36304aa412f2334c2547471d7e0a263e06eecf74f6ccbcf3",
+      "bytes": 39805
     },
     {
       "path": ".cursor/runtime/services.mjs",
@@ -190,8 +190,8 @@
     },
     {
       "path": ".cursor/runtime/task.mjs",
-      "sha256": "91dc8da3f036396c85df3e731b0f82cb7156597dfba948d75356b575b90de5b0",
-      "bytes": 6865
+      "sha256": "78ac95d4cf326dc5560d34c611efc03d165891206b03a983b4a02127fdadb6df",
+      "bytes": 7691
     },
     {
       "path": ".cursor/sandbox.json",
@@ -205,8 +205,8 @@
     },
     {
       "path": ".cursor/skills/affected-verification/SKILL.md",
-      "sha256": "6953238e8802a69373caf9be9f3710fe782292d341d14b2af4b3a84042547deb",
-      "bytes": 1122
+      "sha256": "516850c1b296b2e721a3f8489d72880b4565c293b4a61baa3840d74d0531362a",
+      "bytes": 1616
     },
     {
       "path": ".cursor/skills/architecture-design/REFERENCE.md",
@@ -215,8 +215,8 @@
     },
     {
       "path": ".cursor/skills/architecture-design/SKILL.md",
-      "sha256": "ae48064860b76045392e0abba20a21f48f57b67364e6063da9e4932d1bb76aa7",
-      "bytes": 7602
+      "sha256": "e26196ca824ae7fe5b9f348860ab62506ea0efaf31bacfdfbf4fb978a8e7becf",
+      "bytes": 3195
     },
     {
       "path": ".cursor/skills/architecture-design/templates/adr-template.md",
@@ -230,13 +230,13 @@
     },
     {
       "path": ".cursor/skills/assurance-profile/SKILL.md",
-      "sha256": "c788edc0742b99de3d803d7570065ecb715862a85fed6fa0855398cdef5687fb",
-      "bytes": 2178
+      "sha256": "eb874d05fd546c13c19f29b7f6f50c3920e759d3232f08c65f6a285030ac3654",
+      "bytes": 2077
     },
     {
       "path": ".cursor/skills/catalog-discovery/SKILL.md",
-      "sha256": "3694f7287a4f8d1167b78004a49a657d94afd75a2f4578fe4e99aa0cc0b57c26",
-      "bytes": 1573
+      "sha256": "5b9a329e7b2d3d9c4c6eb794c45c87b6140ed3ff8f30f07497d03eb573aff0aa",
+      "bytes": 1887
     },
     {
       "path": ".cursor/skills/code-review/REFERENCE.md",
@@ -245,8 +245,8 @@
     },
     {
       "path": ".cursor/skills/code-review/SKILL.md",
-      "sha256": "83f87dfc62b33b97dfff7f3fedb329181bdc8496949ccdb0eeb039711a14afa0",
-      "bytes": 6542
+      "sha256": "ab9dcb98ed468ebd00cd13a93ba9d947a062193d8733c69a7ca76df7387de6cf",
+      "bytes": 2763
     },
     {
       "path": ".cursor/skills/design-brief/REFERENCE.md",
@@ -255,8 +255,8 @@
     },
     {
       "path": ".cursor/skills/design-brief/SKILL.md",
-      "sha256": "e2ca6968cc8023b9865060e6216122a061d1074a090f5b0242d360627bbfe3d1",
-      "bytes": 5806
+      "sha256": "cb442c1ef4f7234fd82997558ab50d5b074da91b63dd808fad1dd766832867b5",
+      "bytes": 2874
     },
     {
       "path": ".cursor/skills/design-brief/templates/design-brief-template.md",
@@ -275,8 +275,8 @@
     },
     {
       "path": ".cursor/skills/design-prototype/SKILL.md",
-      "sha256": "8ed69189cf98bd00f517ce507c603c41dba5e12e932b0fce5bcaf6f86124174c",
-      "bytes": 5375
+      "sha256": "e01d1dfe44438421e2f889e0956526b6754ea219909ca2a67742d9a2e514097f",
+      "bytes": 2457
     },
     {
       "path": ".cursor/skills/dev-plan/REFERENCE.md",
@@ -285,8 +285,8 @@
     },
     {
       "path": ".cursor/skills/dev-plan/SKILL.md",
-      "sha256": "500ab3c6a6cace07425c34e3e342e1391c6e52775fe98cabf133ce990ffe854c",
-      "bytes": 5590
+      "sha256": "8ee1db9c9509db30b7e42c642344efab3f17470ea8ff0713f8555cab62394992",
+      "bytes": 2749
     },
     {
       "path": ".cursor/skills/dev-plan/templates/dev-plan-template.md",
@@ -300,8 +300,8 @@
     },
     {
       "path": ".cursor/skills/dfx-design/SKILL.md",
-      "sha256": "fbf8576de83dc3a402d066366d03d7aee9dbf830cb1607cdf26243762a706c0a",
-      "bytes": 7470
+      "sha256": "b8d77a4cd97860e3668bdfa6af0a61af8b16c6f9ee4d4a4ba681627870bd4221",
+      "bytes": 2587
     },
     {
       "path": ".cursor/skills/dfx-design/templates/dfx-spec-template.md",
@@ -315,13 +315,13 @@
     },
     {
       "path": ".cursor/skills/domain-rulings/SKILL.md",
-      "sha256": "a0b652c4a883331fdf27fa23b2c14a16ac167236a1836313151b5031b6a0f99d",
-      "bytes": 6412
+      "sha256": "ef8ce7f94a258a0f375d64ac8c64887b4528f294fe44f469cb6bdd0348a6a6ec",
+      "bytes": 2663
     },
     {
       "path": ".cursor/skills/fast-lane/SKILL.md",
-      "sha256": "7cc0145a02f4c9ea1bcf3b7e08e351bbbedd3823ca73fa1712549f230b414420",
-      "bytes": 1375
+      "sha256": "ec2e950d9d99eba47f21c17267ce2ed32e66bb9747b6bf12b931eeb4b96bbb52",
+      "bytes": 1656
     },
     {
       "path": ".cursor/skills/finish-branch/REFERENCE.md",
@@ -330,8 +330,8 @@
     },
     {
       "path": ".cursor/skills/finish-branch/SKILL.md",
-      "sha256": "d2bdb5133d6dbdac58512b534ccb0a92f7b31e8e9b6b1bd841919bd3976ff02c",
-      "bytes": 4376
+      "sha256": "6ce207b9dc70b930b78a633c2c40bbf67da5022625f0a3ac80010b33c12495dc",
+      "bytes": 2365
     },
     {
       "path": ".cursor/skills/harness-doctor/REFERENCE.md",
@@ -340,8 +340,8 @@
     },
     {
       "path": ".cursor/skills/harness-doctor/SKILL.md",
-      "sha256": "ea7d8a8e3f01ef4ce36ba0a179865d77ea77b15704057feb52c354129ecaac99",
-      "bytes": 938
+      "sha256": "c52d16f1f3c54285e8b2546c5478d438356308ce9c057ee70efa60a356c44edf",
+      "bytes": 1401
     },
     {
       "path": ".cursor/skills/phase-build/REFERENCE.md",
@@ -350,8 +350,8 @@
     },
     {
       "path": ".cursor/skills/phase-build/SKILL.md",
-      "sha256": "04262ac7e7dc86da9de5b0fabdc6794557397e1eb12fde7b4c548d075780b827",
-      "bytes": 6903
+      "sha256": "b5a490e8bd0aef4a2272c4e026122262658c71c04ea531ab12cd5a334214718b",
+      "bytes": 2984
     },
     {
       "path": ".cursor/skills/plan-change/REFERENCE.md",
@@ -360,8 +360,8 @@
     },
     {
       "path": ".cursor/skills/plan-change/SKILL.md",
-      "sha256": "80bf71a9a735ee1bf9fdaaee6aa007943eefad67804d853bd5b8762f3398196d",
-      "bytes": 827
+      "sha256": "5d7c0ba9ec2248a3746b2401297eb3054f62948caf055b12d43d4ae13de7f867",
+      "bytes": 1782
     },
     {
       "path": ".cursor/skills/product-spec/REFERENCE.md",
@@ -370,8 +370,8 @@
     },
     {
       "path": ".cursor/skills/product-spec/SKILL.md",
-      "sha256": "d8bfda3bdfab5f2db69c065287212ce55da4cb14e38abd4e2e179d30e5a64df0",
-      "bytes": 6950
+      "sha256": "a5536c3eefb09606911798cf6e83cae1a9de4cb7b12a30955aa08b5dc1aeea12",
+      "bytes": 8603
     },
     {
       "path": ".cursor/skills/product-spec/templates/product-spec-template.md",
@@ -390,8 +390,8 @@
     },
     {
       "path": ".cursor/skills/project-memory/SKILL.md",
-      "sha256": "689f102ed0daced6ee07c7acea5b8acec61750ea4fc1f66aef58824cba6d345c",
-      "bytes": 3804
+      "sha256": "7fc3e9dc9e5acff46f18d4ef0c71a65c5a48e8b6e94f51f55bc7853071dae7b4",
+      "bytes": 2429
     },
     {
       "path": ".cursor/skills/record-lesson/REFERENCE.md",
@@ -400,8 +400,8 @@
     },
     {
       "path": ".cursor/skills/record-lesson/SKILL.md",
-      "sha256": "c2cf6ccc3902b08388bea81294de627b2de1d83af7ad9bbe5fea11408e328bc2",
-      "bytes": 3955
+      "sha256": "5e78f6593df1e250dd19291e13e6443fdf6078f9660732f2f89b9a387bab24e5",
+      "bytes": 2698
     },
     {
       "path": ".cursor/skills/release-build/REFERENCE.md",
@@ -410,13 +410,13 @@
     },
     {
       "path": ".cursor/skills/release-build/SKILL.md",
-      "sha256": "e106e576d99c7f6be5cb69c0b56b4becb9e80b926645714fbd4207c7586b01ce",
-      "bytes": 5795
+      "sha256": "f40d89ce0903b1cf4352d9365687125199580aad08cebc59946aa34763eaf4f9",
+      "bytes": 2392
     },
     {
       "path": ".cursor/skills/release-readiness/SKILL.md",
-      "sha256": "1a4d103094340b771fa2d2abf127e23b26b53bdf5559a99201b0341156f1cb24",
-      "bytes": 1422
+      "sha256": "9686fe0c5a8c151b42d32214ed07b66571c919cdacd2a5de641e5e4c5156ffcb",
+      "bytes": 1947
     },
     {
       "path": ".cursor/skills/root-cause-debugging/REFERENCE.md",
@@ -425,8 +425,8 @@
     },
     {
       "path": ".cursor/skills/root-cause-debugging/SKILL.md",
-      "sha256": "6198c1dbdf48b8daf9f087980c5653c35a32456db166c03e9bd4e28912b9a47b",
-      "bytes": 5216
+      "sha256": "680bc3e3430e164a8d1e6913086f8ae740d314942dc612ea0a825cf54791db06",
+      "bytes": 3265
     },
     {
       "path": ".cursor/skills/scoped-implementation/REFERENCE.md",
@@ -435,8 +435,8 @@
     },
     {
       "path": ".cursor/skills/scoped-implementation/SKILL.md",
-      "sha256": "f65626d4296ebc3df4a6cde8b5f7c7cb12469154e835b95a5519346727117169",
-      "bytes": 3660
+      "sha256": "2e83c2e04df87011f4e8f2ff10a897c3866c64ce567f4cd0b19dddb8764997d7",
+      "bytes": 2960
     },
     {
       "path": ".cursor/skills/service-operations/REFERENCE.md",
@@ -445,8 +445,8 @@
     },
     {
       "path": ".cursor/skills/service-operations/SKILL.md",
-      "sha256": "22b8de450a035d9f4144469b48518cc7a23276eeefe6c018639aa97b89401814",
-      "bytes": 1540
+      "sha256": "994208363cb6385f6d4d19135e74b65776fbcc52892505900dd9762c1b428274",
+      "bytes": 1679
     },
     {
       "path": ".cursor/skills/skill-authoring/REFERENCE.md",
@@ -455,18 +455,18 @@
     },
     {
       "path": ".cursor/skills/skill-authoring/SKILL.md",
-      "sha256": "6c1ed5779a17136197b861c2208c75e5f70adfd37f1b976c4a5b1273b0a518ef",
-      "bytes": 6046
+      "sha256": "3baec3d600e919a7bc7daad12e6f4cff0939770aeb476c65491a79eb67a77fee",
+      "bytes": 2946
     },
     {
       "path": ".cursor/skills/skill-authoring/templates/skill-template.md",
-      "sha256": "592e9136f84e87953b87737741c4829ffd1d9ec0a9df73eb2580761a8ad2995d",
-      "bytes": 3416
+      "sha256": "8b7050d2e7399039c81dd554b2c16ab4601c5e67057966056a666679843e07ac",
+      "bytes": 2753
     },
     {
       "path": ".cursor/skills/structured-review/SKILL.md",
-      "sha256": "660b7b074a35aa899bde5f36e5ed467a4c3562f5e1c78b05316d45d25afb466e",
-      "bytes": 2726
+      "sha256": "bb7aaa55126dc7b930c83f95909ffeaa5da63861c1597840fe0a9626a2fc2337",
+      "bytes": 2395
     },
     {
       "path": ".cursor/skills/test-design/REFERENCE.md",
@@ -475,8 +475,8 @@
     },
     {
       "path": ".cursor/skills/test-design/SKILL.md",
-      "sha256": "1c8fe5e1df06e2f806aab43a2ca3a7ac58f5f62535c31d3c60fd23fdcb69840c",
-      "bytes": 5167
+      "sha256": "6d3588f1596f4498f8c1a918608e8103404694b8c406977d65089330c4440502",
+      "bytes": 2612
     },
     {
       "path": ".cursor/skills/test-design/templates/test-scaffold.md",
@@ -500,8 +500,8 @@
     },
     {
       "path": "AGENTS.md",
-      "sha256": "2ffe7ee8515a55cdde61743e9036e92542b1b9b30de2e92f0be2cec1ad1dc185",
-      "bytes": 4416
+      "sha256": "b4a6d0c4bdb529240cc3c749d43ed7c60d0435dd929e6cdd7d765985ebef27b3",
+      "bytes": 3513
     },
     {
       "path": "harness/adapters.json",
@@ -515,8 +515,8 @@
     },
     {
       "path": "harness/default-assurance-policy.json",
-      "sha256": "eb52577bd06d76f037f1a5bf61c7795b10ee7eb0e5e4d55b86b2376cc9f36d30",
-      "bytes": 1207
+      "sha256": "dd8dd4a65db61ad129211e83fb3da143df6bb45f25643d5fbd803126856eb027",
+      "bytes": 1268
     },
     {
       "path": "harness/default-module-catalog.json",
@@ -574,5 +574,5 @@
       "bytes": 185
     }
   ],
-  "digest": "299acc4492927da9fadafdad9dd53a335e66436d1d2d5f7c1ee3d226e9daefc2"
+  "digest": "47b07198ccc6a09119b02ce7c5060e63d220eb54c9d0e75972710438d8994f8b"
 }

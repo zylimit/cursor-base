@@ -7,7 +7,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { POLICY_REL, compilePolicy, effectiveSelection, isProtectedCheck, loadPolicy, openDebts, readLoan, resolveAssurance } from "./assurance.mjs";
 import { RISK_LEVELS, matrix, validateCatalog } from "./catalog.mjs";
 import { discoverCatalog, isUneditedTemplate, writeDiscoveredCatalog } from "./graph.mjs";
-import { EVENTS, HARNESS_ROOT, INSTALL_MANIFEST_REL, LIVE_CONTRACTS, templatePath, SECURITY_EVENTS, SOURCE_MANIFEST_REL, VERSION, boolOption, copyNormalized, errorMessage, fileHash, git, gitAvailable, isHarnessSourceRoot, isWithin, normalizeLf, posix, printJson, readJson, run, sha256, snapshotFiles, targetFrom, walkFiles, writeJson, } from "./core.mjs";
+import { HARNESS_ROOT, INSTALL_MANIFEST_REL, LIVE_CONTRACTS, templatePath, REQUIRED_HOOK_EVENTS, SECURITY_EVENTS, SOURCE_MANIFEST_REL, VERSION, boolOption, copyNormalized, errorMessage, fileHash, git, gitAvailable, isHarnessSourceRoot, isWithin, normalizeLf, posix, printJson, readJson, run, sha256, snapshotFiles, targetFrom, walkFiles, writeJson, } from "./core.mjs";
 import { feedbackLessons } from "./memory.mjs";
 import { verifyLedgerChain } from "./quality.mjs";
 import { SERVICES_CONFIG_REL, listServiceStateDirs, readServiceState, servicesConfig, synthesizeServiceStatus, } from "./services.mjs";
@@ -404,7 +404,7 @@ export function validate(options) {
             const config = readJson(resolve(root, ".cursor/hooks.json"));
             if (config.version !== 1)
                 errors.push(".cursor/hooks.json must use version 1.");
-            for (const event of EVENTS) {
+            for (const event of REQUIRED_HOOK_EVENTS) {
                 const definitions = config.hooks?.[event];
                 if (!Array.isArray(definitions) || definitions.length !== 1) {
                     errors.push(`.cursor/hooks.json must define exactly one ${event} hook.`);

@@ -77,7 +77,7 @@ tier selects the profile the floors may only raise (`docs/ASSURANCE-PROFILES.md`
 | Tier | Criteria (any one raises it; unsure means higher) | Profile | Independence |
 | --- | --- | --- | --- |
 | LOW | < 50 lines; no contract, parser, authentication, migration, payment, or hook path; no new dependency | `rapid` | none: implementer, orchestrator accepts on diff and runner output |
-| MEDIUM | 50–300 lines, or one such path, or a new dependency | `balanced` | one independent review (static gate + spec conformance), approving receipt |
+| MEDIUM | 50–300 lines, or one such path, or a new dependency | `balanced` | none required to close (passing gate); a human or Bugbot review is welcome |
 | HIGH | > 300 lines, or two or more such paths, or a production bug, data migration, security change | `strict` | structured review across convened lenses, tester who did not write the code |
 
 One round converges on high findings; medium and low are residue in `progress.md` for later

@@ -1,6 +1,7 @@
 ---
 description: Context and verification strategy for large multi-module repositories
-alwaysApply: true
+globs: "{harness/module-catalog.json,harness/verification-matrix.json,src/**,packages/**,apps/**,libs/**}"
+alwaysApply: false
 ---
 
 # Large Repository Strategy

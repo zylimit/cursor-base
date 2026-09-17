@@ -52,6 +52,14 @@ export function releaseReadiness(root, options) {
         const assessment = assessQuality(root, plan);
         add("gate", assessment.complete ? "PASS" : "FAIL", assessment.complete ? `every selected check passed for ${plan.diff_sha256.slice(0, 12)} under strict` : `blockers: ${assessment.blockers.filter((entry) => !entry.startsWith("review:")).slice(0, 5).join("; ") || "none listed"}`);
         add("review", assessment.review.satisfied ? "PASS" : "FAIL", assessment.review.satisfied ? assessment.review.reason : `${assessment.review.reason}${assessment.review.missing_lenses.length ? ` (missing lenses: ${assessment.review.missing_lenses.join(", ")})` : ""}`);
+        if (operation === "release" && assessment.review.satisfied) {
+            if (assessment.review.independence === "claimed") {
+                add("review-independence", "FAIL", "independence: claimed; a release needs a machine-checked distinct reviewer");
+            }
+            else if (assessment.review.independence === "enforced") {
+                add("review-independence", "PASS", "reviewer independence was machine-checked");
+            }
+        }
         if (plan.checks.length === 0)
             add("plan", "BLOCKED", "the verification plan selected no checks; a release with nothing to verify is not verified");
     }

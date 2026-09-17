@@ -37,13 +37,13 @@ lattice when the policy compiles).
 | --- | --- | --- | --- | --- |
 | verificationBreadth | none | direct | affected | all |
 | deferral | loan | loan | loan | none |
-| reviewMode | none | none | receipt | structured |
+| reviewMode | none | none | none | structured |
 | attributeGaps | advisory | advisory | blocking | blocking |
 | memorySync | off | warn | warn | block |
 | budget | off | warn | warn | block |
 | contextDepth | changed | changed | affected | conservative |
 | completion | forbidden | low-risk | delivery | release-capable |
-| reviewLenses | – | correctness | correctness, testing, architecture | all nine |
+| reviewLenses | – | correctness | correctness | correctness, security |
 
 - **explore** is for reading and prototyping. The gate refuses to run (`BLOCKED`, "runs no
   verification"), `quality status` is never `closable`, and `risk` reports the selection so it
@@ -51,10 +51,12 @@ lattice when the policy compiles).
 - **rapid** is for small, low-risk work. Only the changed modules' checks run; a low-risk task
   closes on a passing gate without a review receipt.
 - **balanced** is the default. The reverse-dependency closure is verified, critical/high
-  attribute gaps block, and closing a task needs an approving review receipt bound to the diff.
-- **strict** verifies every module, convenes every applicable review lens, refuses fast loans,
-  blocks the stop hook when memory falls behind the code, and is the only profile whose passing
-  gate may close a release.
+  attribute gaps block, and a passing affected gate closes the task. A human or Bugbot review
+  is welcome; it is not a close condition.
+- **strict** verifies every module, convenes correctness and security (attributes may shrink
+  the team), refuses fast loans, blocks the stop hook when memory falls behind the code, and is
+  the only profile whose passing gate may close a release. A claimed (not machine-checked)
+  reviewer independence cannot close that release.
 
 ## Selection
 
@@ -87,11 +89,11 @@ than from anyone's judgement at the time:
 | `paths` | see below | – | glob patterns over changed paths |
 
 Default path floors: the executable harness and delivery surface (`.cursor/hooks.json`,
-`.cursor/cli.json`, `.cursor/runtime/**`, `.cursor/sandbox.json`, `harness/**`, `scripts/**`,
-setup scripts, CI, manifests and lockfiles) and trust boundaries (`**/auth/**`,
-`**/security/**`, `**/secrets/**`, `**/privacy/**`) raise to strict. Skills, rules, docs, and
-`AGENTS.md` follow the module's own attributes. A project may replace the list, or set it to
-`[]` to disable path floors.
+`.cursor/cli.json`, `.cursor/runtime/**`, `.cursor/sandbox.json`, `src/hooks.mts`,
+`src/shell-policy.mts`, `harness/**`, `scripts/**`, setup scripts, CI, manifests and lockfiles)
+and trust boundaries (`**/auth/**`, `**/security/**`, `**/secrets/**`, `**/privacy/**`) raise
+to strict. Skills, rules, docs, and `AGENTS.md` follow the module's own attributes. A project
+may replace the list, or set it to `[]` to disable path floors.
 
 ## Fast loans and evidence debt
 

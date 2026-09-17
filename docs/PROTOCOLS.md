@@ -217,10 +217,11 @@ be true under a loan; `closable` never is while debt is open.
 Binding:   base commit and diff hash at `review start`; any tree change makes the session stale (exit 4)
 Convened:  profile reviewLenses minus lenses whose attribute no affected module declares above minimal; correctness always
 Blue:      claims with evidence (refused otherwise)
-Lens:      findings with severity and file:line or reproduction; `unable` with a reason
-Stage:     1 code -> 2 functional -> 3 trust; a stage opens when the previous one reported clean
+Lens:      findings with severity and file:line or reproduction; JSON stdin or `--file findings.md` (`- error path:line summary`); `unable` with a reason
+Stage:     1 code -> 2 functional -> 3 trust; empty stages are skipped; a stage opens when the previous one reported clean
 Verdict:   FIX_REQUIRED (any error) | NEEDS_MORE_EVIDENCE (any unable) | ACCEPT; refused when a convened lens is silent
-Receipt:   a final ACCEPT writes an approving review receipt with `lenses` recorded
+Receipt:   a final ACCEPT writes an approving review receipt with `lenses` and `independence` (enforced | claimed)
+Independence: a claimed independence cannot close `release readiness --operation release`
 Rounds:    each FIX_REQUIRED counts; at maxRounds (3) the verdict sets escalate
 ```
 

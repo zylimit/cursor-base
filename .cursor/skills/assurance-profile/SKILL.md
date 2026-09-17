@@ -1,34 +1,52 @@
 ---
 name: assurance-profile
 description: Reads, selects, or explains the assurance profile (explore, rapid, balanced, strict) that decides how much evidence a change needs. Use before planning verification or when a gate refuses.
+disable-model-invocation: true
 ---
 
 # Assurance Profile
 
-1. Read what is in force and why: `node scripts/harness.mjs profile show`. The `floors` list
-   names every reason the effective profile is stronger than the selection.
-2. Pick the strength the work deserves, not the convenient one:
-   - `explore` — reading, spiking, prototyping. No gate runs; nothing can be closed.
-   - `rapid` — small, low-risk, self-contained changes. Changed modules only; no review receipt.
-   - `balanced` — the default for delivery. Dependents verified; approving receipt to close.
-   - `strict` — governance, trust boundaries, releases. Everything verified; lens-covered review.
-   For a task read the tier mechanically off the expected diff and the paths it touches — any
-   criterion met raises it, unsure means higher — and take the profile the tier selects: **LOW** →
-   `rapid`, **MEDIUM** → `balanced`, **HIGH** → `strict`. The criteria are the table in
-   `docs/PRODUCT-WORKFLOW.md`. Running the heaviest chain on every task costs three to five times more for a
-   self-review that is not load-bearing; running the lightest on a payment path is how defects
-   ship.
-3. Set it for the project (`profile set NAME`) or one task (`profile set NAME --task ID`);
-   `adaptive` returns to the policy default plus floors.
-4. Never argue with a floor. If task risk, unmapped or shared impact, a protected or other
-   critical/high attribute, or a governance path raised the profile, that is the change telling
-   you what it costs; lower the risk or split the change instead.
-5. Re-run `node scripts/harness.mjs gate` after changing the profile: receipts are bound to the
-   controls that produced them.
+## Task
 
-Under time pressure use the `fast-lane` skill, not a weaker profile.
+Read, select, or explain the profile in force. Do not argue with a floor.
+
+## Preconditions
+
+- `node scripts/harness.mjs profile show` is the source of truth. Floors list why the
+  effective profile is stronger than the selection.
+- Invoke by name. Everyday work uses the default plus floors; this skill is for an explicit
+  selection or a refused gate.
+
+## Invariants
+
+- Four profiles, no fifth. Floors only raise.
+- `balanced` closes on a passing affected gate. `strict` is for governance, trust boundaries,
+  and releases (correctness + security lenses).
+- Security, safety, and privacy evidence is never deferred.
+- Changing the profile stales receipts. Re-run `gate` after `profile set`.
+
+## Method
+
+1. `profile show`. Read `floors`.
+2. Pick the strength the work deserves:
+   - `explore` — reading, spiking. No gate; nothing closes.
+   - `rapid` — small, low-risk. Changed modules only.
+   - `balanced` — default delivery. Dependents verified; gate closes the task.
+   - `strict` — trust and release. Structured review.
+   Product tiers (LOW / MEDIUM / HIGH) select `rapid` / `balanced` / `strict`. Table in
+   `docs/PRODUCT-WORKFLOW.md`. Unsure means higher.
+3. `profile set NAME` or `profile set NAME --task ID`. `adaptive` returns to the policy
+   default plus floors.
+4. If a floor raised the profile, lower the risk or split the change. Do not request a weaker
+   profile to dodge it.
+5. Under time pressure use `fast-lane`, not a weaker profile.
+
+Accept: a named effective profile with its floors. Reject: a second assurance axis; treating
+`rapid` as a waiver of safety hooks.
+
+## Handoff
 
 Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**, naming the
 effective profile in `Evidence`.
 
-Full control table, floors, and policy file: `docs/ASSURANCE-PROFILES.md`.
+Full table: `docs/ASSURANCE-PROFILES.md`.

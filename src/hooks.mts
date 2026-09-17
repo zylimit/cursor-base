@@ -31,7 +31,7 @@ import {
   writeJson,
 } from "./core.mjs";
 import type { CliOptions, HookOutput, HookPayload } from "./core.mjs";
-import { appendLedger, riskScan } from "./ops.mjs";
+import { appendLedger } from "./ops.mjs";
 import { QUALITY_LEDGER_REL, assessQuality, buildVerifyPlan } from "./quality.mjs";
 import { READ_ONLY_TOOLS, decision, mcpDecision, shellDecision, toolPaths } from "./shell-policy.mjs";
 import { TASKS_REL, activeTask } from "./state.mjs";
@@ -148,15 +148,15 @@ export async function handleHookEvent(
         "Blocked a broad or sensitive delete operation.",
         paths[0] || "<unspecified>",
       );
-    } else {
+        } else {
       // Anything not on the read-only list is treated as a write. Enumerating writer tool names
-      // meant an unrecognized one skipped the concurrency guard entirely.
-      const conflict = READ_ONLY_TOOLS.has(tool)
-        ? null
-        : paths
-            .map((candidate) => preflightTaskWrite(root, posix(relative(root, resolve(root, candidate)))))
-            .find(Boolean) ?? null;
-      output = conflict ?? { permission: "allow" };
+      // meant an unrecognized one skipped the concurrency guard entirely. Deny beats warn-and-allow.
+      const results = READ_ONLY_TOOLS.has(tool)
+        ? []
+        : paths.map((candidate) => preflightTaskWrite(root, posix(relative(root, resolve(root, candidate)))));
+      const denied = results.find((entry) => entry?.permission === "deny") ?? null;
+      const warned = results.find(Boolean) ?? null;
+      output = denied ?? warned ?? { permission: "allow" };
     }
   } else if (event === "sessionStart") {
     const current = binding(root);
@@ -167,46 +167,15 @@ export async function handleHookEvent(
       session_id: payload.session_id || payload.conversation_id || null,
       created_at: new Date().toISOString(),
     });
-    const lines = [
-      "Safety controls are non-waivable. Record exact verification evidence and bind reviews to the current base commit and diff hash.",
-    ];
+    const lines = ["Safety controls are non-waivable."];
     const task = activeTask(root);
     if (task) {
-      lines.push(`Task ${task.id} is still active: ${task.goal}. Writable scope: ${task.owned_paths.join(", ")}.`);
+      lines.push(`Task ${task.id} active; writable: ${task.owned_paths.join(", ")}.`);
     }
-    // A dirty tree at session start usually means a previous session was interrupted or
-    // compacted, so the recorded state may not describe reality any more.
-    if (dirty.length > 0) {
-      lines.push(
-        `${dirty.length} path(s) already differ from ${current.base_commit}. Reconcile what is already in progress before adding new work, and preserve changes you did not make.`,
-      );
-    }
-    const notePath = resolve(root, STATE_REL, "compaction-note.json");
-    if (existsSync(notePath)) {
-      lines.push(`A pre-compaction state note is available at ${posix(relative(root, notePath))}.`);
-    }
-    // The profile in force is the one fact that changes what every other rule means, so it is
-    // announced where the session begins rather than discovered when a gate refuses.
     try {
       lines.push(assuranceBanner(root, task?.id ?? null));
     } catch (error) {
-      lines.push(`The assurance policy could not be read (${boundedHead(errorMessage(error), 120)}); the built-in balanced profile applies until it is repaired.`);
-    }
-    // Risk decays silently between sessions; the start of one is the moment the agent can
-    // still act on it cheaply. Only the worst findings are surfaced, and a failing scan must
-    // not block the session it is trying to help.
-    try {
-      const findings = riskScan(root).filter((finding) => finding.severity !== "info");
-      for (const finding of findings.slice(0, 3)) {
-        lines.push(`[risk:${finding.severity}] ${finding.message}`);
-      }
-      if (findings.length > 3) {
-        lines.push(`${findings.length - 3} further risk finding(s): run \`node scripts/harness.mjs risk\`.`);
-      }
-    } catch (error) {
-      lines.push(
-        `The risk scan failed (${boundedHead(errorMessage(error), 120)}); treat harness state as unknown rather than healthy.`,
-      );
+      lines.push(`Assurance policy unreadable (${boundedHead(errorMessage(error), 80)}); balanced applies.`);
     }
     output = { env: { CURSOR_HARNESS_ROOT: root }, additional_context: lines.join(" ") };
   } else if (event === "afterFileEdit") {
@@ -257,14 +226,10 @@ export async function handleHookEvent(
   } else if (event === "subagentStart") {
     const task = activeTask(root);
     const lines = [
-      "Return the completion receipt: Status / Changed / Verified / Not verified / Needs review by / Evidence.",
-      "`Verified` may list only checks that actually executed in this delegation.",
+      "Return Status / Changed / Verified / Not verified / Needs review by / Evidence. Verified lists only checks that ran.",
     ];
     if (task) {
-      lines.push(
-        `An owning task is active (${task.id}, risk ${task.risk}). Writable scope is limited to: ${task.owned_paths.join(", ")}.`,
-        "Writes outside that scope, and writes to files changed outside this task, are blocked.",
-      );
+      lines.push(`Task ${task.id} (risk ${task.risk}); writes outside ${task.owned_paths.join(", ")} are denied.`);
     }
     // The delegate consumes the resolved profile; it never re-derives thresholds of its own.
     try {
@@ -504,12 +469,10 @@ function assuranceBanner(root: string, taskId: string | null): string {
   const resolved = resolveAssurance(compiled, { selection, risk: activeTask(root)?.risk ?? null });
   const loan = readLoan(root);
   const debts = openDebts(root).length;
-  const parts = [
-    `Assurance profile: ${resolved.effective} (selection ${selection}${resolved.requested !== resolved.effective ? `, raised by ${resolved.floors.map((floor) => floor.source).join(", ")}` : ""}); floors from impact, protected and other critical/high attributes, and governance paths are applied per change by the gate.`,
-  ];
-  if (loan.active) {
-    parts.push(`FAST LOAN OPEN until ${loan.loan?.expires_at} (${loan.loan?.reason}): allowFastSkip checks are deferred and recorded as debt.`);
-  }
-  if (debts > 0) parts.push(`${debts} evidence debt(s) are unpaid; a loaned gate cannot close a task or a release.`);
+  const raised =
+    resolved.requested !== resolved.effective ? `, raised by ${resolved.floors.map((floor) => floor.source).join(", ")}` : "";
+  const parts = [`Assurance profile: ${resolved.effective} (selection ${selection}${raised}).`];
+  if (loan.active) parts.push(`FAST LOAN until ${loan.loan?.expires_at}.`);
+  if (debts > 0) parts.push(`${debts} unpaid evidence debt(s).`);
   return parts.join(" ");
 }

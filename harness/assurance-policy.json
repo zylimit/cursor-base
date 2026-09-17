@@ -17,6 +17,8 @@
           ".cursor/cli.json",
           ".cursor/runtime/**",
           ".cursor/sandbox.json",
+          "src/hooks.mts",
+          "src/shell-policy.mts",
           "harness/**",
           "scripts/**",
           "setup.sh",

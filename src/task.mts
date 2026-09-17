@@ -20,29 +20,47 @@ import { decision } from "./shell-policy.mjs";
 import { TASKS_REL, activeTask, ownsPath, readTasks } from "./state.mjs";
 import type { HarnessTask } from "./state.mjs";
 
-// Blocking is only correct if we can tell the agent's own edits from someone else's. The
-// baseline records what each owned file looked like at task start, and every accepted write
-// updates it, so a mismatch means a third party changed the file underneath us.
+// A task is an optional write lease. No task: only safety hooks run. With a task: writes
+// outside owned paths are denied. A hash mismatch on an owned path is someone else (or a
+// shell) editing underneath us — warn, adopt the new baseline, and allow, so parallel tools
+// are not a deadlock. Restarting the task is not the fix.
 export function preflightTaskWrite(root: string, rel: string): HookOutput | null {
   const task = activeTask(root);
-  if (!task || !ownsPath(task, rel)) return null;
+  if (!task) return null;
+  if (!ownsPath(task, rel)) {
+    return decision(
+      "deny",
+      `Task ${task.id} is active; ${rel} is outside writable scope (${task.owned_paths.join(", ")}).`,
+      rel,
+    );
+  }
   const current = fileHash(resolve(root, rel));
   if (!Object.hasOwn(task.known_hashes, rel)) {
     if (current === null) return null;
-    return decision(
-      "deny",
-      `Owned path ${rel} exists but was not captured by the task baseline. Restart the task or escalate before overwriting it.`,
-      rel,
-    );
+    adoptOwnedHash(root, rel, current);
+    return {
+      permission: "allow",
+      additional_context: `Owned path ${rel} existed outside the task baseline; the baseline was updated and the write is allowed. Re-read it before overlaying.`,
+    };
   }
   if (current !== task.known_hashes[rel]) {
-    return decision(
-      "deny",
-      `${rel} changed outside this task since it was last written. Reconcile the conflict before writing again.`,
-      rel,
-    );
+    adoptOwnedHash(root, rel, current);
+    return {
+      permission: "allow",
+      additional_context: `${rel} changed since this task last wrote it; the baseline was updated and the write is allowed. Re-read the file before overlaying it.`,
+    };
   }
   return null;
+}
+
+function adoptOwnedHash(root: string, rel: string, hash: string | null): void {
+  withStateLock(root, "tasks", () => {
+    const state = readTasks(root);
+    const task = state.tasks.find((entry) => entry.status === "active");
+    if (!task || !ownsPath(task, rel)) return;
+    task.known_hashes[rel] = hash;
+    writeJson(resolve(root, TASKS_REL), state);
+  });
 }
 
 export function recordTaskWrite(root: string, rel: string): void {

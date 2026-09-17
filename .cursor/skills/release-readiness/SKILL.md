@@ -1,22 +1,44 @@
 ---
 name: release-readiness
 description: Assembles the proof a release depends on (clean tree, gate under strict, review, no loans or debt, memory, manifest, CI) and stops. Use before tagging, publishing, or asking for a release; never performs the release.
+disable-model-invocation: true
 ---
 
 # Release Readiness
 
-1. Run `node scripts/harness.mjs release readiness` (default `--operation release`). Every
-   condition reports `PASS | FAIL | BLOCKED`; a condition that could not be evaluated is
-   `BLOCKED`, never assumed. `--operation package` is the other subject (`release-build` uses it)
-   and may emit `SKIPPED` for `worktree-clean`.
-2. Resolve failures at their source: commit or revert a dirty tree, run `gate` under the strict
-   floor, complete or cancel open tasks, repay loans with `gate`, run the structured review.
-3. Treat `BLOCKED` honestly: no upstream, no CI tooling, or no version means the proof is
-   incomplete, and the report says so.
-4. Hand the report to the user. Tagging, pushing, publishing, and deploying are their actions;
-   `trust_boundary` in the output is false by construction. When they authorise one, it is carried
-   out by `release-build`, invoked by name — the skill cannot be model-invoked, so this report is
-   where the user learns the name exists.
+## Task
+
+Report every release condition as `PASS | FAIL | BLOCKED` and stop. Tagging, pushing,
+publishing, and deploying remain the user's actions.
+
+## Preconditions
+
+- Default `--operation release`. `--operation package` is the other subject (`release-build`
+  uses it) and may emit `SKIPPED` for `worktree-clean`.
+- Invoke by name. A spoken "is it ready?" may run this skill; it still performs no release.
+
+## Invariants
+
+- A condition that could not be evaluated is `BLOCKED`, never assumed.
+- `trust_boundary` in the output is false by construction.
+- For `--operation release`, a satisfied review with `independence: claimed` is FAIL
+  (`review-independence`). Enforced independence is PASS. Not-required does not appear.
+- This report is where the user learns `release-build` exists.
+
+## Method
+
+1. `node scripts/harness.mjs release readiness` (optionally `--operation package`).
+2. Resolve failures at their source: commit or revert a dirty tree, `gate` under strict,
+   complete or cancel open tasks, repay loans, run structured review until independence is
+   enforced or the user accepts that a release cannot close.
+3. Treat `BLOCKED` honestly (no upstream, no CI tooling, no version).
+4. Hand the report to the user. When they authorise one action, `release-build` carries it
+   out, invoked by name.
+
+Accept: every required condition PASS or an honest BLOCKED. Reject: tagging because this
+report was green; ignoring `review-independence: claimed`.
+
+## Handoff
 
 Return **Status / Changed / Verified / Not verified / Needs review by / Evidence**, with
 `Changed: none` and the readiness JSON summarized under `Evidence`.

@@ -1,6 +1,7 @@
 ---
 description: Required task envelope, scope discipline, and completion receipt
-alwaysApply: true
+globs: "{src,tests,scripts,harness,.cursor}/**"
+alwaysApply: false
 ---
 
 # Task Contract
@@ -10,7 +11,7 @@ fix, open the owning task so the scope is enforced rather than remembered (`task
 
 - **Goal** · **Scope** · **Out of Scope** · **Existing Pattern** · **Verification** · **Escalation** (prompt-only; `task start` records goal, scope, and risk)
 
-- Writes outside the owned paths, and writes to files changed outside the task, are blocked (`preToolUse`).
+- Writes outside the owned paths are denied. Owned-path drift is warned and the baseline adopted (`preToolUse`).
 - The task's risk floors the assurance profile: medium is at least `balanced`, high is `strict` (`profile show`, `verify-plan`).
 - Do not interpret missing scope as permission to widen it (prompt-only).
 - Delegations receive the envelope, the profile, and the writable scope in their context (`subagentStart`).

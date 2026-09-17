@@ -5,11 +5,16 @@ All notable changes to this project are documented here. The format follows Keep
 ## [Unreleased]
 
 The product-development skill families of `cc-base` and `codex-base` are absorbed as on-demand
-Cursor skills. This release also cuts the assurance cost model so a docs or skill edit no longer
-pays a full-engine review, and so the stop hook cannot loop a clean tree.
+Cursor skills. The 2026-09-17 model-capability cut then shrinks always-on instruction, makes
+`balanced` close on a passing gate, sleeps the product factory except `product-spec`, and
+formalizes every skill as Task / Preconditions / Invariants / Method.
 
 ### Added
 
+- `help --for-model` lists the eight model-facing commands. `parseReviewPayload` accepts a
+  `findings.md` line list (`- error path:line summary`) as well as JSON. Skills-lint requires
+  `## Task`, `## Preconditions`, `## Invariants`, `## Method`. Release readiness fails
+  `review-independence` when a release review is only `claimed`.
 - Skills `product-spec` (learn the business from a real event; four statement kinds; sign off by
   replaying the user's case; iteration mode with change classes and correction propagation),
   `design-brief` (task and form before colour; feeling → attribute; binary axes; eight states;
@@ -42,6 +47,14 @@ pays a full-engine review, and so the stop hook cannot loop a clean tree.
 
 ### Changed
 
+- Model-capability cut: only `00-safety` is always-applied; `balanced.reviewMode` is `none`;
+  `strict` convenes correctness and security, not nine lenses; `runtime` is not `shared` and no
+  longer carries protected-attribute `critical`/`high` (path floor on `src/hooks.mts` and
+  `src/shell-policy.mts` instead); check tags are honest (`node-test` claims reliability and
+  resilience, the properties the suite actually exercises); the task lease denies unowned writes
+  and warn-and-adopts owned drift; `sessionStart` is a short banner; `afterShellExecution` is
+  optional in `hooks.json`; product-factory skills sleep except `product-spec`; every skill uses
+  Task / Preconditions / Invariants / Method with accept-reject.
 - `product-spec`: restores operational density the 2026-09-16 condensation cut — hearing
   answers, what an answer changes next, a five-part question bank, and a marked spec fragment.
   SKILL.md stays the spine. Not a copy of cc-base's seven files.

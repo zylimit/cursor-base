@@ -35,12 +35,6 @@
         "timeout": 10
       }
     ],
-    "afterShellExecution": [
-      {
-        "command": "node .cursor/runtime/harness.mjs hook afterShellExecution",
-        "timeout": 10
-      }
-    ],
     "postToolUse": [
       {
         "command": "node .cursor/runtime/harness.mjs hook postToolUse",

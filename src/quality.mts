@@ -502,6 +502,8 @@ export interface ReviewRequirement {
   /** Lenses the profile requires and the accepting receipt did not record. */
   missing_lenses: string[];
   reason: string;
+  /** Machine-checked reviewer independence, or a claim, or not required by this profile. */
+  independence: "enforced" | "claimed" | "not-required";
 }
 
 export interface QualityAssessment {
@@ -930,17 +932,42 @@ export function acceptingReceipt(
   return null;
 }
 
+function reviewIndependence(value: ReviewReceipt | undefined): "enforced" | "claimed" {
+  return value?.independence === "enforced" ? "enforced" : "claimed";
+}
+
 function reviewRequirement(root: string, plan: VerifyPlan): ReviewRequirement {
   const mode = plan.assurance.controls.reviewMode;
   if (mode === "none") {
-    return { mode, satisfied: true, receipt: null, missing_lenses: [], reason: "The effective profile requires no review receipt." };
+    return {
+      mode,
+      satisfied: true,
+      receipt: null,
+      missing_lenses: [],
+      reason: "The effective profile requires no review receipt.",
+      independence: "not-required",
+    };
   }
   if (mode === "receipt") {
     const accepting = acceptingReceipt(root, plan);
     if (!accepting) {
-      return { mode, satisfied: false, receipt: null, missing_lenses: [], reason: "no approving review receipt is bound to the current diff" };
+      return {
+        mode,
+        satisfied: false,
+        receipt: null,
+        missing_lenses: [],
+        reason: "no approving review receipt is bound to the current diff",
+        independence: "claimed",
+      };
     }
-    return { mode, satisfied: true, receipt: accepting.path, missing_lenses: [], reason: `Approved by ${accepting.value.reviewer}.` };
+    return {
+      mode,
+      satisfied: true,
+      receipt: accepting.path,
+      missing_lenses: [],
+      reason: `Approved by ${accepting.value.reviewer}.`,
+      independence: reviewIndependence(accepting.value),
+    };
   }
   // Structured review is computed, not asserted: only a receipt the review engine wrote counts,
   // and the newest such receipt is the one consulted, so a hand-written approval recorded later
@@ -956,10 +983,12 @@ function reviewRequirement(root: string, plan: VerifyPlan): ReviewRequirement {
       reason: handWritten
         ? "the approving receipt was written by hand, not by the review engine; structured review needs a computed verdict (`review verdict`)"
         : "no approving review receipt is bound to the current diff",
+      independence: "claimed",
     };
   }
   const recorded = new Set(Array.isArray(accepting.value.lenses) ? (accepting.value.lenses as string[]) : []);
   const missing = convenedForModules(root, plan.affected_modules, plan.assurance.controls).convened.filter((lens) => !recorded.has(lens));
+  const independence = reviewIndependence(accepting.value);
   return {
     mode,
     satisfied: missing.length === 0,
@@ -969,6 +998,7 @@ function reviewRequirement(root: string, plan: VerifyPlan): ReviewRequirement {
       missing.length === 0
         ? `Structured review covered ${[...recorded].sort().join(", ")}.`
         : `the approving receipt records no coverage for lens(es) ${missing.join(", ")}; a verdict reached without structured disagreement is consensus`,
+    independence,
   };
 }
 
@@ -1337,6 +1367,8 @@ export interface ReceiptRequest {
   findings?: unknown[];
   notReviewed?: string;
   lenses?: string[];
+  /** Set by the review engine when it can (or cannot) check reviewer independence. */
+  independence?: "enforced" | "claimed";
   out?: string;
   dryRun?: boolean;
 }
@@ -1360,6 +1392,7 @@ export function writeReviewReceipt(root: string, request: ReceiptRequest): { pat
     value.lenses = [...new Set(request.lenses)].sort();
   }
   if (request.source) value.source = request.source;
+  if (request.independence) value.independence = request.independence;
   if (!["approve", "comment", "request-changes"].includes(value.decision)) {
     throw new Error("receipt --decision must be approve, comment, or request-changes.");
   }

@@ -1,6 +1,7 @@
 ---
 description: Which actions proceed, which announce, and which stop for approval
-alwaysApply: true
+globs: "{package.json,.github/**,.cursor/cli.json,.cursor/hooks.json,setup.sh,setup.ps1,scripts/**}"
+alwaysApply: false
 ---
 
 # Approval Tiers

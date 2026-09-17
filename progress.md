@@ -93,6 +93,9 @@ section contract.
   the next tool write was refused as "changed outside this task" — the mechanism worked as
   designed and cost a task restart. Scope: any session with an owning task open. Rejected: a
   harness escape hatch to re-baseline a file (it would make the protection optional).
+  → superseded 2026-09-17 in part: hash-mismatch deny on owned paths is replaced by warn-and-adopt
+  (Decisions 2026-09-17 model-capability); writes *outside* owned paths stay denied. Editor-tool
+  discipline for task-owned files is unchanged.
 
 - 2026-09-05 One assurance axis with monotonic floors, instead of separate "modes" or a fixed
   nine-phase process. `explore < rapid < balanced < strict`; eight controls; selection is a
@@ -102,6 +105,8 @@ section contract.
   process is what "avoid over-complexity" excludes).
   Consequence: `balanced` is the default and requires an approving review receipt to close a
   task, as every sibling harness does; `rapid` closes low-risk work on a passing gate alone.
+  → superseded 2026-09-17: `balanced` closes on a passing affected gate; review receipts are for
+  releases and trust boundaries (Decisions 2026-09-17 model-capability).
 
 - 2026-09-05 Fast mode is a loan, not a waiver and not a flag. `fast on` needs a reason and a
   window (policy cap ≤ 24h); only checks pre-declared `allowFastSkip` defer; each deferral is a
@@ -304,6 +309,26 @@ section contract.
   and judge the skill by that run. Supersedes: reading the 2026-09-17 `product-spec` thicken
   as the answer to 「架子 / 缺乏深度思考」. Method already pinned (four avoid-overs) and
   graduated as `gates-earn-their-place-with-evidence`.
+  → superseded 2026-09-17 in part: the user then asked to land the model-capability refactor
+  and to formalize skills as cc-base-style dry goods (Decisions 2026-09-17 model-capability).
+  Waiting for a product run is no longer the next job; over-review as the response to
+  scaffolding stays rejected.
+
+- 2026-09-17 Model-capability cut. The harness is for strong models: hard safety stays
+  machine-enforced and few; always-on text shrinks; closing is an affected gate plus an
+  observable check, not a review receipt; product-factory skills sleep until product
+  documents exist; remaining skills are formal methods (Task / Preconditions / Invariants /
+  Method with accept-reject), not numbered ceremony. Basis: the 2026-09-17 diagnosis (ten
+  problems ranked by quality × efficiency × trust) and the user instruction to land every
+  recommended option, with skills matching cc-base's operational density. Scope: this
+  repository and what it installs; does not waive safety hooks, hash-bound gate receipts, or
+  the four avoid-overs. Supersedes: `balanced` requiring a review receipt to close (2026-09-05);
+  hash-mismatch deny as the task concurrency gate (2026-09-16); "wait for one real product"
+  as the next skill job (2026-09-17); nine-lens default under `strict`; `runtime.shared` and
+  over-tagged checks that made every `src/` edit a trust-boundary event. Rejected: a fifth
+  profile, a second assurance axis, splitting the engine into more catalog modules, a skill
+  eval harness before a product run, making every prompt-only rule a hook, deleting product
+  skills. Task `task-1789611957261-5d256372`.
 
 ## Done
 
@@ -410,9 +435,10 @@ section contract.
 
 ## In progress
 
-- Skill-family depth is unsolved. Do not thicken another skill, do not run structured
-  review or a full gate on the uncommitted `product-spec` text, and do not treat a stop-hook
-  follow-up on that diff as the next job. Next evidence is one real product run (TODO P2).
+- Model-capability cut in `task-1789611957261-5d256372` is landed (engine, always-on rules,
+  skill form, product-factory sleep). Gate PASS 14/14 on the current diff. Close is blocked on
+  an independent structured review (correctness + security); this author cannot write that
+  receipt. Not a release.
 
 ## TODO
 

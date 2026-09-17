@@ -14,12 +14,42 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { REVIEW_LENSES, REVIEW_STAGES, convenedForModules } from "./assurance.mjs";
 import { catalog } from "./catalog.mjs";
-import { EXIT, STATE_REL, binding, boolOption, changedPaths, git, gitAvailable, gitBase, posix, printJson, readJson, stdinJson, targetFrom, withStateLock, writeJson, } from "./core.mjs";
+import { EXIT, STATE_REL, binding, boolOption, changedPaths, git, gitAvailable, gitBase, posix, printJson, readJson, stdinJson, stdinText, targetFrom, withStateLock, writeJson, } from "./core.mjs";
 import { REVIEW_ENGINE_SOURCE, buildVerifyPlan, writeReviewReceipt } from "./quality.mjs";
 export const REVIEW_STATE_REL = `${STATE_REL}/review/session.json`;
 export const AUTHORSHIP_REL = `${STATE_REL}/authorship.json`;
 export const DEFAULT_MAX_ROUNDS = 3;
 const LOCATION = /^[^\s:]+:\d+/;
+/** JSON (tests and tools) or a findings.md line list: `- error path:line summary`. */
+export function parseReviewPayload(raw) {
+    const trimmed = raw.trim();
+    if (!trimmed)
+        return { findings: [] };
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        return JSON.parse(trimmed);
+    }
+    const findings = [];
+    for (const line of trimmed.split(/\n/)) {
+        const match = line.match(/^(?:[-*]\s+)?(?:\*\*)?(error|warning|info)(?:\*\*)?\s+`?(\S+?:\d+)`?\s+(.+)$/i);
+        if (match) {
+            findings.push({
+                severity: match[1].toLowerCase(),
+                location: match[2],
+                summary: match[3].trim(),
+            });
+        }
+    }
+    const unable = /^\s*unable:\s*true\b/im.test(trimmed);
+    const reasonMatch = trimmed.match(/^\s*unableReason:\s*(.+)$/im);
+    return { findings, unable, unableReason: reasonMatch ? reasonMatch[1].trim() : null };
+}
+async function readReviewInput(root, options) {
+    if (options.file) {
+        const path = resolve(root, String(options.file));
+        return parseReviewPayload(readFileSync(path, "utf8"));
+    }
+    return parseReviewPayload(await stdinText());
+}
 function sessionPath(root) {
     return resolve(root, REVIEW_STATE_REL);
 }
@@ -292,6 +322,7 @@ export function reviewVerdict(root, reviewer, notes) {
             findings: reports.flatMap(([lens, report]) => report.findings.map((finding) => ({ lens, ...finding }))),
             notReviewed: current.excluded_lenses.map((entry) => `${entry.lens}: ${entry.reason}`).join("; "),
             lenses: current.required_lenses,
+            independence: authorshipEnforced ? "enforced" : "claimed",
         });
         receipt = posix(relative(root, written.path));
     }
@@ -479,15 +510,15 @@ export async function reviewCommand(positional, options) {
             max_rounds: maxRounds(root),
             protocol: [
                 "1. review-pack: assemble the evidence, including the deletion audit",
-                "2. review blue < claims.json: the author states what was verified, with evidence",
-                "3. review lens <name> [--agent ID] < findings.json: one independent report per convened lens, every finding located",
+                "2. review blue [--file claims.md]: the author states what was verified, with evidence",
+                "3. review lens <name> [--agent ID] [--file findings.md]: one report per convened lens, every finding located",
                 "4. review verdict: computed from what was recorded, never asserted",
             ],
         });
         return;
     }
     if (subcommand === "blue") {
-        const payload = await stdinJson();
+        const payload = await readReviewInput(root, options);
         const result = recordBlue(root, payload);
         printJson({ command: "review blue", target: root, ...result });
         if (!result.ok)
@@ -498,7 +529,7 @@ export async function reviewCommand(positional, options) {
         const lens = positional[1];
         if (!lens)
             throw new Error("review lens requires a lens name.");
-        const payload = await stdinJson();
+        const payload = await readReviewInput(root, options);
         const result = recordLens(root, lens, payload, options.agent === undefined ? null : String(options.agent));
         printJson({ command: "review lens", target: root, lens, ...result });
         if (!result.ok)

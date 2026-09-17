@@ -25,6 +25,9 @@ export const EVENTS = [
     "stop",
     "sessionStart",
 ];
+/** Host-registered hooks. `afterShellExecution` stays dispatchable (tests, optional installs)
+ *  but is not required in `hooks.json` — redaction already happens when evidence is stored. */
+export const REQUIRED_HOOK_EVENTS = EVENTS.filter((event) => event !== "afterShellExecution");
 export const SECURITY_EVENTS = [
     "beforeShellExecution",
     "beforeMCPExecution",
@@ -834,11 +837,15 @@ export function contextDenied(path) {
         return true;
     return CONTEXT_DENIED_DIRECTORIES.some((directory) => candidate === directory || candidate.startsWith(`${directory}/`));
 }
-export async function stdinJson() {
+export async function stdinText() {
     let input = "";
     process.stdin.setEncoding("utf8");
     for await (const chunk of process.stdin)
         input += chunk;
+    return input;
+}
+export async function stdinJson() {
+    const input = await stdinText();
     if (!input.trim())
         return {};
     try {

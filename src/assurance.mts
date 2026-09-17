@@ -126,13 +126,13 @@ export const BUILTIN_PROFILES: Readonly<Record<BuiltinProfile, AssuranceControls
   balanced: {
     verificationBreadth: "affected",
     deferral: "loan",
-    reviewMode: "receipt",
+    reviewMode: "none",
     attributeGaps: "blocking",
     memorySync: "warn",
     budget: "warn",
     contextDepth: "affected",
     completion: "delivery",
-    reviewLenses: ["correctness", "testing", "architecture"],
+    reviewLenses: ["correctness"],
   },
   strict: {
     verificationBreadth: "all",
@@ -143,7 +143,9 @@ export const BUILTIN_PROFILES: Readonly<Record<BuiltinProfile, AssuranceControls
     budget: "block",
     contextDepth: "conservative",
     completion: "release-capable",
-    reviewLenses: Object.keys(REVIEW_LENSES) as ReviewLens[],
+    // Correctness plus one trust lens. Attributes still shrink the team; they never add lenses
+    // the profile did not name. Daily delivery closes on a gate, not on nine-lens consensus.
+    reviewLenses: ["correctness", "security"],
   },
 });
 
@@ -188,7 +190,7 @@ export const DEFAULT_POLICY: AssurancePolicy = Object.freeze({
   floors: {
     risk: { low: "rapid", medium: "balanced", high: "strict" },
     // An untrustworthy mapping already fans verification out to every module; the floor adds
-    // that such a change can never run under `rapid` without forcing a nine-lens review on a
+    // that such a change can never run under `rapid` without forcing a release-grade review on a
     // stray unmapped file.
     impact: "balanced",
     protectedAttributes: "strict",
@@ -201,6 +203,8 @@ export const DEFAULT_POLICY: AssurancePolicy = Object.freeze({
           ".cursor/cli.json",
           ".cursor/runtime/**",
           ".cursor/sandbox.json",
+          "src/hooks.mts",
+          "src/shell-policy.mts",
           "harness/**",
           "scripts/**",
           "setup.sh",

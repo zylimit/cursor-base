@@ -151,7 +151,9 @@ test("built-in profiles form a lattice and a named profile may only tighten its 
   assert.equal(byName.strict.verificationBreadth, "all");
   assert.equal(byName.strict.deferral, "none");
   assert.equal(byName.strict.reviewMode, "structured");
-  assert.equal(byName.strict.reviewLenses.length, 9);
+  assert.equal(byName.strict.reviewLenses.length, 2);
+  assert.deepEqual(byName.strict.reviewLenses, ["correctness", "security"]);
+  assert.equal(byName.balanced.reviewMode, "none");
 
   // Tightening is accepted.
   writeJson(resolve(root, "harness", "assurance-policy.json"), {
@@ -390,7 +392,7 @@ test("the loan ceiling comes from the policy and never exceeds a day", (t) => {
 // Completion and the stop hook
 // ---------------------------------------------------------------------------------------------
 
-test("task completion follows the profile: rapid closes low risk without review, balanced needs a receipt", (t) => {
+test("task completion follows the profile: rapid and balanced close on a passing gate, strict needs structured review", (t) => {
   const root = fixture(t);
   jsonResult(runHarness(["profile", "set", "rapid", "--target", root]));
   edit(root, "src/app.js", "export const one = 2;\n");
@@ -402,12 +404,8 @@ test("task completion follows the profile: rapid closes low risk without review,
   edit(root, "src/app.js", "export const one = 3;\n");
   jsonResult(runHarness(["task", "start", "--goal", "Bigger", "--owned", "src/**", "--risk", "medium", "--target", root]));
   jsonResult(runHarness(["gate", "--target", root]));
-  const refused = jsonResult(runHarness(["task", "complete", "--target", root]), 2);
-  assert.ok(refused.blockers.some((entry) => /review:/.test(entry)), JSON.stringify(refused.blockers));
-  assert.equal(refused.assurance.effective, "balanced");
-
-  jsonResult(runHarness(["receipt", "--reviewer", "colleague", "--decision", "approve", "--target", root]));
-  assert.equal(jsonResult(runHarness(["task", "complete", "--target", root])).ok, true);
+  const balanced = jsonResult(runHarness(["task", "complete", "--target", root]));
+  assert.equal(balanced.ok, true);
 });
 
 test("the stop hook names the profile and blocks on stale memory only under strict", (t) => {
@@ -487,11 +485,11 @@ test("structured review stages lenses, refuses unlocated findings, and computes 
   edit(root, "src/app.js", "export const one = 2;\n");
   const started = jsonResult(runHarness(["review", "start", "--target", root]));
   assert.equal(started.assurance, "strict");
-  // Nine lenses requested by strict; the ones whose attribute nobody declares are excused, and
-  // correctness is never excused.
-  assert.deepEqual(started.convened, ["correctness", "reliability", "security", "testing"]);
-  assert.ok(started.not_convened.some((entry) => entry.lens === "privacy"));
-  assert.ok(started.not_convened.some((entry) => entry.lens === "architecture"));
+  // Strict requests correctness and security; attributes may shrink the team, never grow it.
+  assert.deepEqual(started.convened, ["correctness", "security"]);
+  assert.equal(started.convened.includes("privacy"), false);
+  assert.equal(started.convened.includes("architecture"), false);
+  assert.equal(started.convened.includes("testing"), false);
 
   const noBlue = jsonResult(runHarness(["review", "verdict", "--target", root]), 1);
   assert.ok(noBlue.blockers.some((entry) => /blue has not stated/.test(entry)));
@@ -510,7 +508,7 @@ test("structured review stages lenses, refuses unlocated findings, and computes 
 
   // Stage 1 with an error: verdict is FIX_REQUIRED and later stages stay closed.
   jsonResult(runHarness(["review", "lens", "correctness", "--target", root], { input: { findings: [{ severity: "error", location: "src/app.js:1", summary: "off by one" }] } }));
-  const closed = jsonResult(runHarness(["review", "lens", "testing", "--target", root], { input: { findings: [] } }), 1);
+  const closed = jsonResult(runHarness(["review", "lens", "security", "--target", root], { input: { findings: [] } }), 1);
   assert.equal(closed.stage_gated, true);
   const fix = jsonResult(runHarness(["review", "verdict", "--target", root]), 2);
   assert.equal(fix.verdict, "FIX_REQUIRED");
@@ -528,14 +526,10 @@ test("structured review stages lenses, refuses unlocated findings, and computes 
   // A verdict before every convened lens has reported is refused, not guessed.
   const premature = jsonResult(runHarness(["review", "verdict", "--target", root]), 1);
   assert.ok(premature.blockers.some((entry) => /never reported/.test(entry)));
-  // Lenses report stage by stage; each report says whether the next stage opened.
+  // Stage 2 is empty (testing not convened), so a clean correctness report opens stage 3.
   const first = jsonResult(runHarness(["review", "lens", "correctness", "--agent", "reviewer-correctness", "--target", root], { input: { findings: [] } }));
-  assert.equal(first.open_stage, 2);
-  const second = jsonResult(runHarness(["review", "lens", "testing", "--agent", "reviewer-testing", "--target", root], { input: { findings: [{ severity: "info", location: "src/app.js:1", summary: "fine" }] } }));
-  assert.equal(second.open_stage, 3);
-  for (const lens of ["reliability", "security"]) {
-    jsonResult(runHarness(["review", "lens", lens, "--agent", `reviewer-${lens}`, "--target", root], { input: { findings: [] } }));
-  }
+  assert.equal(first.open_stage, 3);
+  jsonResult(runHarness(["review", "lens", "security", "--agent", "reviewer-security", "--target", root], { input: { findings: [] } }));
   const verdict = jsonResult(runHarness(["review", "verdict", "--reviewer", "panel", "--target", root]));
   assert.equal(verdict.verdict, "ACCEPT");
   assert.equal(verdict.final, true);
@@ -543,6 +537,12 @@ test("structured review stages lenses, refuses unlocated findings, and computes 
   const receipt = JSON.parse(readFileSync(resolve(root, verdict.receipt), "utf8"));
   assert.equal(receipt.decision, "approve");
   assert.deepEqual(receipt.lenses, [...started.convened].sort());
+  assert.equal(receipt.independence, "claimed");
+
+  const ready = JSON.parse(runHarness(["release", "readiness", "--operation", "release", "--target", root]).stdout);
+  const independence = ready.conditions.find((condition) => condition.id === "review-independence");
+  assert.equal(independence.status, "FAIL");
+  assert.match(independence.detail, /claimed/);
 
   // The receipt satisfies the strict review requirement. Completion still fails, correctly:
   // the module declares security at high and no check in its list evidences it.
@@ -551,6 +551,33 @@ test("structured review stages lenses, refuses unlocated findings, and computes 
   assert.equal(status.review.mode, "structured");
   assert.equal(status.review.satisfied, true);
   assert.deepEqual(status.blockers, ["attribute app/security (high) is uncovered"]);
+});
+
+test("review lens accepts a findings.md line list", (t) => {
+  const root = fixture(t, {
+    catalog: {
+      version: 1,
+      modules: [{ id: "app", paths: ["src/**"], dependsOn: [], verification: ["unit", "lint"], owners: [], attributes: { security: "high" } }],
+    },
+  });
+  edit(root, "src/app.js", "export const one = 2;\n");
+  edit(root, "findings.md", "- error src/app.js:1 off by one\n");
+  jsonResult(runHarness(["review", "start", "--target", root]));
+  jsonResult(runHarness(["review", "blue", "--target", root], { input: { claims: [{ claim: "unit passes", evidence: "gate: unit PASS exit 0" }] } }));
+  jsonResult(runHarness(["review", "lens", "correctness", "--file", "findings.md", "--target", root]));
+  const verdict = jsonResult(runHarness(["review", "verdict", "--target", root]), 2);
+  assert.equal(verdict.verdict, "FIX_REQUIRED");
+});
+
+test("help --for-model lists the eight model-facing commands", (t) => {
+  const help = runHarness(["help", "--for-model"]);
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /Model-facing commands/);
+  assert.match(help.stdout, /doctor/);
+  assert.match(help.stdout, /affected/);
+  assert.match(help.stdout, /gate/);
+  assert.doesNotMatch(help.stdout, /gate-audit/);
+  assert.doesNotMatch(help.stdout, /context-pack/);
 });
 
 test("a review opened on a commit range stays fresh against that range and binds its receipt to it", (t) => {
@@ -696,11 +723,13 @@ test("instruction files are scanned as untrusted input", (t) => {
 
 test("skills-lint catches what the loader would drop silently", (t) => {
   const root = fixture(t);
-  edit(root, ".cursor/skills/good-skill/SKILL.md", "---\nname: good-skill\ndescription: Does one thing well.\n---\n# Good\n");
+  const sections = "\n## Task\nDo it.\n\n## Preconditions\nNone.\n\n## Invariants\n- One outcome.\n\n## Method\n1. Do it.\n";
+  edit(root, ".cursor/skills/good-skill/SKILL.md", `---\nname: good-skill\ndescription: Does one thing well.\n---\n# Good\n${sections}`);
   edit(root, ".cursor/skills/bad-skill/SKILL.md", "---\nname: Bad_Skill\ndisableModelInvocation: true\n---\n# Bad\n");
   edit(root, ".cursor/skills/empty-skill/README.md", "no skill here\n");
   edit(root, ".cursor/skills/colon-skill/SKILL.md", "---\nname: colon-skill\ndescription: Use when: the parser would drop this.\n---\n# Colon\n");
-  edit(root, ".cursor/skills/quoted-skill/SKILL.md", "---\nname: quoted-skill\ndescription: \"Use when: quoting makes this valid YAML.\"\n---\n# Quoted\n");
+  edit(root, ".cursor/skills/quoted-skill/SKILL.md", `---\nname: quoted-skill\ndescription: "Use when: quoting makes this valid YAML."\n---\n# Quoted\n${sections}`);
+  edit(root, ".cursor/skills/thin-skill/SKILL.md", "---\nname: thin-skill\ndescription: Has a name and a description but no method.\n---\n# Thin\n");
   const result = jsonResult(runHarness(["skills-lint", "--target", root]), 1);
   const codes = new Set(result.findings.map((finding) => finding.code));
   assert.ok(codes.has("NAME_NOT_KEBAB"));
@@ -709,9 +738,11 @@ test("skills-lint catches what the loader would drop silently", (t) => {
   assert.ok(codes.has("CAMEL_CASE_KEY"));
   assert.ok(codes.has("NO_SKILL_MD"));
   assert.ok(codes.has("YAML_UNQUOTED_COLON"));
+  assert.ok(codes.has("MISSING_SECTION"));
   assert.ok(!result.findings.some((finding) => finding.file.includes("good-skill")));
   assert.ok(!result.findings.some((finding) => finding.file.includes("quoted-skill")));
   assert.ok(result.findings.some((finding) => finding.file.includes("colon-skill") && finding.code === "YAML_UNQUOTED_COLON"));
+  assert.ok(result.findings.some((finding) => finding.file.includes("thin-skill") && finding.code === "MISSING_SECTION"));
 });
 
 test("agents-lint requires a nested contract where a protected attribute blocks", (t) => {
@@ -903,7 +934,7 @@ test("governed modules that select no check are not complete", (t) => {
 test("a byte-order mark is not a hidden character and does not break skill frontmatter", (t) => {
   const root = fixture(t);
   edit(root, ".cursor/rules/bom.mdc", "\uFEFF---\ndescription: bom\n---\n- Run `node scripts/harness.mjs gate` first.\n");
-  edit(root, ".cursor/skills/bom-skill/SKILL.md", "\uFEFF---\nname: bom-skill\ndescription: Has a BOM.\n---\n# BOM\n");
+  edit(root, ".cursor/skills/bom-skill/SKILL.md", "\uFEFF---\nname: bom-skill\ndescription: Has a BOM.\n---\n# BOM\n\n## Task\nDo it.\n\n## Preconditions\nNone.\n\n## Invariants\n- One.\n\n## Method\n1. Do it.\n");
   git(root, ["add", "-A"]);
   assert.equal(jsonResult(runHarness(["instructions", "--staged", "--target", root])).ok, true);
   const skills = jsonResult(runHarness(["skills-lint", "--target", root]));

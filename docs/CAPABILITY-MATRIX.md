@@ -124,10 +124,10 @@ executable check or an on-demand skill rather than as more always-applied text.
 | Architecture guardrail | `node scripts/harness.mjs arch-check` | Real imports compared to declared graph |
 | Coverage guarantee | `node scripts/harness.mjs catalog lint` | Every tracked path mapped, global, or excused |
 | Context budget | `node scripts/harness.mjs context-pack` | Manifest to the model, pack to disk |
-| Write ownership | `node scripts/harness.mjs task start` | Outside edits block the next agent write |
+| Write ownership | `node scripts/harness.mjs task start` | Writes outside owned paths are denied; owned-path drift is warned and adopted |
 | Gate effectiveness | `node scripts/harness.mjs gate-audit` | Inert gates are named, not assumed useful |
 | Service resilience | `node scripts/harness.mjs service <sub>` | Backoff restart, breaker, health probe, pid-true status |
-| Proactive risk | `node scripts/harness.mjs risk`, sessionStart hook | State decay becomes findings, not surprises |
+| Proactive risk | `node scripts/harness.mjs risk` | State decay becomes findings; sessionStart stays a short safety/assurance banner |
 | Evidence integrity | hash-chained ledger, `quality verify` | Deleted or edited receipts are detectable |
 | Data lifecycle | `node scripts/harness.mjs retention` | Aged evidence destroyed; referenced evidence protected |
 | Lesson capture | `docs/feedback/`, `record-lesson` skill, `feedback lint` | `feedback list` hints candidates by count; two questions — already codified? real cost? — decide graduation |
@@ -147,7 +147,28 @@ executable check or an on-demand skill rather than as more always-applied text.
 | Memory recovery | `recap`, `invariants`, `sync-check`, `archive`, `postToolUse` hook | Derived from files; re-injected after compaction |
 | Governance integrity | `instructions`, `rules-audit`, `skills-lint`, `agents-lint` | Untrusted instruction files; no phantom rules; loadable skills |
 | Catalog bootstrap | `catalog discover` | Modules and edges proposed; tiers never guessed |
-| Release proof | `release readiness` | Every condition reported under strict; nothing performed |
+| Release proof | `release readiness` | Every condition reported under strict; claimed independence cannot close a release |
+
+## 2026-09-17 model-capability cut
+
+Hard safety stays machine-enforced and few. Always-on text shrinks. Closing is an affected gate
+plus an observable check, not a review receipt. Product-factory skills sleep. Remaining skills
+are formal methods (Task / Preconditions / Invariants / Method with accept-reject).
+
+| Mechanism | Decision | Where it lives |
+| --- | --- | --- |
+| Always-applied rules | Only `00-safety.mdc`; the rest are path-triggered | `.cursor/rules/` |
+| `balanced` close | Passing affected gate; no review receipt | `src/assurance.mts`, `src/quality.mts` |
+| `strict` lenses | correctness + security, not all nine | `BUILTIN_PROFILES` |
+| Runtime attributes | No `shared: true`; security/privacy/safety low; path floor on hooks and shell-policy | `harness/module-catalog.json`, `DEFAULT_POLICY` |
+| Check tags | Honest classes; `node-test` claims reliability and resilience; fitness/arch-check/catalog-lint/adr-check are not a security bag | `harness/verification-matrix.json` |
+| Task lease | Deny outside owned paths; warn-and-adopt on owned drift | `src/task.mts` |
+| sessionStart | Safety + optional task + short assurance banner | `src/hooks.mts` |
+| `afterShellExecution` | Optional in `hooks.json`; handler stays for tests | `REQUIRED_HOOK_EVENTS` |
+| Model-facing CLI | Eight verbs; `help --for-model` | `MODEL_COMMANDS` |
+| Review input | JSON or `--file findings.md` | `parseReviewPayload` |
+| Release independence | `claimed` cannot close `--operation release` | `src/release.mts` |
+| Skill form | Required headings; product factory sleeps except `product-spec` | `skills-lint`, `.cursor/skills/` |
 
 ## 2026-09-16 engine cost-model cut
 
