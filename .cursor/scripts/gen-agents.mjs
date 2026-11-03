@@ -10,7 +10,8 @@
 //   disallowedTools Cursor 没法在 frontmatter 里禁，改成正文一句话：含 Task 或 Agent 的写「不要再派子代理。」，
 //   其它每项写「不要用 <工具> 工具。」（Bash 写成「不要用 Shell（Bash）工具。」，Cursor 里它叫 Shell）。
 //   生成器只写不清会让源头删掉的 agent 在 .cursor/agents/ 里一直留着（Cursor 优先读这里），所以生成前先清：
-//   带下面那行生成注释、但 .claude/agents/ 里已没有同名源的删掉；没带注释的手写文件不动。
+//   带下面那行生成注释、注释里的源名等于本文件名、但 .claude/agents/ 里已没有这个源的删掉；
+//   没带注释的手写文件、复制生成物改名定制的文件（注释里源名不是自己）不动。
 // 取舍：frontmatter 只做逐行 `key: value`——cc-base 的 agent 文件没有嵌套 YAML，上 YAML 库换来的只是一个依赖。
 //   认不出的行（缩进续行、没有冒号）原样丢弃并在 stderr 说一句，不猜；其余 Cursor 不认的键（color / tools /
 //   maxTurns）静默丢掉。agent 正文不改一个字，只在前面按需加几句。
@@ -69,9 +70,12 @@ if (files.length === 0) die(`${SRC} 下没有 .md`);
 
 fs.mkdirSync(DST, { recursive: true });
 const MARK = '由 .cursor/scripts/gen-agents.mjs';
+const MARK_RE = MARK.replace(/\./g, '\\.');
 for (const g of fs.readdirSync(DST).filter((x) => x.endsWith('.md')).sort()) {
   if (files.includes(g)) continue;
-  if (!fs.readFileSync(path.join(DST, g), 'utf8').includes(MARK)) continue;
+  // 注释里写的源名等于本文件名才算生成物：复制 code-reviewer.md 改名定制的文件带着别人的注释，不动
+  const m = new RegExp(`${MARK_RE} 从 \\.claude/agents/(.+?)\\.md 生成`).exec(fs.readFileSync(path.join(DST, g), 'utf8'));
+  if (!m || m[1] !== g.replace(/\.md$/, '')) continue;
   fs.rmSync(path.join(DST, g));
   process.stdout.write(`gen-agents: 源头已删，清掉生成物 ${path.relative(ROOT, path.join(DST, g))}\n`);
 }

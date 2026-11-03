@@ -149,6 +149,16 @@ chk "$((rc1 + rc2 + ok1))" "夹具里造 gone.md 源后生成，gone.md 出现�
 chk "$([ ! -e "$F/.cursor/agents/gone.md" ] && echo 0 || echo 1)" "删源再生成后 .cursor/agents/gone.md 被清掉，stdout 说了一句" "gone.md 不在，stdout 含 gone.md" "gone.md=$([ -e "$F/.cursor/agents/gone.md" ] && echo 还在 || echo 已清)；stdout=$(printf '%s' "$out" | grep -c 'gone.md') 行提到"
 chk "$([ -f "$F/.cursor/agents/keep.md" ] && [ -f "$F/.cursor/agents/stay.md" ] && echo 0 || echo 1)" "手写的 keep.md（无生成注释）与仍有源的 stay.md 都还在" "都在" "keep=$([ -f "$F/.cursor/agents/keep.md" ] && echo 有 || echo 无) stay=$([ -f "$F/.cursor/agents/stay.md" ] && echo 有 || echo 无)"
 
+echo "--- gen-agents：复制改名的定制文件不被清、Agent 也写成不要再派子代理"
+G=$(mktemp -d); TMPS="$TMPS $G"
+mkdir -p "$G/.claude/agents"
+printf -- '---\nname: code-reviewer\ndescription: d-cr\ndisallowedTools: Agent\n---\n\n正文 cr\n' >"$G/.claude/agents/code-reviewer.md"
+gen "$G" >/dev/null 2>&1; rc1=$?
+cp "$G/.cursor/agents/code-reviewer.md" "$G/.cursor/agents/my-reviewer.md"
+gen "$G" >/dev/null 2>&1; rc2=$?
+chk "$((rc1 + rc2 + $([ -f "$G/.cursor/agents/my-reviewer.md" ] && echo 0 || echo 1)))" "复制 code-reviewer.md 成 my-reviewer.md（注释里源名是 code-reviewer，无 my-reviewer 源），再生成后它还在" "rc=0 且 my-reviewer.md 在" "rc=$rc1 / $rc2，my-reviewer.md=$([ -f "$G/.cursor/agents/my-reviewer.md" ] && echo 有 || echo 被删)"
+chk "$(has "$G/.cursor/agents/code-reviewer.md" "不要再派子代理。" && echo 0 || echo 1)" "源文件 disallowedTools: Agent 时生成版含「不要再派子代理。」" "含" "$(has "$G/.cursor/agents/code-reviewer.md" "不要再派子代理。" && echo 含 || echo 不含)"
+
 echo "--- gen-agents：agents-models.json 钉死与回落"
 printf '{"code-reviewer":"auto"}\n' >"$MODELS"
 gen >/dev/null 2>&1
@@ -183,6 +193,7 @@ else
     # 目标里留一个「带生成注释、本仓已无同名」的残留和一个手写的：第二次装后残留清掉、手写的还在
     printf '<!-- 由 .cursor/scripts/gen-agents.mjs 从 .claude/agents/old-gen.md 生成 -->\n' >"$T/.cursor/agents/old-gen.md"
     printf '手写的\n' >"$T/.cursor/agents/hand.md"
+    cp "$T/.cursor/agents/code-reviewer.md" "$T/.cursor/agents/my-reviewer.md"
 
     # 第二次装：先动 AGENTS.md 一个字节，不许被覆盖，新版本落 .framework-new
     printf 'x' >>"$T/AGENTS.md"
@@ -192,6 +203,7 @@ else
     chk "$rc" "第二次装退 0" "rc=0" "rc=$rc（输出尾：$(tail -2 "$T.out2" | tr '\n' ' ')）"
     chk "$([ "$before" = "$after" ] && echo 0 || echo 1)" "改过的 AGENTS.md 装完内容不变" "cksum 不变" "前 $before 后 $after"
     chk "$([ ! -e "$T/.cursor/agents/old-gen.md" ] && [ -f "$T/.cursor/agents/hand.md" ] && echo 0 || echo 1)" "第二次装清掉目标里失源的生成物 old-gen.md，手写的 hand.md 不动" "old-gen 无、hand 有" "old-gen=$([ -e "$T/.cursor/agents/old-gen.md" ] && echo 有 || echo 无) hand=$([ -f "$T/.cursor/agents/hand.md" ] && echo 有 || echo 无)"
+    chk "$([ -f "$T/.cursor/agents/my-reviewer.md" ] && echo 0 || echo 1)" "第二次装不删复制改名的 my-reviewer.md（注释里源名是 code-reviewer，不是自己）" "my-reviewer 有" "my-reviewer=$([ -f "$T/.cursor/agents/my-reviewer.md" ] && echo 有 || echo 无)"
     chk "$([ -f "$T/AGENTS.md.framework-new" ] && cmp -s "$T/AGENTS.md.framework-new" "$R/AGENTS.md" && echo 0 || echo 1)" "出现 AGENTS.md.framework-new 且等于本仓 AGENTS.md" "存在且相同" "$([ -f "$T/AGENTS.md.framework-new" ] && echo 存在 || echo 缺失)"
 
     # dry-run 不写文件

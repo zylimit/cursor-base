@@ -29,7 +29,7 @@ cursor-base 的项目记忆。本仓 = cc-base 原件 + Cursor 适配层，cc-ba
 
 ## 当前断点（2026-11-04）
 
-重建完成、首轮审查残留修完，待 B2 复核后提交。cc-base 同步基线：9467190。
+重建完成，首轮审查残留与复核冒出的 N1 都已修完入库；cc-base 同步基线：9467190。下一步是 TODO #1（交互模式 / IDE 下验证 Stop / UserPromptSubmit 等事件），验证后决定 #2 的桥接。
 
 ## TODO
 
@@ -38,7 +38,7 @@ cursor-base 的项目记忆。本仓 = cc-base 原件 + Cursor 适配层，cc-ba
 - [ ] #3 P3 Windows 上跑一遍 `setup-cursor.sh` 对应的 ps1 路径（本机无 pwsh）；Cursor 在 Windows 下 hook 命令经哪个 shell 执行没查证，string form 的相对路径写法是否成立要实测。
 - [ ] #4 P3 `.cursor/cli.json` 的 allow / deny 列表在 IDE 的 allowlist 模式下实际效果未验（CLI 用 --force 跑的）。
 - [x] #5 P2 首次提交前 code review 残留（M1–M4 / L1–L2 / 存疑）——2026-11-04 B2 全部修完，见 Done。
-- [ ] #6 P2 B2 复核冒出的：N1 Medium——`gen-agents.mjs:74` 与 `setup-cursor.sh:90` 判「失源生成物」只看文件里有没有生成注释子串，用户把 `.cursor/agents/code-reviewer.md` 复制成 `my-reviewer.md` 定制后，下次 sync / setup-cursor 会把它当失源产物删掉；改法是判据绑定注释里写的源文件名必须等于本文件名。Low——test-adapter 缺 `disallowedTools: Agent` 夹具（M10 突变不红）；本仓只读断言只比 `git status --short`，已是 M 状态的文件内容再变看不出来。
+- [x] #6 P2 B2 复核冒出的 N1（失源判据只认注释子串，复制改名的定制 agent 会被误删）——2026-11-04 B3 修完：判据绑定注释里的源文件名必须等于本文件名，gen-agents 与 setup-cursor 两条路都补了「复制改名的定制文件活下来」夹具，`disallowedTools: Agent` 夹具也补了（48 条）。Low 残留：本仓只读断言只比 `git status --short`，已是 M 状态的文件内容再变看不出来——测试全程在副本里跑，实际风险已消，断言随后续 Task 顺手加强。
 
 ## In Progress
 

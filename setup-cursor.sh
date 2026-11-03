@@ -80,14 +80,16 @@ put_tree() {
   fi
 }
 
-# prune_agents：目标 .cursor/agents/ 里带生成注释、但本仓已没有同名生成物的删掉（源头删了的角色）；手写的不动
+# prune_agents：目标 .cursor/agents/ 里带生成注释、但本仓已没有同名生成物的删掉（源头删了的角色）；手写的、注释里源名不是自己的不动
 prune_agents() {
-  local f base
+  local f base src
   for f in "$target"/.cursor/agents/*.md; do
     [ -e "$f" ] || continue
     base=$(basename "$f")
     [ -e "$HERE/.cursor/agents/$base" ] && continue
-    grep -qF -- '由 .cursor/scripts/gen-agents.mjs' "$f" || continue
+    # 注释里写的源名等于本文件名才算生成物；复制生成物改名定制的文件带着别人的注释，不动
+    src=$(sed -n 's/.*由 \.cursor\/scripts\/gen-agents\.mjs 从 \.claude\/agents\/\(.*\)\.md 生成.*/\1/p' "$f" | head -n 1)
+    [ "$src" = "${base%.md}" ] || continue
     if [ "$DRY_RUN" = "1" ]; then
       printf 'setup-cursor: dry-run remove .cursor/agents/%s（源头已删的生成物）\n' "$base"
     else
