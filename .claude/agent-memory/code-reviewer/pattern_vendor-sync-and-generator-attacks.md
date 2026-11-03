@@ -1,6 +1,6 @@
 ---
 name: pattern-vendor-sync-and-generator-attacks
-description: 审「从上游仓同步原件 + 生成派生文件」脚本（如 cursor-base 的 sync-from-cc-base / gen-agents）的五条攻法
+description: 审「从上游仓同步原件 + 生成派生文件」脚本（如 cursor-base 的 sync-from-cc-base / gen-agents）的六条攻法
 metadata:
   type: feedback
 ---
@@ -12,6 +12,8 @@ metadata:
 3. 自测跑真同步 = 自测改仓：头注释写「对本仓只读」，实际会把本地对同步文件的改动打回上游 HEAD。拷一份仓、改一个同步文件、跑自测，看改动还在不在。
 4. 自测的突变覆盖：在仓的副本里逐条突变（丢正文 / 丢 description / 不删 / 不排除自有文件 / 不核对 / 取工作树 / 忽略脏），全绿的就是没锁住的行为。
 5. 探「取 HEAD 不取工作树」时，探针文件别放上游的白名单外（`/*` 白名单下根目录新文件被忽略，status 干净，探了等于没探）；先 `git check-ignore` 确认。
+
+6. 修完的「清理失源生成物」要攻判据：只认标记子串时，用户复制生成物改名定制会带着标记被误删；判据应绑「标记里写的源文件名 = 本文件名」。
 
 **Why:** 这类脚本的产物看起来全对，缺陷都藏在「上游变了以后」和「失败路径」里，正常跑两遍幂等抓不到。
 **How to apply:** 审任何 vendoring / sync / 生成器时套这五条；见 [[pattern-golden-baseline-rulers]] 的突变法。
