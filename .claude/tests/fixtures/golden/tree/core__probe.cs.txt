@@ -1,0 +1,9 @@
+namespace Golden.Core;
+
+// Same contract as probe.java: one unresolvable specifier, counted by unresolvedImports.
+using Golden.Shared;
+
+public static class Probe
+{
+    public static string Run() => Shared.FormatId("probe");
+}

@@ -1,0 +1,6 @@
+// Same contract as probe.java: one unresolvable specifier, counted by unresolvedImports.
+use golden_shared::format_id;
+
+pub fn probe() -> String {
+    format_id("probe")
+}

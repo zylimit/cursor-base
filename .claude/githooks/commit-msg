@@ -1,0 +1,98 @@
+#!/bin/sh
+# cc-base :: githooks/commit-msg —— 拒绝什么都没说的 subject。
+#
+# commit message 是这次改动唯一长期留存的解释。半年后翻 git log 的是你自己。
+# 本仓既有风格（git log --format=%s -20）：`type(scope): 中文主题`。
+#
+# 判定：
+#   放行     Merge / Revert / fixup! / squash! / # 开头——git 自己生成或 autosquash 要用的，
+#            拦它们等于把 merge 和 rebase --autosquash 弄坏
+#   拒       显示宽度 < 12
+#   拒       无信息词（wip / fix / update / misc / temp / test / . 这类）：整条命中，
+#            或剥掉 `type(scope):` 前缀后剩下的余部命中（`chore: update` 属于这类）
+#   告警不拒 显示宽度 > 72
+#
+# 宽度按**显示列**算，不按字节、也不按字符个数：
+#   - 按字节：UTF-8 一个汉字 3 字节，`修复登录` 是 12 字节，这条闸对中文等于完全放空；
+#     72 那条则反过来，正常中文标题全部超线。
+#   - 按字符个数：`fix: 修好登录崩溃` 是 11 个字符，会被「< 12」误拒；它的显示宽度是 17，
+#     正常通过。这是本仓最容易踩的那一脚。
+#   算法：字节数 - UTF-8 续字节数（0x80-0xBF）= 字符数；再把 3/4 字节序列（0xE0-0xF4 打头，
+#   CJK、CJK 标点、全角、emoji）各 +1 计两列。全程 LC_ALL=C 按字节数——git 跑 hook 时
+#   locale 常是 C，`wc -m` 那类依赖 locale 的算法在这里会悄悄退化成按字节。
+#
+# 用 /bin/sh 而非 bash：git hook 在 Git for Windows 下由 git 自带的 sh 拉起，POSIX 子集最稳。
+set -eu
+
+MSG_FILE=${1:-}
+[ -n "$MSG_FILE" ] && [ -f "$MSG_FILE" ] || exit 0
+
+# subject = 第一行（先去 CRLF：Windows 侧编辑器留的 \r 会混进宽度和词表判定），两端去空白。
+SUBJECT=$(sed -n '1p' "$MSG_FILE" | sed -e 's/\r$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+# 空消息交给 git 自己处理（它会中止，或者用户显式 --allow-empty-message 放行）。
+# 这条闸不接管 git 已经管着的事，免得把 --allow-empty-message 这类显式流程弄坏。
+[ -n "$SUBJECT" ] || exit 0
+
+# ---------- 放行：注释行、git 自己生成的、autosquash 专用前缀 ----------
+# fixup!/squash!/amend! 是 rebase --autosquash 认的字面前缀，拦它们等于把 rebase 弄坏。
+case "$SUBJECT" in
+    '#'*|'Merge '*|'Revert '*|'fixup!'*|'squash!'*|'amend!'*) exit 0 ;;
+esac
+
+# ---------- 显示宽度 ----------
+# disp_width <字符串> —— 打印显示列数。
+disp_width() {
+    _dw_b=$(printf '%s' "$1" | wc -c | tr -d ' ')
+    _dw_cont=$(printf '%s' "$1" | LC_ALL=C tr -dc '\200-\277' | wc -c | tr -d ' ')
+    _dw_wide=$(printf '%s' "$1" | LC_ALL=C tr -dc '\340-\364' | wc -c | tr -d ' ')
+    echo $(( _dw_b - _dw_cont + _dw_wide ))
+}
+
+WIDTH=$(disp_width "$SUBJECT")
+
+if [ "$WIDTH" -lt 12 ]; then
+    printf 'cc-base commit-msg：subject 只有 %s 个显示列（下限 12）。说清改了什么、为什么。\n' "$WIDTH" >&2
+    printf '  被拒的 subject：%s\n' "$SUBJECT" >&2
+    printf '  本仓风格：type(scope): 中文主题（git log --format=%%s -20 看既有写法）\n' >&2
+    exit 1
+fi
+
+# ---------- 无信息词 ----------
+# 全程 LC_ALL=C 按字节处理：大小写映射只碰 A-Z（UTF-8 续字节都 >= 0x80，不会被误改）。
+LOWER=$(printf '%s' "$SUBJECT" | LC_ALL=C tr 'A-Z' 'a-z' | sed -e 's/[.!]*$//' -e 's/[[:space:]]*$//')
+# 剥掉 `type(scope):` / `type!:` 前缀，看余部是不是等于没说；全角冒号一并认。
+BODY=$(printf '%s' "$LOWER" | sed -E 's/^[a-z][a-z0-9_-]*(\([^)]*\))?!?(:|：)[[:space:]]*//' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+_no_info_word() {
+    case "$1" in
+        ''|.|..|...) return 0 ;;
+        wip|tmp|temp|test|tests|fix|fixes|fixed|fixing) return 0 ;;
+        update|updates|updated|change|changes|changed) return 0 ;;
+        misc|stuff|things|asdf|minor|cleanup|clean|debug|todo) return 0 ;;
+    esac
+    return 1
+}
+
+is_no_info() {
+    if _no_info_word "$1"; then return 0; fi
+    # 「wip 2」「fix 3」这类带序号的同样等于没说：把尾部数字和空白剥掉再看一次。
+    # 用 sed + case 而不是 grep -E：hook 的运行环境比想象的野（grep 被 alias 成别的实现、
+    # PATH 被裁过），少依赖一个外部命令就少一处静默失效。
+    _ni_stripped=$(printf '%s' "$1" | sed -e 's/[0-9]*$//' -e 's/[[:space:]]*$//')
+    if [ "$_ni_stripped" != "$1" ] && _no_info_word "$_ni_stripped"; then return 0; fi
+    return 1
+}
+
+if is_no_info "$LOWER" || is_no_info "$BODY"; then
+    printf 'cc-base commit-msg：「%s」什么都没说。写清改了哪个行为。\n' "$SUBJECT" >&2
+    printf '  本仓风格：type(scope): 中文主题（git log --format=%%s -20 看既有写法）\n' >&2
+    exit 1
+fi
+
+# ---------- 超长：只告警，不拒 ----------
+if [ "$WIDTH" -gt 72 ]; then
+    printf 'cc-base commit-msg：subject %s 个显示列（建议 <= 72），细节挪进正文更好读。这条只告警，不拦。\n' "$WIDTH" >&2
+fi
+
+exit 0

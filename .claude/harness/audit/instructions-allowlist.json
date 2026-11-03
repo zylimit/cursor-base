@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "_schema": "entries[] = {file, line, rule, sha256, context, reason}. sha256 is the SHA-256 of that line's exact bytes, without the trailing newline; context is the SHA-256 of the line above, that line, and the line below, joined with \\n. Both are required. Bytes alone bind the characters and not the meaning: delete the fence around a documented counter-example and the exempted line is byte-identical while the text above it has turned 'never do this' into 'do this' -- and a counter-example inside a fence is what these exemptions are mostly for, so the common use was the weak one. An entry without context is kept but never fires: the finding it would have covered is reported, with a note naming its line. Change the line, or either line around it, and the exemption stops applying -- that is the point. Every exemption that fires is printed by scan-instructions and listed in its JSON under allowlisted; an exemption nobody can see is a blind spot, not a decision. Exemptions live here rather than inside the scanned file because the scanned files are the untrusted input: a mute written in the payload's own file is written by whoever wrote the payload.",
+  "entries": [
+    {
+      "file": ".claude/settings.json",
+      "line": 5,
+      "rule": "secret-file-read",
+      "sha256": "9c94c388bdc7c4f2a4fe97213792755a015d6990f8ef0faeee62294afc6091e1",
+      "context": "8b3f86ab551437cf1bb39450a6ce07be8e85b9914f7ba0f63aeb8d5bf8035c72",
+      "reason": "This is a permissions deny rule. The file has to name .env in order to block reads of it -- naming the path here is the protection, not a pointer to a secret."
+    },
+    {
+      "file": ".claude/harness/ext/rules/harness-large-repo.md",
+      "line": 63,
+      "rule": "gate-disable-instruction",
+      "sha256": "0b6184ed756c4424acbeb46a95c530c8dab47217b61246cbc3e4db23420610c6",
+      "context": "fa2fb3cea77c8868590654743ec8a614af06a8b6642921f39c2bb37b5ab2a86c",
+      "reason": "--no-verify-evidence is a real ledger flag, and the sentence naming it argues against using it in the same breath -- on by default, and a check that is off by default is no check. Documenting where a switch stops being safe is not telling anyone to flip it."
+    },
+    {
+      "file": ".claude/rules/harness-large-repo.md",
+      "line": 63,
+      "rule": "gate-disable-instruction",
+      "sha256": "0b6184ed756c4424acbeb46a95c530c8dab47217b61246cbc3e4db23420610c6",
+      "context": "fa2fb3cea77c8868590654743ec8a614af06a8b6642921f39c2bb37b5ab2a86c",
+      "reason": "setup.sh --with-harness copies harness/ext/rules/harness-large-repo.md byte-for-byte to this rules/ path so Claude Code's frontmatter path-scoping can load it; the allowlist keys on file path, not on content, so the same exemption has to be keyed twice for the one line of source it actually covers -- otherwise every downstream project that installs --with-harness and enables githooks gets blocked by its own copy of a file this repository already cleared."
+    }
+  ]
+}

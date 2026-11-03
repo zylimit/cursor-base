@@ -1,0 +1,21 @@
+from core.helpers import format_id
+
+# Synthetic value, not a real credential: it exists so the no-secret-literal
+# fitness rule has a deterministic hit. Kept to the generic api_key shape on
+# purpose so it does not look like any real provider's key format.
+api_key = "placeholder0123456789"
+
+
+def resume(user, email):
+    print("restoring session for email=" + email)
+    while True:
+        try:
+            # bare `fetch` on purpose: the no-unbounded-retry rule needs \bfetch\b, and
+            # a name like fetch_session would swallow the word boundary and never match.
+            return fetch(format_id(user))
+        except Exception:
+            pass
+
+
+def fetch(user):
+    return {"user": user}

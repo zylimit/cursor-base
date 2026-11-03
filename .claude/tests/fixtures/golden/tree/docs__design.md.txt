@@ -1,0 +1,4 @@
+Design notes for the golden sandbox.
+
+Lives under docs/ so the `docs/**` ignore rule in the catalog fixtures has
+something to actually ignore.

@@ -1,0 +1,5 @@
+import { formatId } from './util';
+
+export function bootstrap(name: string): string {
+  return formatId(name);
+}

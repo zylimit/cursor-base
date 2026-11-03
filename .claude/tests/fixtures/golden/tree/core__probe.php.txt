@@ -1,0 +1,9 @@
+<?php
+
+// Same contract as probe.java: one unresolvable specifier, counted by unresolvedImports.
+use GoldenShared\FormatId;
+
+function probe(): string
+{
+    return FormatId::of('probe');
+}

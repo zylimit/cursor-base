@@ -1,0 +1,9 @@
+import { formatId } from '../core/util';
+
+export function lookup(rawId: string): string | null {
+  const id = formatId(rawId);
+  try {
+    return id === '' ? null : id;
+  } catch (e) {}
+  return null;
+}

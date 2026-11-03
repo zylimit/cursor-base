@@ -1,0 +1,7 @@
+import { lookup } from '../db/client';
+
+// Deliberately reaches past the domain layer straight into infra: this is the edge
+// catalog-rich.json forbids, so arch-check has a real violation to report.
+export function legacyLookup(rawId: string): string | null {
+  return lookup(rawId);
+}

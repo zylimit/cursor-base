@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "modules": [
+    { "id": "core", "paths": ["core/**"], "riskTier": "medium" },
+    { "id": "db", "paths": ["db/**"], "riskTier": "high" }
+  ],
+  "global": ["package.json"],
+  "ignored": ["**/*.md"]
+}

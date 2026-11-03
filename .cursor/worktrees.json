@@ -1,5 +1,0 @@
-{
-  "setup-worktree": [
-    "node scripts/harness.mjs doctor"
-  ]
-}

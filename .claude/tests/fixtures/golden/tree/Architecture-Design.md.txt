@@ -1,0 +1,29 @@
+Golden sandbox architecture notes.
+
+The ADR blocks below exist to give `adr-check` real records to assess. Each one
+targets a different branch of assessAdrRecords: harness capability, catalog check
+id, fitness rule id, phantom reference, retired record, manual-only.
+
+### ADR-001: Modules never import across a forbidden edge
+Status: accepted
+Enforced-by: arch-check
+
+### ADR-002: Every module carries a passing baseline check
+Status: accepted
+Enforced-by: always-pass
+
+### ADR-003: No credential literal reaches the repository
+Status: accepted
+Enforced-by: no-secret-literal
+
+### ADR-004: Request identifiers stay stable across retries
+Status: accepted
+Enforced-by: the team keeps an eye on it
+
+### ADR-005: Sessions were stored in a shared cache
+Status: superseded
+Enforced-by: replaced by ADR-001
+
+### ADR-006: Public endpoints stay backward compatible
+Status: accepted
+Enforced-by: manual review before release

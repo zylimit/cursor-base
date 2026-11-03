@@ -1,162 +1,61 @@
 # cursor-base
 
-A technology-neutral Cursor governance harness for large repositories. It keeps durable policy small, delegates specialized work to scoped agents and skills, records evidence for planning, implementation, review, and verification, and lets a team dial how much evidence a change must carry — `explore`, `rapid`, `balanced`, or `strict` — without ever dialing down safety.
+cc-base 的 Cursor 发行版。cc-base 是一套给 Claude Code 用的产品开发框架——SiteMaster 人设、从需求到发布的全流程 Skill、主 Agent 只派单不编码的 Sub-Agent 模型、hook 闸门与档位。Cursor（IDE 与 `cursor-agent` CLI）原生会读 `.claude/` 下的 CLAUDE.md、skills、agents 和 settings.json 的 hooks，所以本仓不另写一套，就是 cc-base 原件加一层很薄的适配：
 
-## Requirements
+```
+cursor-base/
+├── .claude/                 # cc-base 原件（CLAUDE.md / rules / skills / agents / hooks / scripts / tests …）
+│   └── settings.json        # 已转成 Cursor 认的 string form（hook 命令是单字符串）
+├── .cursor/
+│   ├── agents/              # 从 .claude/agents 生成：model: inherit，正文开头多三句（先读技能 / 不再派子代理 / 记忆位置）
+│   ├── agents-models.json   # 要给某个角色钉模型就写这里，gen-agents 读它（没有就全部 inherit）
+│   ├── scripts/gen-agents.mjs
+│   ├── tests/               # 适配层自测（不装进目标项目）
+│   ├── cc-base-files.txt    # 上次同步的 cc-base 清单（同步脚本写，据此删 cc-base 已没有的文件）
+│   ├── cc-base-version.txt  # 上次同步的 cc-base 提交与时间
+│   └── cli.json             # Cursor 侧权限：密钥文件读写一律 deny
+├── AGENTS.md                # Cursor 每次请求都读：指向 .claude/CLAUDE.md，只写宿主差异
+├── setup.sh / setup.ps1     # cc-base 原件的安装器（支持 --hook-form string）
+├── setup-cursor.sh          # 装到目标项目：setup.sh --hook-form string + 铺 .cursor/ 与 AGENTS.md
+├── sync-from-cc-base.sh     # 从 cc-base 仓同步原件，转 string form，重新生成 .cursor/agents
+├── docs/                    # cc-base 原件
+├── progress.md              # 本仓的项目记忆
+└── README.md
+```
 
-- Node.js 22 or newer
+## 要求
+
+- Node.js 22 或更新（hook 与脚本都是 .mjs，单运行时）
 - Git
-- PowerShell 7+ on Windows, or a POSIX shell on macOS/Linux
-- Cursor with project rules, agents, and skills support
+- Cursor IDE，或 Cursor CLI（`curl https://cursor.com/install -fsS | bash`，命令名 `cursor-agent`；安装脚本会把 `~/.local/bin/agent` 也指向它，机器上有别的工具占着这个名字的话装完改回去）
+- Cursor 的「Include Third-Party Plugins, Skills, and Other Configs」保持默认开启（关掉就读不到 `.claude/`）
 
-## Install into a repository
-
-Clone this repository, preview the merge, then install into an explicit target:
-
-```powershell
-.\setup.ps1 D:\Code\my-project -DryRun
-.\setup.ps1 D:\Code\my-project
-```
+## 装到一个项目
 
 ```sh
-./setup.sh /work/my-project --dry-run
-./setup.sh /work/my-project
+git clone https://github.com/zylimit/cursor-base.git
+cd cursor-base
+./setup-cursor.sh /path/to/your-project
 ```
 
-The installer preserves existing files and writes conflicting framework content as `*.cursor-harness-new`. It does not install dependencies, modify user-level Cursor settings, commit, or push.
+装完进项目目录敲 `cursor-agent`（或在 IDE 里打开），开场应看到 SiteMaster 横幅和「🔒 CC框架核心铁律」。没看到横幅先跑 `bash .claude/scripts/doctor.sh`，再核对 `node .claude/scripts/hook-form.mjs --check` 打印的是 `string`。
 
-The target's own contracts (`harness/module-catalog.json`, `verification-matrix.json`,
-`assurance-policy.json`) are seeded from neutral templates when absent and, in a committed git
-repository, the catalog and matrix are then proposed from the target's tree and real imports
-(`--no-discover` / `-NoDiscover` keeps the template). They are never rewritten by an upgrade.
+同一个项目也能继续用 Claude Code：string form 的 hook 两个宿主都认，`.claude/` 原件一个字没改。
 
-## Develop and verify the harness
+## Cursor 下跟 Claude Code 的差异
+
+全在 AGENTS.md，装进目标项目后那份就在项目根。要点：hook 必须是 string form；Notification / PostCompact / UserPromptExpansion 三个事件 Cursor 没有；preToolUse 的 `ask` 不生效；子代理模型走 `.cursor/agents/` 的 `inherit`，要钉模型写 `.cursor/agents-models.json`。
+
+## 跟 cc-base 同步
 
 ```sh
-npm install
-npm run typecheck
-npm run build
-node scripts/harness.mjs doctor
-node scripts/harness.mjs validate
-node scripts/harness.mjs test
-node scripts/harness.mjs manifest --check
+./sync-from-cc-base.sh /path/to/cc-base
+bash .claude/tests/cases/run-all.sh
+git add -A && git commit
 ```
 
-Working commands for a repository that has the harness installed:
+同步按 cc-base HEAD 的清单覆盖原件，并重写 `.cursor/agents/` 与两份同步记录；不碰本仓的 README.md、progress.md、progress.archive.md、.gitignore、AGENTS.md、`.cursor/cli.json`、`.cursor/agents-models.json`、`.cursor/scripts/`、`.cursor/tests/` 和两个适配脚本。
 
-```sh
-node scripts/harness.mjs catalog lint      # every tracked path must have an owner
-node scripts/harness.mjs affected          # which modules a change reaches
-node scripts/harness.mjs arch-check        # do real imports match the declared graph
-node scripts/harness.mjs context-pack      # budgeted context, written to disk
-node scripts/harness.mjs gate              # execute the affected checks, record receipts
-node scripts/harness.mjs quality status    # what is still unproven for this diff
-node scripts/harness.mjs task start ...    # own a writable scope for the change
-node scripts/harness.mjs gate-audit        # which hooks have ever caught anything
-```
+## 旧版本
 
-Assurance profiles decide how much evidence a change needs; floors (task risk, impact, protected
-attributes, other critical/high attributes, governance paths) only raise the answer:
-
-```sh
-node scripts/harness.mjs profile show                     # effective profile and every floor that raised it
-node scripts/harness.mjs profile set rapid                # small low-risk work: changed modules only, no receipt
-node scripts/harness.mjs profile set strict --task T-1    # one task under full verification and lens-covered review
-node scripts/harness.mjs fast on --minutes 60 --reason "demo"   # a dated loan: pre-declared checks deferred as debt
-node scripts/harness.mjs debt list                        # what a later PASS still has to repay
-```
-
-Structured review, project memory, governance scanners, and release readiness:
-
-```sh
-node scripts/harness.mjs review-pack                # evidence pack with deletions and renames set apart
-node scripts/harness.mjs review start               # convene the lenses the profile and attributes require
-node scripts/harness.mjs review verdict             # computed from located findings; writes the receipt
-node scripts/harness.mjs recap                      # budgeted memory digest derived from files, never a summary
-node scripts/harness.mjs sync-check                 # governed code moved without progress.md?
-node scripts/harness.mjs instructions               # instruction files scanned as untrusted input
-node scripts/harness.mjs rules-audit                # which rules name a real enforcement point
-node scripts/harness.mjs catalog discover           # propose the module catalog from the tree and real imports
-node scripts/harness.mjs release readiness          # every release condition under the strict floor; performs nothing
-```
-
-Quality attributes, for building code that is secure, private, resilient, and reliable rather
-than merely tested:
-
-```sh
-node scripts/harness.mjs quality attributes   # per-attribute evidence coverage and gaps
-node scripts/harness.mjs quality verify       # ledger chain and evidence-file integrity
-node scripts/harness.mjs fitness --all        # built-in rules, no external tool required
-node scripts/harness.mjs adapters list        # curated external tools and whether they exist
-node scripts/harness.mjs adapters add sast-semgrep
-node scripts/harness.mjs adr-check           # every live decision names the check enforcing it
-```
-
-Operations: supervised services, proactive risk findings, and evidence lifecycle:
-
-```sh
-node scripts/harness.mjs service start dev-server   # crash restart, breaker, health probe
-node scripts/harness.mjs service status             # liveness from pids, not from records
-node scripts/harness.mjs risk                       # stale tasks, broken chains, dead services
-node scripts/harness.mjs retention --dry-run        # what the destruction schedule would remove
-node scripts/harness.mjs feedback list              # recorded lessons and graduation candidates
-```
-
-See [docs/ASSURANCE-PROFILES.md](docs/ASSURANCE-PROFILES.md) for the four profiles, their
-controls, floors, and the fast-loan rules; [docs/REVIEW.md](docs/REVIEW.md) for lenses, stages,
-and verdict rules; [docs/QUALITY-ATTRIBUTES.md](docs/QUALITY-ATTRIBUTES.md) for the six strength
-tiers and the coverage rules; and [docs/OPERATIONS.md](docs/OPERATIONS.md) for service
-supervision, risk scanning, and retention.
-
-Behavior lives in `src/*.mts` (one module per concern, acyclic imports; see
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)). The checked-in `.cursor/runtime/*.mjs` is compiler
-output so hooks and installed repositories run without a build step; `npm run runtime-sync`
-recompiles the source and fails if the two differ.
-
-See [docs/ADOPTION.md](docs/ADOPTION.md) for existing repositories and upgrades.
-
-## How to use
-
-1. Start with a task envelope: **Goal, Scope, Out of Scope, Existing Pattern, Verification, Escalation**
-   — plus **Business Context** on product work.
-2. Use `explorer` for discovery and `impact-analyst` before cross-module or contract changes.
-3. Use the matching skill for the workflow; keep writes serialized unless file ownership is explicitly disjoint.
-4. Finish with a receipt: **Status, Changed, Verified, Not verified, Needs review by, Evidence**.
-5. Run `node scripts/harness.mjs gate` to execute the affected checks; it records a receipt bound
-   to the current diff, and the completion gate stays closed until those receipts pass.
-
-## Skills
-
-Harness and change management (auto-routed): `plan-change`, `scoped-implementation`,
-`affected-verification`, `root-cause-debugging`, `catalog-discovery`, `harness-doctor`,
-`project-memory`, `record-lesson`.
-
-Sleep until invoked by name: `code-review`, `structured-review`, `finish-branch`,
-`release-readiness`, `assurance-profile`, `fast-lane`, `service-operations`, `skill-authoring`.
-
-Product development, from an idea to a verified release (`docs/PRODUCT-WORKFLOW.md`).
-`product-spec` auto-routes. The rest sleep until invoked or until product documents exist:
-`architecture-design` and `dfx-design` (boundaries and measurable quality targets),
-`design-brief` and `design-prototype` (how it works, how it looks, a walkable offline mock-up),
-`dev-plan` (phases by value and risky unknowns), `phase-build` (tiered tasks, four-step phase
-close), `test-design` (business-scenario tests with independent expectations), `release-build`
-(explicit-only, artefact audited, deployment verified), `domain-rulings` (how things are counted
-in the field, kept outside the code).
-
-For operating policy, see [docs/GOVERNANCE.md](docs/GOVERNANCE.md). For the structure and scaling model, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/LARGE-REPO-GUIDE.md](docs/LARGE-REPO-GUIDE.md).
-
-## Safety defaults
-
-- Safety policy cannot be waived — not by a profile, a fast loan, a quality waiver, or a deadline.
-- Security, safety, and privacy evidence is never deferred or waived; `validate` rejects a matrix
-  that says otherwise.
-- Quality waivers require owner, reason, exact scope, compensation, and expiry.
-- Review receipts, verification receipts, and evidence debts are bound to a base commit and diff
-  hash; a fast loan is a dated window with a reason, and only the debts it creates bind to a diff.
-- The harness never automatically pushes, tags, publishes, kills a port, or overwrites user changes;
-  `release readiness` reports and stops.
-- Windows sandboxing reduces risk but is not an absolute boundary.
-
-## License
-
-MIT. See [LICENSE](LICENSE).
+2.1.1 之前的 cursor-base 是一套独立的治理引擎（TypeScript harness、assurance profile、hash 链账本），2026-11-04 起停止维护，完整保留在 tag `v2.1.1-legacy`。

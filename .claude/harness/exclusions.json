@@ -1,0 +1,412 @@
+{
+  "$schema": "cc-base exclusions v1",
+  "note": "框架分发/清单/安装的唯一排除表真相源。gen-exclusions.mjs 据此重写 gen-manifest.sh / setup.sh 的 case 臂与 setup.ps1 的 skip 表；release.mjs 的 MANIFEST_RULES 是审计者、故意手写不生成，test-setup ⑥ 逐臂对拍两者。keep=true 的臂是白名单（不排除）。optionalLeaf=true 的条目额外供 --with-tests / --with-harness 可选包分支用（setup.sh is_optional_excluded / setup.ps1 Test-OptionalExcluded，同样由本脚本生成，见各条目 ps1.optionalToken）；mainTree=false 表示该条目只服务可选包、不进 gen-manifest.sh / setup.sh 主循环 / setup.ps1 主循环这三张表（例如 state/* ——main 树目前没有这类路径，不为它改动主循环行为）。",
+  "entries": [
+    {
+      "pattern": "FRAMEWORK-MANIFEST.txt",
+      "keep": false,
+      "note": "清单自身不入清单",
+      "ps1": {
+        "kind": "skip",
+        "token": "FRAMEWORK-MANIFEST.txt"
+      }
+    },
+    {
+      "pattern": "settings.json",
+      "keep": false,
+      "note": "天生合并对象，走 merge 逻辑",
+      "ps1": {
+        "kind": "skip",
+        "token": "settings.json"
+      }
+    },
+    {
+      "pattern": "settings-windows.json",
+      "keep": false,
+      "note": "无效产物 / 机器特定",
+      "ps1": {
+        "kind": "skip",
+        "token": "settings-windows.json"
+      }
+    },
+    {
+      "pattern": "settings.local.json",
+      "keep": false,
+      "note": "无效产物 / 机器特定",
+      "ps1": {
+        "kind": "skip",
+        "token": "settings.local.json"
+      }
+    },
+    {
+      "pattern": ".needs-review",
+      "keep": false,
+      "note": "stop-gate 运行时状态",
+      "ps1": {
+        "kind": "skip",
+        "token": ".needs-review"
+      }
+    },
+    {
+      "pattern": ".needs-review.lock",
+      "keep": false,
+      "note": "stop-gate 运行时状态",
+      "ps1": {
+        "kind": "skip",
+        "token": ".needs-review.lock"
+      }
+    },
+    {
+      "pattern": ".tdd-exempt",
+      "keep": false,
+      "note": "闸门运行时标记",
+      "ps1": {
+        "kind": "skip",
+        "token": ".tdd-exempt"
+      }
+    },
+    {
+      "pattern": ".red-verified",
+      "keep": false,
+      "note": "闸门运行时标记",
+      "ps1": {
+        "kind": "skip",
+        "token": ".red-verified"
+      }
+    },
+    {
+      "pattern": ".static-gate",
+      "keep": false,
+      "note": "闸门运行时标记",
+      "ps1": {
+        "kind": "skip",
+        "token": ".static-gate"
+      }
+    },
+    {
+      "pattern": ".degraded-review",
+      "keep": false,
+      "note": "闸门运行时标记",
+      "ps1": {
+        "kind": "skip",
+        "token": ".degraded-review"
+      }
+    },
+    {
+      "pattern": ".fast-mode",
+      "keep": false,
+      "note": "运行态标记",
+      "ps1": {
+        "kind": "skip",
+        "token": ".fast-mode"
+      }
+    },
+    {
+      "pattern": ".subagent-reminded",
+      "keep": false,
+      "note": "运行态标记",
+      "ps1": {
+        "kind": "skip",
+        "token": ".subagent-reminded"
+      }
+    },
+    {
+      "pattern": ".three-file-sync-advised",
+      "keep": false,
+      "note": "运行态标记",
+      "ps1": {
+        "kind": "skip",
+        "token": ".three-file-sync-advised"
+      }
+    },
+    {
+      "pattern": ".tdd-gate-advised",
+      "keep": false,
+      "note": "运行态标记",
+      "ps1": {
+        "kind": "skip",
+        "token": ".tdd-gate-advised"
+      }
+    },
+    {
+      "pattern": ".stop-gate-strikes",
+      "keep": false,
+      "note": "闸门计数 / 纪元 / 异步校验游标",
+      "ps1": {
+        "kind": "skip",
+        "token": ".stop-gate-strikes"
+      }
+    },
+    {
+      "pattern": ".stop-gate-advised",
+      "keep": false,
+      "note": "闸门计数 / 纪元 / 异步校验游标",
+      "ps1": {
+        "kind": "skip",
+        "token": ".stop-gate-advised"
+      }
+    },
+    {
+      "pattern": ".precompact-block-epoch",
+      "keep": false,
+      "note": "闸门计数 / 纪元 / 异步校验游标",
+      "ps1": {
+        "kind": "skip",
+        "token": ".precompact-block-epoch"
+      }
+    },
+    {
+      "pattern": ".async-verify-last",
+      "keep": false,
+      "note": "闸门计数 / 纪元 / 异步校验游标",
+      "ps1": {
+        "kind": "skip",
+        "token": ".async-verify-last"
+      }
+    },
+    {
+      "pattern": "signals.jsonl",
+      "keep": false,
+      "optionalLeaf": true,
+      "note": "evolution 运行态信号队列",
+      "ps1": {
+        "kind": "skip",
+        "token": "signals.jsonl",
+        "optionalToken": "(^|/)signals\\.jsonl$"
+      }
+    },
+    {
+      "pattern": "*/signals.jsonl",
+      "keep": false,
+      "optionalLeaf": true,
+      "note": "evolution 运行态信号队列",
+      "ps1": {
+        "kind": "skipAnyDepth",
+        "token": "signals.jsonl",
+        "optionalToken": "(^|/)signals\\.jsonl$"
+      }
+    },
+    {
+      "pattern": "evidence/*",
+      "keep": false,
+      "note": "运行态证据目录",
+      "ps1": {
+        "kind": "regex",
+        "token": "^evidence/"
+      }
+    },
+    {
+      "pattern": "harness/receipts/*",
+      "keep": false,
+      "note": "大仓治理运行态回执（harness.mjs / catalog 本体照常入清单）",
+      "ps1": {
+        "kind": "regex",
+        "token": "^harness/(receipts|state|waivers|trend|evidence)/"
+      }
+    },
+    {
+      "pattern": "harness/state/*",
+      "keep": false,
+      "note": "证据哈希链 + 活跃 task 信封 + 评审会话（本机专属）",
+      "ps1": {
+        "kind": "regex",
+        "token": "^harness/(receipts|state|waivers|trend|evidence)/"
+      }
+    },
+    {
+      "pattern": "harness/waivers/*",
+      "keep": false,
+      "note": "结构化 per-check 豁免",
+      "ps1": {
+        "kind": "regex",
+        "token": "^harness/(receipts|state|waivers|trend|evidence)/"
+      }
+    },
+    {
+      "pattern": "harness/trend/*",
+      "keep": false,
+      "note": "架构漂移趋势台账（arch-check --record 快照）",
+      "ps1": {
+        "kind": "regex",
+        "token": "^harness/(receipts|state|waivers|trend|evidence)/"
+      }
+    },
+    {
+      "pattern": "harness/evidence/*",
+      "keep": false,
+      "note": "每条 check 的原始 stdout/stderr",
+      "ps1": {
+        "kind": "regex",
+        "token": "^harness/(receipts|state|waivers|trend|evidence)/"
+      }
+    },
+    {
+      "pattern": "harness/ext/*",
+      "keep": false,
+      "note": "大仓治理引擎：目标项目默认不装，setup --with-harness 才整目录拷，不入清单",
+      "ps1": {
+        "kind": "regex",
+        "token": "^harness/ext/"
+      }
+    },
+    {
+      "pattern": ".runtime/*",
+      "keep": false,
+      "note": "supervisor 进程守护运行态（supervisor.mjs 本体照常入清单）",
+      "ps1": {
+        "kind": "regex",
+        "token": "^\\.runtime/"
+      }
+    },
+    {
+      "pattern": "worktrees/*",
+      "keep": false,
+      "note": "Claude Code sub-agent 的 worktree 隔离副本（整棵仓副本，不是这个仓的框架文件）",
+      "ps1": {
+        "kind": "regex",
+        "token": "^worktrees/"
+      }
+    },
+    {
+      "pattern": "tests/*",
+      "keep": false,
+      "note": "框架自测：目标项目默认不装（setup --with-tests 才整目录拷），不入清单",
+      "ps1": {
+        "kind": "regex",
+        "token": "^(tests|research|agent-memory)/"
+      }
+    },
+    {
+      "pattern": "research/*",
+      "keep": false,
+      "note": "姊妹框架分析等设计底本：框架自己的维护记录，不分发",
+      "ps1": {
+        "kind": "regex",
+        "token": "^(tests|research|agent-memory)/"
+      }
+    },
+    {
+      "pattern": "agent-memory/*",
+      "keep": false,
+      "note": "本仓 sub-agent 的战术记忆：审的是本仓，装进别人项目指向不存在的路径",
+      "ps1": {
+        "kind": "regex",
+        "token": "^(tests|research|agent-memory)/"
+      }
+    },
+    {
+      "pattern": "*.bak",
+      "keep": false,
+      "optionalLeaf": true,
+      "note": "安装器产物",
+      "ps1": {
+        "kind": "regex",
+        "token": "\\.(bak|framework-new|swp)$",
+        "optionalToken": "\\.(bak|framework-new|swp)$"
+      }
+    },
+    {
+      "pattern": "*.framework-new",
+      "keep": false,
+      "optionalLeaf": true,
+      "note": "安装器产物",
+      "ps1": {
+        "kind": "regex",
+        "token": "\\.(bak|framework-new|swp)$",
+        "optionalToken": "\\.(bak|framework-new|swp)$"
+      }
+    },
+    {
+      "pattern": ".DS_Store",
+      "keep": false,
+      "optionalLeaf": true,
+      "note": "macOS 目录元数据（每层都会长，.gitignore 同条）",
+      "ps1": {
+        "kind": "skip",
+        "token": ".DS_Store",
+        "optionalToken": "(^|/)\\.DS_Store$"
+      }
+    },
+    {
+      "pattern": "*/.DS_Store",
+      "keep": false,
+      "optionalLeaf": true,
+      "note": "macOS 目录元数据（每层都会长，.gitignore 同条）",
+      "ps1": {
+        "kind": "skipAnyDepth",
+        "token": ".DS_Store",
+        "optionalToken": "(^|/)\\.DS_Store$"
+      }
+    },
+    {
+      "pattern": "Thumbs.db",
+      "keep": false,
+      "optionalLeaf": true,
+      "note": "Windows 缩略图缓存（.gitignore 同条）",
+      "ps1": {
+        "kind": "skip",
+        "token": "Thumbs.db",
+        "optionalToken": "(^|/)Thumbs\\.db$"
+      }
+    },
+    {
+      "pattern": "*/Thumbs.db",
+      "keep": false,
+      "optionalLeaf": true,
+      "note": "Windows 缩略图缓存（.gitignore 同条）",
+      "ps1": {
+        "kind": "skipAnyDepth",
+        "token": "Thumbs.db",
+        "optionalToken": "(^|/)Thumbs\\.db$"
+      }
+    },
+    {
+      "pattern": "*.swp",
+      "keep": false,
+      "optionalLeaf": true,
+      "note": "vim 交换文件（.gitignore 同条）",
+      "ps1": {
+        "kind": "regex",
+        "token": "\\.(bak|framework-new|swp)$",
+        "optionalToken": "\\.(bak|framework-new|swp)$"
+      }
+    },
+    {
+      "pattern": "feedback/templates/*",
+      "keep": true,
+      "note": "保留模板（框架资产）",
+      "ps1": {
+        "kind": "regex",
+        "token": "^feedback/[^/]+\\.md$"
+      }
+    },
+    {
+      "pattern": "feedback/*/*",
+      "keep": true,
+      "note": "feedback 子目录其他文件",
+      "ps1": {
+        "kind": "regex",
+        "token": "^feedback/[^/]+\\.md$"
+      }
+    },
+    {
+      "pattern": "feedback/*.md",
+      "keep": false,
+      "note": "私人经验 + FEEDBACK-INDEX（装后重置为模板）",
+      "ps1": {
+        "kind": "regex",
+        "token": "^feedback/[^/]+\\.md$"
+      }
+    },
+    {
+      "pattern": "*/state/*|state/*",
+      "keep": false,
+      "mainTree": false,
+      "optionalLeaf": true,
+      "note": "运行态子目录（如 harness/ext/state/）不随可选包分发；main 树里 harness/state/* 等已有专门条目管，这条只供 --with-tests / --with-harness 用，不进主循环三张表",
+      "ps1": {
+        "optionalToken": "(^|/)state/"
+      }
+    }
+  ]
+}

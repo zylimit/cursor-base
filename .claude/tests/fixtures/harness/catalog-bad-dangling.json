@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "modules": [
+    { "id": "core", "paths": ["core/**"], "riskTier": "medium" },
+    { "id": "auth", "paths": ["auth/**"], "dependsOn": ["core", "nonexistent"], "riskTier": "high" }
+  ],
+  "global": [],
+  "ignored": []
+}

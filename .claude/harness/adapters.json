@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "note": "Curated external tools mapped to quality attributes. The harness bundles and installs nothing: a check whose executable is absent reports BLOCKED, never passing. `adapters add <id>` wires a check into module-catalog.json checks; modules must still list it in `verification` (or a riskChecks tier) before anything selects it.",
+  "adapters": [
+    {
+      "id": "sast-semgrep",
+      "attributes": ["security"],
+      "class": "security",
+      "executable": "semgrep",
+      "command": "semgrep scan --error --quiet --config auto",
+      "install": "https://semgrep.dev/docs/getting-started/",
+      "rationale": "Rule-based SAST that scans in seconds and accepts repository-specific rules. Weakest on cross-function logic flaws."
+    },
+    {
+      "id": "sca-osv-scanner",
+      "attributes": ["security"],
+      "class": "security",
+      "executable": "osv-scanner",
+      "command": "osv-scanner scan source --recursive .",
+      "install": "https://google.github.io/osv-scanner/",
+      "rationale": "High-precision dependency scanning against the OSV database; fast and low-noise enough to run as a per-change gate."
+    },
+    {
+      "id": "scan-trivy",
+      "attributes": ["security"],
+      "class": "security",
+      "executable": "trivy",
+      "command": "trivy fs --exit-code 1 --severity HIGH,CRITICAL .",
+      "install": "https://trivy.dev/latest/getting-started/installation/",
+      "rationale": "Breadth in one binary: dependencies, container images, IaC, secrets, licences. Better as a scheduled sweep than a per-change gate."
+    },
+    {
+      "id": "secrets-gitleaks",
+      "attributes": ["security", "privacy"],
+      "class": "security",
+      "executable": "gitleaks",
+      "command": "gitleaks detect --no-banner --redact",
+      "install": "https://github.com/gitleaks/gitleaks",
+      "rationale": "History-aware secret detection. Complements the built-in fitness rule, which only sees the current working tree."
+    },
+    {
+      "id": "sbom-syft",
+      "attributes": ["security"],
+      "class": "integrity",
+      "executable": "syft",
+      "command": "syft scan dir:. -o cyclonedx-json=sbom.cdx.json",
+      "install": "https://github.com/anchore/syft",
+      "rationale": "Produces the artifact inventory (SBOM) that later vulnerability rescans and provenance attestation depend on."
+    },
+    {
+      "id": "pii-presidio",
+      "attributes": ["privacy"],
+      "class": "privacy",
+      "executable": "presidio",
+      "command": "presidio analyze --file . --language en",
+      "install": "https://microsoft.github.io/presidio/",
+      "rationale": "Detects personal data in text and structured data. Its own docs state it cannot find everything; treat it as one layer, not a boundary."
+    },
+    {
+      "id": "mutation-stryker",
+      "attributes": ["reliability"],
+      "class": "test",
+      "executable": "npx",
+      "command": "npx stryker run --incremental",
+      "install": "https://stryker-mutator.io/",
+      "rationale": "Measures whether the tests would actually catch a defect. Run per change with incremental mode; a nightly-only signal arrives after the merge."
+    },
+    {
+      "id": "contract-schemathesis",
+      "attributes": ["reliability"],
+      "class": "integration",
+      "executable": "schemathesis",
+      "command": "schemathesis run openapi.yaml --checks all",
+      "install": "https://schemathesis.readthedocs.io/",
+      "rationale": "Generates adversarial requests from the API schema, covering inputs no hand-written case would include."
+    },
+    {
+      "id": "load-k6",
+      "attributes": ["availability", "performance", "resilience"],
+      "class": "runtime",
+      "executable": "k6",
+      "command": "k6 run --quiet load/smoke.js",
+      "install": "https://grafana.com/docs/k6/latest/set-up/install-k6/",
+      "rationale": "Asserts latency and error-rate objectives under load. Its result describes a deployed system, not the current diff."
+    },
+    {
+      "id": "iac-checkov",
+      "attributes": ["security", "availability"],
+      "class": "security",
+      "executable": "checkov",
+      "command": "checkov --directory . --compact --quiet",
+      "install": "https://www.checkov.io/",
+      "rationale": "Infrastructure misconfiguration is where availability and security failures usually originate rather than in application code."
+    },
+    {
+      "id": "slo-openslo",
+      "attributes": ["availability", "reliability"],
+      "class": "static",
+      "executable": "oslo",
+      "command": "oslo validate -f slo/",
+      "install": "https://github.com/OpenSLO/oslo",
+      "rationale": "Validates service level objectives declared as code so the availability target is reviewable and machine-readable."
+    }
+  ]
+}

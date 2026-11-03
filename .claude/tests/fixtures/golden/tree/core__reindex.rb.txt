@@ -1,0 +1,9 @@
+# The Ruby extractor gets a resolvable specifier rather than a counted-only one, because
+# this file has a second job: core -> db closes a loop against db/client.ts -> core/util.ts,
+# which is the only dependency cycle in the tree. Kill the .rb extractor and both the edge
+# and the cycle vanish.
+require_relative '../db/client'
+
+def reindex(raw_id)
+  lookup(raw_id)
+end

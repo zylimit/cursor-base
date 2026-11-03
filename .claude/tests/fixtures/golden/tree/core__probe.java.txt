@@ -1,0 +1,12 @@
+package golden.core;
+
+// One import, deliberately unresolvable: the catalog fixtures declare no `provides`
+// prefixes, so this specifier lands in arch-check's unresolvedImports count. That count
+// is the assertion -- kill the .java/.kt/.kts/.scala extractor and it drops by one.
+import golden.shared.FormatId;
+
+public final class Probe {
+  public static String probe() {
+    return FormatId.of("probe");
+  }
+}

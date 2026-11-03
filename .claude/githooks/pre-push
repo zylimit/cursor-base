@@ -1,0 +1,62 @@
+#!/bin/sh
+# cc-base :: githooks/pre-push —— push 前最后一道自动闸，只留两项。
+#
+# 纯文档推送（progress.md / docs/ / .claude/feedback/ / 任何 *.md）直接放行：那些路径改不坏代码，
+# 让它们也等一轮自测，人第一天就会 --no-verify，闸整个废掉。代码推送只跑 selftest（rc 非 0 阻断）
+# 与密钥扫描（rc 1 阻断 / rc 3 降级出声不阻断）；全量回归归 bash .claude/tests/cases/run-all.sh，
+# 人自己跑或 CI 跑，不挂在每次 push 上。--no-verify 绕过是 HIGH 档行为，要向人交代（见 README.md）。
+# 用 /bin/sh：git hook 在 Git for Windows 下由 git 自带的 sh 拉起，POSIX 子集最稳。
+set -eu
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+cd "$ROOT" || exit 0
+say() { printf '%s\n' "$*" >&2; }
+
+# git 把待推送的 ref 逐行写进 stdin：<local_ref> <local_sha> <remote_ref> <remote_sha>。
+# remote_sha 全 0 = 远端还没这条分支，拿 origin/main 当基线；取不到、或一条 ref 都没读到，
+# 一律按代码推送办（判不出改了什么就别放行，错也错在严那边）。
+FILES=""; CODE=0; REFS=0
+if [ ! -t 0 ]; then
+    while read -r _lref lsha _rref rsha; do
+        [ -n "${lsha:-}" ] || continue
+        REFS=$((REFS + 1))
+        case "$lsha" in *[!0]*) ;; *) continue ;; esac   # 本地全 0 = 删分支，没文件可算
+        case "${rsha:-}" in *[!0]*) BASE=$rsha ;; *) BASE=$(git rev-parse --verify -q origin/main 2>/dev/null) || BASE="" ;; esac
+        [ -n "$BASE" ] || { CODE=1; continue; }
+        F=$(git diff --name-only "$BASE".."$lsha" 2>/dev/null) || { CODE=1; continue; }
+        FILES="$FILES$F
+"
+    done
+fi
+[ "$REFS" -gt 0 ] || CODE=1
+# 路径含空格会被词分割切碎——切碎后仍全落在白名单里才算文档，否则退回代码推送。
+if [ "$CODE" -eq 0 ]; then
+    for f in $FILES; do
+        case "$f" in progress.md|docs/*|.claude/feedback/*|*.md) ;; *) CODE=1; break ;; esac
+    done
+fi
+if [ "$CODE" -eq 0 ]; then say "cc-base pre-push：[OK] 纯文档推送，放行（progress.md / docs/ / feedback / *.md）。"; exit 0; fi
+
+say "cc-base pre-push：代码推送，跑 selftest + 密钥扫描（全量回归归 run-all.sh）。"
+command -v node >/dev/null 2>&1 || { say "  [SKIPPED] 全部检查 —— PATH 上没有 node（未执行 != 通过）"; exit 0; }
+TMPF="${TMPDIR:-/tmp}/cc-pre-push.$$"; BLOCKED=""
+trap 'rm -f "$TMPF"' EXIT INT TERM
+# check <标签> <脚本> <cmd...>：0 过 / 3 降级出声不阻断 / 其余阻断并打前 30 行诊断。
+check() {
+    LBL=$1; SCRIPT=$2; shift 2
+    [ -f "$SCRIPT" ] || { say "  [SKIPPED] $LBL —— $SCRIPT 不存在（未执行 != 通过）"; return 0; }
+    RC=0; "$@" >"$TMPF" 2>&1 || RC=$?
+    case "$RC" in
+        0) say "  [OK]      $LBL —— 跑过且干净" ;;
+        3) say "  [SKIPPED] $LBL —— 降级（rc 3）：没跑成，未执行 != 通过" ;;
+        *) BLOCKED="$BLOCKED $LBL"; say "  [BLOCK]   $LBL —— rc $RC"; sed -n '1,30p' "$TMPF" >&2 ;;
+    esac
+}
+ENGINE=".claude/harness/harness.mjs"; SEC=".claude/harness/audit/scan-secrets.mjs"
+check selftest "$ENGINE" node "$ENGINE" selftest
+check secrets "$SEC" node "$SEC"
+[ -n "$BLOCKED" ] || exit 0
+say ""
+say "❌ cc-base pre-push：push 被阻断，未过项:$BLOCKED"
+say "   自己跑一遍看原因：bash .claude/tests/cases/run-all.sh"
+say "   真要绕过就 git push --no-verify——那是 HIGH 档行为，得向人说清为什么（.claude/githooks/README.md）。"
+exit 1

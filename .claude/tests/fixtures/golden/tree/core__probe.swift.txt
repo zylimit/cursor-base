@@ -1,0 +1,6 @@
+// Same contract as probe.java: one unresolvable specifier, counted by unresolvedImports.
+import GoldenShared
+
+func probe() -> String {
+  return formatId("probe")
+}

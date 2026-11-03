@@ -1,5 +1,0 @@
-{
-  "$schema": "./schemas/services.schema.json",
-  "version": 1,
-  "services": {}
-}

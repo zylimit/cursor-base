@@ -1,0 +1,7 @@
+import { formatId } from '../core/util';
+import { lookup } from '../db/client';
+
+// TODO: reject logins once the rate limiter lands
+export function login(rawId: string): string | null {
+  return lookup(formatId(rawId));
+}

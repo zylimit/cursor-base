@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "modules": [
+    { "id": "core", "paths": ["core/**"], "riskTier": "medium" },
+    { "id": "root", "paths": ["**"], "riskTier": "low" }
+  ],
+  "global": [],
+  "ignored": []
+}

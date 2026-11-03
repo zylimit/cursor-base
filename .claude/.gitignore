@@ -1,0 +1,39 @@
+# 运行时状态文件（stop-gate / review 闸门用，不入库）
+.needs-review
+.needs-review.lock
+signals.jsonl
+.subagent-reminded
+.fast-mode
+.tdd-exempt
+.red-verified
+.stop-gate-strikes
+.stop-gate-advised
+.three-file-sync-advised
+.tdd-gate-advised
+.precompact-block-epoch
+.async-verify-last
+
+# 大仓治理 harness 运行态回执（按 task 单条状态，可覆盖，永不入库；harness.mjs / catalog 本体照常分发）
+harness/receipts/
+# 结构化 per-check 豁免（运行态，永不入库）
+harness/waivers/
+# 架构漂移趋势台账（arch-check --record 快照，默认每机各持；团队要共享趋势可自行取消忽略）
+harness/trend/
+# 证据层运行态：哈希链账本 + 活跃 task 信封 + 评审会话 + 作者账本 + 评审证据包（append-only，永不入库；链断 = 此前全部验证按未证明处理）
+harness/state/
+# 每条 check 的原始 stdout/stderr（gate 落盘，账本引用到的永不删，retention 按龄和数修剪）
+harness/evidence/
+
+# supervisor 进程守护运行态（pid / state / service 日志，永不入库；supervisor.mjs 本体照常分发）
+.runtime/
+
+# Claude Code sub-agent 的 worktree 隔离副本（整棵仓副本，是别人的仓不是框架文件，永不入库）
+worktrees/
+
+# 系统垃圾
+.DS_Store
+Thumbs.db
+*.swp
+
+# Claude Code 本机特定覆盖（每台机器各自持有，不入库）
+settings.local.json

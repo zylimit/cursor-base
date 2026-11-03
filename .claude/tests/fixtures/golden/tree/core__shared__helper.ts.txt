@@ -1,0 +1,5 @@
+import { clamp } from '../util';
+
+export function page(n: number): number {
+  return clamp(n, 1, 100);
+}

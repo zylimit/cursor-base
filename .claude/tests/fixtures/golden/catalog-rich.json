@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "layers": ["api", "domain", "infra"],
+  "modules": [
+    {
+      "id": "core",
+      "paths": ["core/**"],
+      "owners": ["@team-core"],
+      "layer": "infra",
+      "riskTier": "low",
+      "verification": ["always-pass"],
+      "attributes": { "reliability": "medium" }
+    },
+    {
+      "id": "db",
+      "paths": ["db/**"],
+      "owners": ["@team-db"],
+      "layer": "infra",
+      "riskTier": "medium",
+      "dependsOn": ["core"],
+      "verification": ["always-pass", "always-fail"],
+      "attributes": { "privacy": "high" }
+    },
+    {
+      "id": "auth",
+      "paths": ["auth/**"],
+      "owners": ["@team-auth"],
+      "layer": "domain",
+      "riskTier": "high",
+      "dependsOn": ["core", "db"],
+      "verification": ["always-pass", "absent-binary"],
+      "attributes": { "security": "critical", "safety": "high" }
+    },
+    {
+      "id": "api",
+      "paths": ["api/**"],
+      "owners": ["@team-api"],
+      "layer": "api",
+      "riskTier": "medium",
+      "dependsOn": ["auth"],
+      "forbiddenDependencies": ["db"],
+      "verification": ["always-pass"],
+      "attributes": { "resilience": "medium" }
+    }
+  ],
+  "global": ["package.json", "tsconfig.base.json"],
+  "ignored": ["**/*.md", "docs/**"],
+  "riskChecks": {
+    "low": ["always-pass"],
+    "medium": ["always-pass"],
+    "high": ["always-pass"]
+  },
+  "checks": {
+    "always-pass": { "command": "true", "class": "static", "attributes": ["reliability"] },
+    "always-fail": { "command": "false", "class": "test" },
+    "absent-binary": { "command": "cc-base-golden-absent-binary", "class": "security", "attributes": ["security"] }
+  },
+  "contextPack": { "maxTotalChars": 120000, "maxFiles": 40, "maxFileChars": 6000, "maxDiffChars": 40000 }
+}

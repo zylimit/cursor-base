@@ -1,0 +1,195 @@
+#!/bin/sh
+# cc-base :: githooks/pre-commit —— Claude Code 之外的强制层。
+#
+# 分工（三层，各管各的路径）：
+#   .claude/hooks/     只在 Claude Code 会话内生效。用户自己手敲 git commit、别的编辑器提交、
+#                      脚本或别的 Agent 提交，全都绕得过去。
+#   .claude/githooks/  挂在 git 自己身上，凡是走 git 的提交路径都跑得到（本文件这层）。
+#   .github/workflows/ CI，兜住所有人、所有分支、所有机器。
+#
+# 这一层只跑**快的**静态检查——密钥、指令注入、语法三项，别让每次 commit 等几分钟。
+#（指令注入那项 2026-09-15 补进来：白名单条目随行号漂移失效，本地没人跑它，红在 CI 四格上才发现。）
+# 清单（FRAMEWORK-MANIFEST）不再逐次提交刷新，改由发版时 gen-manifest.sh 重生一次，
+# 所以这里不再比对它：每次 commit 都要重跑生成器，人只会 --no-verify。
+#
+# 退出码处理（本层的核心，逐类写死，不含糊）：
+#   0  干净          → 放行
+#   1  有违规        → 阻断 commit，打印命中
+#   2  用法错        → 阻断。这是本 hook 自己把参数写错了，必须刺眼——引擎的 parseArgs 会静默
+#                      吞未知 flag（写错的 flag 不报错也不生效），闸就成了摆设，只能靠这条照出来
+#   3  降级          → 打印告警，**不阻断**。check-syntax 在没装 pwsh 的机器上恒 rc 3（26 个
+#                      .ps1 一类压根没验），拦住每一次 commit 会让人第一天就 --no-verify，
+#                      闸直接废掉。但一定打印——**降级不是通过**
+#   其余             → 工具自己崩了（node 缺失、脚本不在、引擎异常）。打印 SKIPPED 并说明
+#                      「未执行 != 通过」，不阻断。这与仓里 harness_node_ok 的降级哲学一致，
+#                      区别是那边静默、这边出声
+#
+# 退出码语义**逐条检查各判各的**，不共用一张想当然的表：审计脚本是 0/1/2/3；
+# 引擎的 catalog-lint / fitness 契约里没有 2（见 .claude/rules/harness-large-repo.md 退出码契约表）。
+# 混成一张表会把「引擎崩了」读成「用法错」，两者该采取的行动完全不同。
+#
+# 绝不出现「跑失败了却当通过」：上面每一类都在 stderr 留一行，末尾还有汇总。
+# --no-verify 绕过是 HIGH 档行为，要向人交代——见 .claude/githooks/README.md。
+#
+# 用 /bin/sh 而非 bash：git hook 在 Git for Windows 下由 git 自带的 sh 拉起，POSIX 子集最稳。
+set -eu
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+cd "$ROOT" || exit 0
+
+AUDIT=".claude/harness/audit"
+ENGINE=".claude/harness/harness.mjs"
+CATALOG=".claude/harness/module-catalog.json"
+
+BLOCKED=""      # 阻断项标签
+DEGRADED=""     # 降级项（告警不阻断）
+SKIPPED=""      # 未执行项（出声不阻断）
+
+TMPBASE="${TMPDIR:-/tmp}/cc-pre-commit.$$"
+OUTF="$TMPBASE.out"
+ERRF="$TMPBASE.err"
+trap 'rm -f "$OUTF" "$ERRF" "$TMPBASE.list"' EXIT INT TERM
+
+say() { printf '%s\n' "$*" >&2; }
+
+# 把检查的输出打出来：人读诊断在 stderr（审计脚本）或 stdout 单行 JSON（引擎），
+# 哪边有东西就打哪边，两边都空才说「无输出」。截前 25 行，别把 commit 淹了。
+dump_output() {
+    if [ -s "$ERRF" ]; then
+        sed -n '1,25p' "$ERRF" >&2
+    elif [ -s "$OUTF" ]; then
+        sed -n '1,25p' "$OUTF" >&2
+    else
+        say "         （该命令无输出）"
+    fi
+}
+
+# classify <契约> <rc> —— 回填 VERDICT（ok|block|degrade|skip）与 WHY。
+classify() {
+    case "$1" in
+        audit)   # 审计脚本：0 干净 / 1 有命中 / 2 用法错 / 3 降级
+            case "$2" in
+                0) VERDICT=ok;      WHY="扫过且干净" ;;
+                1) VERDICT=block;   WHY="有命中（rc 1）" ;;
+                2) VERDICT=block;   WHY="用法错（rc 2）——是本 hook 把参数写错了，不是你的改动有问题" ;;
+                3) VERDICT=degrade; WHY="降级（rc 3）：该扫的没扫成，未执行 != 通过" ;;
+                *) VERDICT=skip;    WHY="契约外退出码 rc $2（契约只有 0/1/2/3）：工具自己崩了，未执行 != 通过" ;;
+            esac ;;
+        lint)    # 引擎 catalog-lint / fitness：0 干净 / 1 有错 / 3 降级；契约里没有 2
+            case "$2" in
+                0) VERDICT=ok;      WHY="无错" ;;
+                1) VERDICT=block;   WHY="有错（rc 1）" ;;
+                3) VERDICT=degrade; WHY="降级（rc 3）：无 catalog 或非 git，未执行 != 通过" ;;
+                *) VERDICT=skip;    WHY="契约外退出码 rc $2（契约只有 0/1/3）：引擎自己崩了，未执行 != 通过" ;;
+            esac ;;
+        *) VERDICT=skip; WHY="未知契约 $1（hook 写错了）" ;;
+    esac
+}
+
+# run_check <标签> <契约> <cmd...>
+run_check() {
+    LABEL=$1
+    CONTRACT=$2
+    shift 2
+    RC=0
+    "$@" >"$OUTF" 2>"$ERRF" || RC=$?
+    classify "$CONTRACT" "$RC"
+    case "$VERDICT" in
+        ok)      say "  [OK]      $LABEL —— $WHY" ;;
+        block)   BLOCKED="$BLOCKED $LABEL"
+                 say "  [BLOCK]   $LABEL —— $WHY"
+                 dump_output ;;
+        degrade) DEGRADED="$DEGRADED $LABEL"
+                 say "  [DEGRADE] $LABEL —— $WHY"
+                 dump_output ;;
+        skip)    SKIPPED="$SKIPPED $LABEL"
+                 say "  [SKIPPED] $LABEL —— $WHY"
+                 dump_output ;;
+    esac
+}
+
+# note_skip <标签> <原因> —— 命令压根没法跑（前置条件不满足），出声不阻断。
+note_skip() {
+    SKIPPED="$SKIPPED $1"
+    say "  [SKIPPED] $1 —— $2（未执行 != 通过）"
+}
+
+say "cc-base pre-commit：静态检查（行为证明归 pre-push）"
+
+# ---------- 前置：node ----------
+# 检查全靠 node。缺 node 一次性说清，不刷几遍同样的话。
+if ! command -v node >/dev/null 2>&1; then
+    note_skip "全部静态检查" "PATH 上没有 node"
+    say ""
+    say "cc-base pre-commit：放行，但本次提交**没有任何检查跑成**。装上 node 再提交更稳。"
+    exit 0
+fi
+
+# ---------- 密钥、指令注入、语法三只审计脚本（catalog-free，引擎坏了也要能跑）----------
+# --staged：文件名和内容都取自索引，判的是「正在提交的东西」而不是工作树里顺手改的东西。
+for pair in "secrets:scan-secrets.mjs" "instructions:scan-instructions.mjs" "syntax:check-syntax.mjs"; do
+    LBL=${pair%%:*}
+    SCRIPT=${pair#*:}
+    if [ -f "$AUDIT/$SCRIPT" ]; then
+        run_check "$LBL" audit node "$AUDIT/$SCRIPT" --staged
+    else
+        note_skip "$LBL" "$AUDIT/$SCRIPT 不存在"
+    fi
+done
+
+# ---------- 大仓治理（catalog 存在才启用；默认关，小项目零负担）----------
+if [ -f "$CATALOG" ]; then
+    if [ ! -f "$ENGINE" ]; then
+        note_skip "catalog-lint/fitness" "$ENGINE 不存在（有 catalog 却没引擎）"
+    else
+        run_check "catalog-lint" lint node "$ENGINE" catalog-lint
+
+        # fitness 的 --paths 收的是逗号分隔清单（引擎 parseCsv 按逗号切、两端 trim）。
+        # 文件名列表走 -z 落临时文件再转——命令替换会吞掉 NUL 字节，$(... -z) 拿到的是拼在
+        # 一起的一坨，中文名和带空格的名字全被切错。落文件让 tr 直接读，才不丢分隔符。
+        # 名字里带逗号或换行的切不开，检测到就退回不带 --paths 的 changed 作用域并说明，
+        # 不拿切错的清单假装扫过。
+        # 过滤器要带 R：git 默认开重命名检测（diff.renames 默认 true），只写 ACM 时
+        # 重命名过来的文件是 R 态、会被整条漏掉，fitness 就从没扫过它——实测确认过。
+        LISTF="$TMPBASE.list"
+        git diff --cached --name-only --diff-filter=ACMR -z >"$LISTF" 2>/dev/null || : >"$LISTF"
+        STAGED_N=$(tr -dc '\000' <"$LISTF" | wc -c | tr -d ' ')
+        BAD_N=$(tr -dc ',\n' <"$LISTF" | wc -c | tr -d ' ')
+        if [ "${STAGED_N:-0}" -eq 0 ]; then
+            note_skip "fitness" "索引里没有新增/修改的文件"
+        elif [ "${BAD_N:-0}" -gt 0 ]; then
+            say "  [注意]    fitness：有文件名含逗号或换行，--paths 切不开——退回 changed 作用域"
+            run_check "fitness" lint node "$ENGINE" fitness
+        elif [ "$STAGED_N" -gt 500 ]; then
+            say "  [注意]    fitness：staged $STAGED_N 个文件超 --paths 上限——退回 changed 作用域"
+            run_check "fitness" lint node "$ENGINE" fitness
+        else
+            STAGED_CSV=$(tr '\000' ',' <"$LISTF" | sed 's/,$//')
+            run_check "fitness" lint node "$ENGINE" fitness --paths "$STAGED_CSV"
+        fi
+        rm -f "$LISTF"
+    fi
+fi
+
+# ---------- 汇总 ----------
+say ""
+if [ -n "$DEGRADED" ]; then
+    say "cc-base pre-commit：降级项（该跑没跑成，不阻断但也不算通过）:$DEGRADED"
+fi
+if [ -n "$SKIPPED" ]; then
+    say "cc-base pre-commit：未执行项（未执行 != 通过）:$SKIPPED"
+fi
+if [ -n "$BLOCKED" ]; then
+    say ""
+    say "❌ cc-base pre-commit：commit 被阻断，未过项:$BLOCKED"
+    say "   修掉上面的命中再提交。真要绕过就 git commit --no-verify——那是 HIGH 档行为，"
+    say "   得向人说清为什么（.claude/githooks/README.md）。"
+    exit 1
+fi
+if [ -n "$DEGRADED" ] || [ -n "$SKIPPED" ]; then
+    # 有东西没跑成还说「通过」就是假绿。放行归放行，别把它说成全过。
+    say "cc-base pre-commit：放行——但上面有没跑成的项，放行 != 全部通过。"
+else
+    say "cc-base pre-commit：静态检查通过，放行。"
+fi
+exit 0

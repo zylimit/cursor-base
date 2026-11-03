@@ -1,0 +1,5 @@
+import { login } from '../auth/login';
+
+export function handleLogin(rawId: string): string {
+  return login(rawId) ?? 'anonymous';
+}

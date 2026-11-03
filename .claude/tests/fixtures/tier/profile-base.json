@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "default": "standard",
+  "floor": ["secret-exfil-guard", "dangerous-pkill-guard", "release-gate", "postcompact-reinject", "notify"],
+  "hooks": {
+    "stop-gate":               { "kind": "guard",    "fast": "advise", "standard": "block", "strict": "block" },
+    "three-file-sync-gate":    { "kind": "guard",    "fast": "advise", "standard": "block", "strict": "block" },
+    "precompact-gate":         { "kind": "guard",    "fast": "advise", "standard": "block", "strict": "block" },
+    "pre-commit-check":        { "kind": "guard",    "fast": "advise", "standard": "block", "strict": "block" },
+    "no-direct-code-guard":    { "kind": "guard",    "fast": "advise", "standard": "block", "strict": "block" },
+    "tdd-gate":                { "kind": "guard",    "fast": "off",    "standard": "advise", "strict": "block" },
+    "harness-async-verify":    { "kind": "guard",    "fast": "off",    "standard": "block", "strict": "block" },
+    "mark-review-needed":      { "kind": "recorder", "fast": "off",    "standard": "on",    "strict": "on" },
+    "record-authorship":       { "kind": "recorder", "fast": "on",     "standard": "on",    "strict": "on" },
+    "auto-push":               { "kind": "recorder", "fast": "off",    "standard": "on",    "strict": "on" },
+    "kill-dev-ports":          { "kind": "recorder", "fast": "off",    "standard": "on",    "strict": "on" },
+    "subagent-acceptance-reminder": { "kind": "recorder", "fast": "off", "standard": "on", "strict": "on" },
+    "detect-feedback-signal":  { "kind": "recorder", "fast": "off",    "standard": "on",    "strict": "on" },
+    "check-evolution":         { "kind": "recorder", "fast": "off",    "standard": "on",    "strict": "on" },
+    "recap-on-dirty":          { "kind": "recorder", "fast": "off",    "standard": "on",    "strict": "on" },
+    "session-rules-banner":    { "kind": "recorder", "fast": "on",     "standard": "on",    "strict": "on" }
+  },
+  "raise": { "to": "strict", "paths": [".claude/hooks/**", ".claude/harness/**", ".claude/skills/**", ".claude/agents/**", ".claude/CLAUDE.md", ".claude/rules/**", ".claude/settings.json", ".github/**"] },
+  "overrides": {}
+}
