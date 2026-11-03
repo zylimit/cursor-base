@@ -2,14 +2,14 @@
 # sync-from-cc-base.sh — 把 cc-base 仓的原件同步进本仓（Mac/Linux）。
 # 用法：./sync-from-cc-base.sh [--allow-dirty] [cc-base 仓路径]
 #   路径缺省取 $CC_BASE_DIR，再缺省 ../cc-base。
-# 流程：校验 cc-base 仓 → 要求工作树干净 → 以 HEAD 的文件清单为准、从 HEAD 取内容（可执行位随 tar 保留）→
-#   排除本仓自有文件 → 删掉「上次清单里有、这次没有」的旧文件 → 记清单与版本 → 核对 .gitignore 白名单段 →
+# 流程：校验 cc-base 仓 → 要求工作树干净 → 核对 .gitignore 白名单段（拷贝之前，失败时一个文件都不动）→ 以 HEAD 的文件清单为准、从 HEAD 取内容（可执行位随 tar 保留）→
+#   排除本仓自有文件 → 删掉「上次清单里有、这次没有」的旧文件 → 记清单与版本 →
 #   settings.json 转 string form → 重新生成 .cursor/agents/。
 # 取内容走 HEAD 而不是工作树：同步的是 cc-base「提交过的样子」，工作树里没提交的半成品不该进来；
 #   所以默认要求干净，--allow-dirty 放行时脏改动不会被同步，只是提示一声。
 # 清单也取 HEAD 的树（git ls-tree），不取 index：--allow-dirty 下 index 里暂存的新文件 HEAD 里没有，取了 tar 会找不到。
 # 上一次的清单存 .cursor/cc-base-files.txt；只删上次清单里有的，本仓自有文件和适配层永远不会被删。
-# 幂等：连跑两次，第二次 git status --short 不变（版本文件里的同步时间会变，但路径集合不变）。
+# 幂等：连跑两次，第二次 git status --short 不变；版本文件只记 cc-base 短 hash 与提交日期，不记同步时间，两次逐字节相同。
 set -u
 
 die() {
@@ -78,6 +78,26 @@ NEW_NUL="$TMP/new.nul"       # 同一份，NUL 分隔，喂 tar
 : >"$NEW_LIST"
 : >"$NEW_NUL"
 
+# 核对 .gitignore 白名单段：本仓从 `/*` 那行起到 `# === Cursor 适配层 ===` 之前，必须与 cc-base 的 .gitignore
+# 逐字一致（两边文件头的说明注释各写各的，不比；段尾空行不比）。不一致只报不改——白名单放行谁是要人看的决定。
+# 排在拷贝之前：核对失败退 1 时一个文件都没动，不留「原件拷进来了、settings.json 还是 exec form」的半成品。
+whitelist_body() {   # $1=文件 $2=1 表示在 Cursor 标记处截断
+  awk -v cut="$2" '
+    /^# === Cursor 适配层 ===/ { if (cut == 1) exit }
+    /^\/\*$/ { on = 1 }
+    on { lines[++n] = $0 }
+    END { while (n > 0 && lines[n] == "") n--; for (i = 1; i <= n; i++) print lines[i] }
+  ' "$1"
+}
+whitelist_body "$HERE/.gitignore" 1 >"$TMP/wl.here"
+git -C "$CC" show HEAD:.gitignore | whitelist_body /dev/stdin 0 >"$TMP/wl.cc"
+[ -s "$TMP/wl.cc" ] || die "cc-base 的 .gitignore 里找不到 /* 起头的白名单段"
+if ! diff -u "$TMP/wl.cc" "$TMP/wl.here" >"$TMP/wl.diff"; then
+  printf 'sync: 本仓 .gitignore 的 cc-base 白名单段与 cc-base 不一致（--- 是 cc-base，+++ 是本仓）：\n' >&2
+  cat "$TMP/wl.diff" >&2
+  die "白名单没对上，本次一个文件都没动；人工改 .gitignore 后重跑（脚本不自动改）"
+fi
+
 git -C "$CC" ls-tree -r -z --name-only HEAD >"$TMP/all.nul" || die "git ls-tree HEAD 失败（cc-base 没有提交？）"
 [ -s "$TMP/all.nul" ] || die "cc-base HEAD 是空树"
 while IFS= read -r -d '' f; do
@@ -114,27 +134,8 @@ fi
 mkdir -p "$HERE/.cursor" || die "无法创建 .cursor/"
 cp "$NEW_LIST" "$OLD_LIST" || die "无法写 .cursor/cc-base-files.txt"
 ver=$(git -C "$CC" log -1 --format='%h %cd' --date=short HEAD) || die "读 cc-base HEAD 失败"
-printf 'cc-base %s\n同步时间 %s\n' "$ver" "$(date '+%Y-%m-%d %H:%M:%S')" >"$HERE/.cursor/cc-base-version.txt" \
+printf 'cc-base %s\n' "$ver" >"$HERE/.cursor/cc-base-version.txt" \
   || die "无法写 .cursor/cc-base-version.txt"
-
-# 核对 .gitignore 白名单段：本仓从 `/*` 那行起到 `# === Cursor 适配层 ===` 之前，必须与 cc-base 的 .gitignore
-# 逐字一致（两边文件头的说明注释各写各的，不比；段尾空行不比）。不一致只报不改——白名单放行谁是要人看的决定。
-whitelist_body() {   # $1=文件 $2=1 表示在 Cursor 标记处截断
-  awk -v cut="$2" '
-    /^# === Cursor 适配层 ===/ { if (cut == 1) exit }
-    /^\/\*$/ { on = 1 }
-    on { lines[++n] = $0 }
-    END { while (n > 0 && lines[n] == "") n--; for (i = 1; i <= n; i++) print lines[i] }
-  ' "$1"
-}
-whitelist_body "$HERE/.gitignore" 1 >"$TMP/wl.here"
-git -C "$CC" show HEAD:.gitignore | whitelist_body /dev/stdin 0 >"$TMP/wl.cc"
-[ -s "$TMP/wl.cc" ] || die "cc-base 的 .gitignore 里找不到 /* 起头的白名单段"
-if ! diff -u "$TMP/wl.cc" "$TMP/wl.here" >"$TMP/wl.diff"; then
-  printf 'sync: 本仓 .gitignore 的 cc-base 白名单段与 cc-base 不一致（--- 是 cc-base，+++ 是本仓）：\n' >&2
-  cat "$TMP/wl.diff" >&2
-  die "原件已同步但白名单没对上，新文件可能被忽略；人工改 .gitignore 后重跑（脚本不自动改）"
-fi
 
 node "$HERE/.claude/scripts/hook-form.mjs" --to string || die "hook-form.mjs --to string 失败"
 form=$(node "$HERE/.claude/scripts/hook-form.mjs" --check)

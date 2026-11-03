@@ -25,3 +25,4 @@
 - [审提醒去重状态 / 包壳 node --check](pattern_dedup-state-and-wrapper-check.md) — clean 后重登记被吞 / 壳内 import 放行
 - [审 hook 输出形态迁移的对拍法](pattern_output-shape-migration-differential.md) — git show HEAD 新旧对拍；静默场景常没锁
 - [审 hook 注册面双形态 + 合并去重](pattern_registration-form-dual-support.md) — 升级造「新增 hook」；显式参数打对向目标
+- [审上游同步脚本 + 派生文件生成器](pattern_vendor-sync-and-generator-attacks.md) — 只写不清孤儿 / 闸失败留半成品 / 自测改仓

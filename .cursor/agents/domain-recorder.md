@@ -6,6 +6,7 @@ model: inherit
 
 <!-- 由 .cursor/scripts/gen-agents.mjs 从 .claude/agents/domain-recorder.md 生成，别手改；要钉模型写 .cursor/agents-models.json -->
 
+不要用 Shell（Bash）工具。
 不要再派子代理。
 
 [角色]

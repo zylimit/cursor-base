@@ -7,6 +7,7 @@ model: inherit
 <!-- 由 .cursor/scripts/gen-agents.mjs 从 .claude/agents/code-reviewer.md 生成，别手改；要钉模型写 .cursor/agents-models.json -->
 
 开工前先完整读 `.claude/skills/code-review/SKILL.md`（Cursor 不会像 Claude Code 那样把技能预载给子代理），再按下文行事。
+不要用 NotebookEdit 工具。
 不要再派子代理。
 你的持久记忆在 `.claude/agent-memory/code-reviewer/MEMORY.md`，先读它，改动也写回那里。
 

@@ -7,6 +7,7 @@
 # --dry-run 原样透传给 setup.sh，本脚本自己也不写任何文件，只打印会做什么。
 # 取舍：.cursor/agents/ 与 .cursor/scripts/ 是生成物和适配脚本，随装随覆盖；cli.json、agents-models.json、AGENTS.md
 #   是目标可能手改过的配置，已有且内容不同就不覆盖，新版本落 <文件>.framework-new 供手工合并（同 setup.sh 的惯例）。
+#   .cursor/agents/ 另外会清掉目标里「带生成注释、本仓已无同名」的残留，手写的 agent 不动。
 #   .cursor/tests/ 是本仓适配层的自测，不装进目标。
 set -u
 
@@ -79,7 +80,25 @@ put_tree() {
   fi
 }
 
+# prune_agents：目标 .cursor/agents/ 里带生成注释、但本仓已没有同名生成物的删掉（源头删了的角色）；手写的不动
+prune_agents() {
+  local f base
+  for f in "$target"/.cursor/agents/*.md; do
+    [ -e "$f" ] || continue
+    base=$(basename "$f")
+    [ -e "$HERE/.cursor/agents/$base" ] && continue
+    grep -qF -- '由 .cursor/scripts/gen-agents.mjs' "$f" || continue
+    if [ "$DRY_RUN" = "1" ]; then
+      printf 'setup-cursor: dry-run remove .cursor/agents/%s（源头已删的生成物）\n' "$base"
+    else
+      rm -f -- "$f" || die "无法删除 $f"
+      printf 'setup-cursor: remove .cursor/agents/%s（源头已删的生成物）\n' "$base"
+    fi
+  done
+}
+
 put_tree .cursor/agents
+prune_agents
 put_tree .cursor/scripts
 put_config .cursor/cli.json
 [ -f "$HERE/.cursor/agents-models.json" ] && put_config .cursor/agents-models.json

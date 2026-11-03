@@ -18,6 +18,7 @@
 .claude/agent-memory/code-reviewer/pattern_registration-form-dual-support.md
 .claude/agent-memory/code-reviewer/pattern_suppression-markers-need-honesty-audit.md
 .claude/agent-memory/code-reviewer/pattern_traceability-scanner-and-scope-globs.md
+.claude/agent-memory/code-reviewer/pattern_vendor-sync-and-generator-attacks.md
 .claude/agent-memory/code-reviewer/project_cc-base-is-a-framework-repo.md
 .claude/agent-memory/tester/MEMORY.md
 .claude/agent-memory/tester/windows-gitbash-process-tests.md

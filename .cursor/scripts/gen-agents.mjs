@@ -7,10 +7,13 @@
 //   Claude 模型，账号没有 Claude 配额时子代理起不来（2026-11-04 实测）。所以生成版一律 `model: inherit` 跟主 agent 走；
 //   要钉某个角色的模型写 .cursor/agents-models.json（形如 {"code-reviewer":"auto"}）。
 //   Cursor 也不认 skills / memory 字段（Claude Code 靠前者预载技能、靠后者给子代理持久记忆），这两件事改写进正文开头。
-//   disallowedTools 含 Task 的，Cursor 没法在 frontmatter 里禁，改成正文一句话。
+//   disallowedTools Cursor 没法在 frontmatter 里禁，改成正文一句话：含 Task 或 Agent 的写「不要再派子代理。」，
+//   其它每项写「不要用 <工具> 工具。」（Bash 写成「不要用 Shell（Bash）工具。」，Cursor 里它叫 Shell）。
+//   生成器只写不清会让源头删掉的 agent 在 .cursor/agents/ 里一直留着（Cursor 优先读这里），所以生成前先清：
+//   带下面那行生成注释、但 .claude/agents/ 里已没有同名源的删掉；没带注释的手写文件不动。
 // 取舍：frontmatter 只做逐行 `key: value`——cc-base 的 agent 文件没有嵌套 YAML，上 YAML 库换来的只是一个依赖。
 //   认不出的行（缩进续行、没有冒号）原样丢弃并在 stderr 说一句，不猜；其余 Cursor 不认的键（color / tools /
-//   maxTurns / disallowedTools 里 Task 以外的项）静默丢掉。agent 正文不改一个字，只在前面按需加最多三句。
+//   maxTurns）静默丢掉。agent 正文不改一个字，只在前面按需加几句。
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,6 +68,13 @@ const files = fs.readdirSync(SRC).filter((f) => f.endsWith('.md')).sort();
 if (files.length === 0) die(`${SRC} 下没有 .md`);
 
 fs.mkdirSync(DST, { recursive: true });
+const MARK = '由 .cursor/scripts/gen-agents.mjs';
+for (const g of fs.readdirSync(DST).filter((x) => x.endsWith('.md')).sort()) {
+  if (files.includes(g)) continue;
+  if (!fs.readFileSync(path.join(DST, g), 'utf8').includes(MARK)) continue;
+  fs.rmSync(path.join(DST, g));
+  process.stdout.write(`gen-agents: 源头已删，清掉生成物 ${path.relative(ROOT, path.join(DST, g))}\n`);
+}
 let bad = 0;
 for (const f of files) {
   const p = parse(f, fs.readFileSync(path.join(SRC, f), 'utf8'));
@@ -83,8 +93,16 @@ for (const f of files) {
       .map((s) => `\`.claude/skills/${s}/SKILL.md\``).join('、');
     pre.push(`开工前先完整读 ${paths}（Cursor 不会像 Claude Code 那样把技能预载给子代理），再按下文行事。`);
   }
-  if (fm.disallowedTools && fm.disallowedTools.split(',').map((s) => s.trim()).includes('Task')) {
-    pre.push('不要再派子代理。');
+  if (fm.disallowedTools) {
+    let noSub = false;
+    for (const t of fm.disallowedTools.split(',').map((x) => x.trim()).filter(Boolean)) {
+      if (t === 'Task' || t === 'Agent') {
+        if (!noSub) pre.push('不要再派子代理。');
+        noSub = true;
+      } else {
+        pre.push(t === 'Bash' ? '不要用 Shell（Bash）工具。' : `不要用 ${t} 工具。`);
+      }
+    }
   }
   if (fm.memory === 'project') {
     pre.push(`你的持久记忆在 \`.claude/agent-memory/${name}/MEMORY.md\`，先读它，改动也写回那里。`);
@@ -98,7 +116,7 @@ for (const f of files) {
     `model: ${model}`,
     '---',
     '',
-    `<!-- 由 .cursor/scripts/gen-agents.mjs 从 .claude/agents/${f} 生成，别手改；要钉模型写 .cursor/agents-models.json -->`,
+    `<!-- ${MARK} 从 .claude/agents/${f} 生成，别手改；要钉模型写 .cursor/agents-models.json -->`,
     '',
     ...(pre.length ? [pre.join('\n'), ''] : []),
     body.replace(/^\n+/, ''),
