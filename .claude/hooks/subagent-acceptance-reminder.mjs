@@ -1,5 +1,6 @@
 // SubagentStop（matcher: implementer|code-reviewer|tester|deployer）
-// 执行类 Sub-Agent 停下时，注入它自己的收工前自检：结论锚到实际跑过的命令，证不出的写进 Not verified。
+// 执行类 Sub-Agent 停下时，注入它自己的收工前自检：结论锚到实际跑过的命令，证不出的写进 Not verified；
+// 2026-11-22 加「回执有改动就整份重发」一句——当天四份回执（三位 implementer、一位 code-reviewer）回到主 Agent 手里都只剩补充，正文丢了。
 import path from 'node:path';
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -50,6 +51,6 @@ runFailOpen(async () => {
   const found = tail.split(/\n[\s>*+-]*\**\s*(?:needs review by|evidence)\b/i)[0].replace(/[\s*`_>-]/g, '');
   const hasDomain = found !== '' && !/^(none|n\/a)\b|^无(?![一-鿿])/i.test(found);
 
-  const msg = `${agent}：你就要收工了——自报（完成/通过/空回复）不算客观证据，把每条结论锚到你实际跑过的命令与它的输出上；没跑过、证不出的写进 Not verified。${hasDomain ? '回执里报了领域发现的，写清你手上的证据是哪一类（实测 / 查外网 / 查内部）；定论归主 Agent，你只报不判。' : ''}`;
+  const msg = `${agent}：你就要收工了——自报（完成/通过/空回复）不算客观证据，把每条结论锚到你实际跑过的命令与它的输出上；回执因此有改动的，把完整回执在一条消息里重发，不要只发补充或更正——主 Agent 只收得到你最后一条消息；没跑过、证不出的写进 Not verified。${hasDomain ? '回执里报了领域发现的，写清你手上的证据是哪一类（实测 / 查外网 / 查内部）；定论归主 Agent，你只报不判。' : ''}`;
   emit({ hookSpecificOutput: { hookEventName: 'SubagentStop', additionalContext: msg } });
 });

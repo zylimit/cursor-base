@@ -153,6 +153,32 @@ if spec_path is not None:
         for i, line in enumerate(lines):
             if i not in fenced and TASK_ITEM_RE.match(line):
                 task_ids.update(REQ_REF.findall(line))
+        # 做完的 Phase 被 plan-archive.mjs 搬进 DEV-PLAN.archive.md 后，原文件只在 "## 已归档 Phase" 一节留一行指针，
+        # Task 行跟着搬走了；指针行里的编号不算「已安排」的话，搬完覆盖检查就报「需求没人做」（活文档契约 2026-11-22
+        # 第 2 节）。只认这一节里带 "→ DEV-PLAN.archive.md" 的列表行，节里别的文字提到编号不算；围栏内照样跳过。
+        # 指针行也只取箭头之后 "（REQ：…）" 后缀里的编号：前半是标题原文，标题常写「REQ-X 推到下期」，整行读会把它
+        # 算成已安排——2026-11-22 审查复现：搬前 rc 0、搬后报「范围外声明与 Task 矛盾」，反过来也能把「需求没人做」搬没。
+        # 后缀是 plan-archive.mjs 只从 Task 行收的编号，和搬走前这里看到的是同一批。
+        # 悬空判定不用改：指针行在全文里，引用了 Spec 没有的编号照旧报。
+        ARCHIVED_HEADING_RE = re.compile(r"^## 已归档 Phase\s*$")
+        ARCHIVED_POINTER_RE = re.compile(r"^\s*-\s.*→\s*DEV-PLAN\.archive\.md")
+        ARCHIVED_ARROW_RE = re.compile(r"→\s*DEV-PLAN\.archive\.md")
+        ARCHIVED_SUFFIX_RE = re.compile(r"^\s*（REQ：([^）]*)）")
+        in_archived = False
+        for i, line in enumerate(lines):
+            if i in fenced:
+                continue
+            if ARCHIVED_HEADING_RE.match(line):
+                in_archived = True
+                continue
+            if in_archived and re.match(r"^## ", line):
+                in_archived = False
+                continue
+            if in_archived and ARCHIVED_POINTER_RE.match(line):
+                # 标题原文里万一也写了箭头，取最后一个箭头之后的部分
+                suffix = ARCHIVED_SUFFIX_RE.match(ARCHIVED_ARROW_RE.split(line)[-1])
+                if suffix:
+                    task_ids.update(REQ_REF.findall(suffix.group(1)))
 
         # 4.5) 范围外声明：dev-planner 允许局部计划，顶格 "## 范围外（本次不计划）" 标题到
         #      下一个 "## " 之间的 "- REQ-XXX：原因" 行算数；REQ 号复用上面 REQ_REF 那条正则

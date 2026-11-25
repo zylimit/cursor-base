@@ -4,6 +4,7 @@ description: 外部数据入库一律全量保留原始记录，认不出的标�
 created: 2026-10-19
 updated: 2026-10-19
 graduated: false
+skipped: true  # 2026-11-22 裁定：数字光纤项目的数据设计原则，归项目 domain/ 或 progress.md Decisions，不进框架
 source_skill: N/A
 scope: 设计/竣工 KMZ 导入，以及以后任何外部数据导入（入库层的分类器、builder、跳过逻辑）
 exceptions: 未说明

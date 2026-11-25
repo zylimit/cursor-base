@@ -5,6 +5,7 @@ created: 2026-09-11
 updated: 2026-09-11
 occurrences: 1
 graduated: false
+skipped: true  # 2026-11-22 裁定：ODN 资料整合的做法，框架里没有对应落点，归项目 domain/
 source_skill: N/A
 scope: 把多份来源（资料、文档、接口说明、多个模块的现状）整合成一份基线/手册/口径库时
 exceptions: 用户明确要的就是「逐份摘要」或「按来源归档」时不适用；来源之间的差异本身是产物主题时（如版本对比）也不适用

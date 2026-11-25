@@ -24,4 +24,5 @@
 # Cursor 自己的运行态，不入库
 /.cursor/harness-state/
 /.cursor/worktrees.json
+/.cursor/skills
 !/LICENSE

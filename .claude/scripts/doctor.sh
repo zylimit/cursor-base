@@ -268,6 +268,26 @@ if [ -f .claude/FRAMEWORK-MANIFEST.txt ] && command -v sha256sum >/dev/null 2>&1
   [ "$missing" -ne 0 ] && bad "FRAMEWORK-MANIFEST 全量比对 $checked 条，另有 $missing 条登记的文件不在本地"
 fi
 
+# 人读文档（docs/readable-spec/phase1-db-contract.md I 节第 11 条）：框架升级后生成器的写法变了、或来源改了没重出，页面就不是现行的，
+# 没人会想起来重出。有配置的项目跑一次 check，数不是现行的页与待更新的说明段；只提示不判红——
+# 一个项目的文档没跟上，不该让整份安装自检变红。没有配置、没装生成器、没有 node 的，这里一个字不多。
+if [ -f docs/readable-src/config.json ] && [ -f .claude/scripts/readable-docs.mjs ] && command -v node >/dev/null 2>&1; then
+  # shellcheck disable=SC2016  # 单引号里是 JS 源码，${...} 是 JS 的模板字面量，不让 shell 展开
+  rd=$(node -e '
+const r = require("node:child_process").spawnSync(process.execPath, [".claude/scripts/readable-docs.mjs", "check", "--json", "--root", process.cwd()], { encoding: "utf8", timeout: 60000, maxBuffer: 1 << 26 });
+let p; try { p = JSON.parse(r.stdout).problems; } catch (e) { p = `输出不是 JSON：${e.message}`; }
+const why = r.error ? String(r.error.message) : (r.status !== 0 && r.status !== 1) ? (r.stderr.trim() || `退出码 ${r.status ?? r.signal}`) : typeof p === "string" ? p : Array.isArray(p) ? "" : "输出里没有 problems 清单";
+const n = (ks) => p.filter((x) => x && ks.includes(x.kind)).length;
+process.stdout.write(why ? `ERR ${why.split("\n")[0]}` : `${n(["stale-page", "missing-page", "extra-page"])} ${n(["note-stale"])}`);
+' 2>/dev/null) || rd="ERR 数页的 node 退出码 $?"
+  case "$rd" in
+    [0-9]*" "[0-9]*) set -- $rd
+      if [ "$1" -gt 0 ]; then note "人读文档与来源或当前生成器不同步：跑 build 后提交（$1 页不是现行的，node .claude/scripts/readable-docs.mjs check 看清单）"; fi
+      if [ "$2" -gt 0 ]; then note "人读文档有 $2 段说明待更新：pending 看清单，照现在的来源重写（重出页面清不掉）"; fi ;;
+    *) note "人读文档的核对没跑成（${rd#ERR }），页面是不是现行的不知道：手跑 node .claude/scripts/readable-docs.mjs check 看原因" ;;
+  esac
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "doctor: 自检失败"
   exit 1

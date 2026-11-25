@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # setup-cursor.sh — 把 cc-base 框架 + Cursor 适配层装到 target 项目（Mac/Linux）。
 # 用法：./setup-cursor.sh <目标目录> [setup.sh 的其它参数]
-# 流程：先跑本仓的 setup.sh <目标目录> --hook-form string <其它参数>（cc-base 原件的安装器，hook 注册成 Cursor 认的 string form），
-#   退出码非 0 原样退出；再把 .cursor/agents/、.cursor/scripts/、.cursor/cli.json、.cursor/agents-models.json（有才拷）和
-#   AGENTS.md 铺进目标。
+# 流程：先核对本仓适配层文件齐全（缺件时零写入早退），再跑本仓的 setup.sh <目标目录> --hook-form string <其它参数>
+#   （cc-base 原件的安装器，hook 注册成 Cursor 认的 string form），退出码非 0 原样退出；再把 .cursor/agents/、
+#   .cursor/rules/、.cursor/scripts/、.cursor/skills（指向 ../.claude/skills 的软链）、.cursor/cli.json、
+#   .cursor/hooks.json、.cursor/agents-models.json（有才拷）和 AGENTS.md 铺进目标。
 # --dry-run 原样透传给 setup.sh，本脚本自己也不写任何文件，只打印会做什么。
-# 取舍：.cursor/agents/ 与 .cursor/scripts/ 是生成物和适配脚本，随装随覆盖；cli.json、agents-models.json、AGENTS.md
-#   是目标可能手改过的配置，已有且内容不同就不覆盖，新版本落 <文件>.framework-new 供手工合并（同 setup.sh 的惯例）。
+# 取舍：.cursor/agents/、.cursor/rules/ 与 .cursor/scripts/ 是生成物和适配脚本，随装随覆盖；.cursor/skills 若目标已是真实目录则保留不动；
+#   cli.json、hooks.json、agents-models.json、AGENTS.md 是目标可能手改过的配置，已有且内容不同就不覆盖，新版本落 <文件>.framework-new 供手工合并（同 setup.sh 的惯例）。
 #   .cursor/agents/ 另外会清掉目标里「带生成注释、本仓已无同名」的残留，手写的 agent 不动。
 #   .cursor/tests/ 是本仓适配层的自测，不装进目标。
 set -u
@@ -32,6 +33,10 @@ shift
 HERE=$(cd "$(dirname "$0")" && pwd) || die "取不到脚本所在目录"
 [ -x "$HERE/setup.sh" ] || die "$HERE/setup.sh 不存在或不可执行（先跑 sync-from-cc-base.sh 把 cc-base 原件同步进来）"
 
+for need in .cursor/agents .cursor/rules .cursor/scripts .cursor/.gitignore .cursor/cli.json .cursor/hooks.json AGENTS.md; do
+  [ -e "$HERE/$need" ] || die "本仓缺 $need，适配层不完整"
+done
+
 DRY_RUN=0
 for a in "$@"; do
   [ "$a" = "--dry-run" ] && DRY_RUN=1
@@ -40,10 +45,6 @@ done
 "$HERE/setup.sh" "$target" --hook-form string "$@"
 rc=$?
 [ "$rc" -eq 0 ] || exit "$rc"
-
-for need in .cursor/agents .cursor/scripts .cursor/cli.json AGENTS.md; do
-  [ -e "$HERE/$need" ] || die "本仓缺 $need，适配层不完整"
-done
 
 # put_config <相对路径>：目标没有就拷；有且相同跳过；有且不同落 .framework-new，不覆盖
 put_config() {
@@ -99,10 +100,28 @@ prune_agents() {
   done
 }
 
+# link_skills：铺 .cursor/skills -> ../.claude/skills 相对软链；目标已有真实目录则保留不动
+link_skills() {
+  local dest="$target/.cursor/skills"
+  if [ -d "$dest" ] && [ ! -L "$dest" ]; then
+    printf 'setup-cursor: skip .cursor/skills（目标已有真实目录，保留不动）\n'
+  elif [ "$DRY_RUN" = "1" ]; then
+    printf 'setup-cursor: dry-run link .cursor/skills -> ../.claude/skills\n'
+  else
+    mkdir -p "$target/.cursor" || die "无法创建 $target/.cursor"
+    ln -sfn ../.claude/skills "$dest" || die "无法创建软链 $dest"
+    printf 'setup-cursor: link .cursor/skills -> ../.claude/skills\n'
+  fi
+}
+
 put_tree .cursor/agents
 prune_agents
+put_tree .cursor/rules
 put_tree .cursor/scripts
+link_skills
+put_config .cursor/.gitignore
 put_config .cursor/cli.json
+put_config .cursor/hooks.json
 [ -f "$HERE/.cursor/agents-models.json" ] && put_config .cursor/agents-models.json
 put_config AGENTS.md
 

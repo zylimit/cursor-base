@@ -3,7 +3,7 @@ type: feedback
 description: 服务崩溃循环意味着故障不是瞬时的：崩溃重启带退避但在时间窗内封顶，超限就停、标崩溃、留日志，下一步是诊断不是再试；活着但健康探针不过是同一种故障
 created: 2026-11-04
 updated: 2026-11-04
-graduated: false
+graduated: true  # 2026-11-08 毕业既成事实→scripts/supervisor.mjs（--max-restarts / --window-sec 熔断、日志落 .runtime/supervisor/）
 origin: cursor-base（docs/feedback/restart-storms-mean-the-fault-is-not-transient，2026-08-07）
 source_skill: N/A
 scope: 带守护重启的服务与进程监督（含 cc-base 的 scripts/supervisor 这类守护脚本）

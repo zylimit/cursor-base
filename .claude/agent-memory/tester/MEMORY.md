@@ -4,3 +4,4 @@
 - [审计脚本易碎区](../../../docs/agent-notes/tester/audit-scripts-fragile-zones.md) — 工作树/索引之别、pwsh 缺席要守卫、测试文件自己会被自举扫描扫到、ADR revisit-if 空话判定有 年后/后端 子串假红、doctor.sh 写死 agent 份数 7、gate-audit 的 (b) 段锚点带文案会让老断言空转、能力上下文实数（tsconfig/py/catalog 皆 0）
 - [红锁测试写法](../../../docs/agent-notes/tester/red-lock-test-writing.md) — 断言写「修好后应成立」、期望引用已修好的同族而非发明、对照组写死字面量、验红之外拿候选修复验「修得好」、反转类契约配四个变异（删句 / 只写半句 / 恒真 / 静默）、措辞迁移期负向断言要用跨两版的词当尺子、被否的候选实现当变异体验每臂的牙
 - [Git Bash 进程测试坑](windows-gitbash-process-tests.md) — kill 杀不动原生进程、/PID 被路径转换、SIGTERM 是硬杀、双层垫片在 Linux 上验 win32 分支（CI 已不跑 Windows .sh）
+- [取事实测试写法](readable-arch-facts-tests.md) — 路由夹具要补挂载文件、旧脚本验红、HEAD 无 why 字段、JSONERR 别冒充红因

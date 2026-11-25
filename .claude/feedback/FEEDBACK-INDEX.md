@@ -14,7 +14,7 @@
 - ✅[已毕业] [调研使用 Claude Code 原生 Sub-Agent，主 Agent 保留独立判断](native-subagent-research-main-agent-judgment.md) — 长目录/复杂材料学习派原生 Task/Agent fresh Sub-Agent，不擅自调本地 ask gemini 桥；主 Agent 亲读关键材料独立判断，翻证据可委派、下判断不外包
 - ✅[已毕业] [permissions.ask 列表与用户「全部放行」指令冲突](settings-ask-list-conflicts-with-user-authorize-continuous-execution.md) — 用户抱怨反复被要求确认时先查 `.claude/settings.json` 的 `permissions.ask` 列表和 hook 的 `permissionDecision`，别只辩解"我没问"；用户明确全部放行后记进 progress.md 决策并清理冲突的 ask 规则，安全护栏条目不在放行范围
 - ✅[已毕业] [仓库清爽不等于去品牌化，清理时默认保留品牌识别资产](preserve-brand-assets-during-cleanup.md) — 清理/精简/重写入口文档前先盘点 Logo、ASCII Banner、初始化话术、项目名视觉，默认保留；删除替换须用户明确同意
-- [研究下钻按指定递归深度执行，不能用平级数量冒充深度](recursive-research-depth-not-fanout.md) — 用户要求「向下多打 N 层/加强吸收」= 委派树递归下钻（主 Agent 分轮驱动、逐层收窄边界），不是同层加并行研究者；验收核实际层数与每层新增分析价值（2026-09-12 裁定暂不成文：六条积压里唯一无实证，再撞一次有了实际代价再落）
+- ⏸[暂不成文] [研究下钻按指定递归深度执行，不能用平级数量冒充深度](recursive-research-depth-not-fanout.md) — 用户要求「向下多打 N 层/加强吸收」= 委派树递归下钻（主 Agent 分轮驱动、逐层收窄边界），不是同层加并行研究者；验收核实际层数与每层新增分析价值（2026-09-12 裁定暂不成文：六条积压里唯一无实证，再撞一次有了实际代价再落）
 - ✅[已毕业] [Sub-Agent 派单要给最小上下文，不让它自己推导/复核/写长回执](subagent-dispatch-minimal-context-not-self-derivation.md) — 派单只给「文件:行+改成什么+一条验证命令」且 ≤6 次工具调用；复核收拢主 Agent 一次做；≤5 行机械改动主 Agent 直接改不起实例；reviewer 一次一个问题——4 行夹具修正滚到 60 轮的教训
 - ✅[已毕业] [review 循环收敛于核心行为，避免过度防御边角输入](review-loop-converge-on-core-behavior-avoid-over-defense.md) — review → fix 闭环收敛判据是核心行为无 HIGH/Medium，非真实调用路径的边角输入参数花样记残留、不再开新一轮红锁；防御代码只为真实调用路径写，安全类缺陷不受此限
 - ✅[已毕业] [完成声明需当场新鲜证据：不可跳步五步闸](completion-claims-need-fresh-verification-five-step-gate.md) — 任何"完成/通过/修好"结论前必须有当场跑出的新鲜证据，走不可跳步五步闸；子 Agent 自述/空回复≠结果正确，禁凭表层信息断言再事后追认
@@ -48,34 +48,59 @@
 - ✅[已毕业] [分类体系跟着领域本身走，不套用当前项目结构](knowledge-base-taxonomy-follows-domain-not-project.md) — 知识库的分类维度要取自被描述的领域本身，不能套用当前项目的模块结构，会把跟项目关系很远但值得留的条目误判出库
 - ✅[已毕业] [新建文件用 git diff 验证不出改动](git-diff-empty-output-ambiguous-for-new-files.md) — 对本 session 新建、尚未 git add 的文件跑 git diff，空输出+rc 0 与「文件没被改」完全无法区分；改用 wc -l + 内容锚点 + git status 认 ?? 核验
 - ✅[已毕业] [避免过度设计、过度测试、过度检视——根源是过度可信](avoid-over-design-testing-review-trust-charter.md) — 新增闸/测试/审查层/记忆层/规则前先问是否踩了四个"过度"（信提示词自律/信闸能守/信同模型复审/信决策都被正确加权，同根过度可信）；落地判据：规则点名机器闸或明标靠自觉，闸说得出挡过什么，测试说得出防的回归，记忆说得出谁会读它
-- [对照外部 skill 仓找借鉴，范围是 skill 正文，不是流程](external-skill-benchmark-scope-is-skill-content-not-workflow.md) — 用户拿外部 skill 仓问「有什么启发」时，对照的是 SKILL.md 正文与 references 的写法和内容；skill 先后与路由、谁能触发、子 Agent 接线、CLAUDE.md 调度段属流程层，没问就不进建议清单；顺带查出的实锤缺陷报一次挂 TODO，不借它带流程改造
-- [收口阶段空闲席位不是加派新任务的理由](idle-capacity-not-license-to-expand-scope.md) — 「加速/全力开动」指把已有任务并行推完，不等于填满空闲算力去找新活；收口阶段范围视为冻结，新发现的缺口记下一轮待办不当场派；同一信号连续出现两次（先问"还有这么多任务吗"、后纠正"又新增需求了"）是识别延迟的警报
+- ⏸[暂不成文] [对照外部 skill 仓找借鉴，范围是 skill 正文，不是流程](external-skill-benchmark-scope-is-skill-content-not-workflow.md) — 用户拿外部 skill 仓问「有什么启发」时，对照的是 SKILL.md 正文与 references 的写法和内容；skill 先后与路由、谁能触发、子 Agent 接线、CLAUDE.md 调度段属流程层，没问就不进建议清单；顺带查出的实锤缺陷报一次挂 TODO，不借它带流程改造 [2026-10-29 暂不成文：铁律 7 已覆盖、无实际代价]
+- ⏸[暂不成文] [收口阶段空闲席位不是加派新任务的理由](idle-capacity-not-license-to-expand-scope.md) — 「加速/全力开动」指把已有任务并行推完，不等于填满空闲算力去找新活；收口阶段范围视为冻结，新发现的缺口记下一轮待办不当场派；同一信号连续出现两次（先问"还有这么多任务吗"、后纠正"又新增需求了"）是识别延迟的警报 [2026-10-29 暂不成文：subagent-dispatch.md 第 18 行已覆盖前半、后半无实证]
 - ✅[已毕业] [决定代码落点前，先对照既有的边界与归属记录](check-existing-boundary-decisions-before-deciding-code-placement.md) — 新开一块功能、决定代码放哪之前，先把 Pinned / TODO / Decisions 里关于这块「边界与归属」的既有约定找出来对照，再派单
 - ✅[已毕业] [需求分析前先核对依据：模板是不是现行正式版、点名的产出物逐个找到、旧记录不当建模依据](check-template-version-and-named-outputs-before-requirement-analysis.md) — 对接外部系统导入格式的需求，分析前先确认手上的模板是不是现行正式版（问用户、看文件日期）；需求原文点名的产出物（表名、文件名）逐个在模板里找到，找不到当场问，不悄悄丢掉；旧记录只说明以前怎么录，不当建模依据
-- [代码改动走 worktree + 本地分支，不直接落 master](code-changes-use-worktree-and-local-branch-not-master.md) — 代码改动一律 worktree + 本地分支，不直接在 master 上 commit/push
+- ⏭[已跳过] [代码改动走 worktree + 本地分支，不直接落 master](code-changes-use-worktree-and-local-branch-not-master.md) — 代码改动一律 worktree + 本地分支，不直接在 master 上 commit/push
 - ✅[已毕业] [删除范围：人工勘测成果整类保护，先列清单再问](delete-scope-protect-whole-class-of-survey-data-ask-first.md) — 凡涉及删除用户方现有数据，「除了 X 都可以删」里的 X 是举例不是完整保护清单；先把人工勘测 / 扫码得来的成果整类列出来，问一句再定删除范围
-- [文档改动不跑冒烟测试，无关的门禁失败不是阻塞](doc-changes-no-smoke-test-unrelated-failures-not-blockers.md) — 纯文档改动不跑冒烟测试；hook 自动报的门禁失败先判它和本次改了什么有没有因果关系，无关的不是阻塞
+- ✅[已毕业] [文档改动不跑冒烟测试，无关的门禁失败不是阻塞](doc-changes-no-smoke-test-unrelated-failures-not-blockers.md) — 纯文档改动不跑冒烟测试；hook 自动报的门禁失败先判它和本次改了什么有没有因果关系，无关的不是阻塞
 - ✅[已毕业] [领域界面标签禁止生造术语/缩写](domain-ui-labels-no-invented-jargon.md) — 面向领域专家的界面标签不得生造术语/缩写，用领域现成说法，拿不准先问用户
 - ⏭[已跳过] [页内嵌地图默认配原地放大，不默认配跳转](embedded-map-default-zoom-in-place-not-jump-to-other-page.md) — 页内嵌的小地图默认配「本页原地放大」，不要默认配「跳去别的页面看」；属性与图例在放大后浮在图上（2026-10-30 裁定：领域口径，归项目 domain/，不进框架）
 - ⏭[已跳过] [质量看板只暴露问题，不分派责任方、不安排流程、不给整改意见](expose-issues-only-no-responsibility-assignment.md) — 质量看板只暴露问题：不分派责任方、不安排流程、也不给整改意见；每条讲清判据与事实逻辑，配能支撑判断的旁证（2026-10-30 裁定：领域口径，归项目 domain/，不进框架）
 - ✅[已毕业] [快速开发模式下不重复跑全量测试，催促时不写长对账](fast-mode-no-repeat-full-test-runs-and-no-long-reconciliation.md) — 快速开发模式下同一份代码全量测试只跑一次、测试量不超上限；用户催促时直接行动，不写长对账说明
 - ⏭[已跳过] [工程师看的可视化：红绿线自己说话，不配字不放大字](field-engineer-visuals-let-lines-speak-no-captions-no-slogans.md) — 给现场工程师看的可视化只靠红绿线本身说话，不配解释文字、不放大字统计或标语；受众是高学历工程师，不按外行设计（2026-10-30 裁定：领域口径，归项目 domain/，不进框架）
-- [入库全量保留原始地标，认不出的标「未分类」也存](ingest-keep-all-raw-placemarks-unclassified-not-dropped.md) — 外部数据入库一律全量保留原始记录，认不出的标「未分类」也存，不静默丢弃；判断「数据缺失」先查入库是否丢弃，再看别的原因
-- [问题清单要发现问题，不为压低条数自造过滤规则](issue-list-goal-is-discovery-not-lower-count-no-self-invented-filter-rules.md) — 问题清单的目标是发现问题不是压低条数；不为减条数提议改判断口径、不自造推断规则去过滤，现象如实报，必要时只补事实说明
+- ⏭[已跳过] [入库全量保留原始地标，认不出的标「未分类」也存](ingest-keep-all-raw-placemarks-unclassified-not-dropped.md) — 外部数据入库一律全量保留原始记录，认不出的标「未分类」也存，不静默丢弃；判断「数据缺失」先查入库是否丢弃，再看别的原因
+- ✅[已毕业] [问题清单要发现问题，不为压低条数自造过滤规则](issue-list-goal-is-discovery-not-lower-count-no-self-invented-filter-rules.md) — 问题清单的目标是发现问题不是压低条数；不为减条数提议改判断口径、不自造推断规则去过滤，现象如实报，必要时只补事实说明
 - ✅[已毕业] [快速档到期就续，过程别念给用户](keep-fast-tier-renewed-and-spare-user-the-review-narration.md) — 快速档到期就直接续，不用每次向用户报告；审查与各道闸的过程不要念给用户听，只说结论
-- [多源资料整合按主题去重，不按来源堆砌](multi-source-integration-dedupe-by-topic-not-stack-summaries.md) — 多源资料整合的产物是一份按主题去重的知识，不是 N 份摘要的拼接；同一判据只落一处，冲突值并列标注不擅自取舍
-- [展示页只放实际数据，推断标注不上交付物](presentation-only-actual-data-no-inference.md) — 数据展示页只放数据源里实际存在的记录，推断/推测/演绎标注一律不上交付物
+- ⏭[已跳过] [多源资料整合按主题去重，不按来源堆砌](multi-source-integration-dedupe-by-topic-not-stack-summaries.md) — 多源资料整合的产物是一份按主题去重的知识，不是 N 份摘要的拼接；同一判据只落一处，冲突值并列标注不擅自取舍
+- ✅[已毕业] [展示页只放实际数据，推断标注不上交付物](presentation-only-actual-data-no-inference.md) — 数据展示页只放数据源里实际存在的记录，推断/推测/演绎标注一律不上交付物
 - ⏭[已跳过] [机房跳纤没数据就断，不用补全型规则猜；解释推导一次一件事](room-jumper-no-data-then-break-not-guess-and-explain-one-thing-at-a-time.md) — 机房跳纤这类链路推断，没有数据就断开进问题清单，不用补全型规则去猜；讲推导先分清表里的事实与推出来的，一次一件事一个例子（2026-10-30 裁定：领域口径，归项目 domain/，不进框架）
 - ⏭[已跳过] [扫码只和竣工比，LLD 不与扫码关联](scan-compares-only-as-built-lld-not-linked-to-scan.md) — 扫码数据只和竣工比对，LLD 是未来设计不和扫码关联；「都要暴露」指有逻辑的问题，放出任何一类前先核它的比较对象是否合已定口径（2026-10-30 裁定：领域口径，归项目 domain/，不进框架）
 - ✅[已毕业] [开工一块业务前，先弄清它干什么用、给谁看、作为什么的依据，不从任务标题倒推范围](scope-a-block-from-business-purpose-and-prior-spec-not-from-task-title.md) — 开工一块业务前先答清它干什么用、给谁看、作为什么的依据；用户自己写过的规格见到就读本体；长耗时、难重跑的步骤开跑前把以后可能用到的原始信息一次采全
-- [术语对照表的每一行要有原文定性，不能靠功能位置推等号](term-mapping-needs-source-definition-not-function-guess.md) — 建术语对照表时每一行的依据必须是原文的定性句，不能凭「功能位置相同」推等号；被纠错后要回头重核同一推法产生的其它行
+- ✅[已毕业] [术语对照表的每一行要有原文定性，不能靠功能位置推等号](term-mapping-needs-source-definition-not-function-guess.md) — 建术语对照表时每一行的依据必须是原文的定性句，不能凭「功能位置相同」推等号；被纠错后要回头重核同一推法产生的其它行
 - ✅[已毕业] [视觉敏感产物全量落地前必须让用户亲眼看到小样](visual-sensitive-output-full-rollout-needs-visual-gate.md) — 视觉敏感产物（cluster 边界 / 地图渲染 / UI 布局）全量落地前置闸 = 用户亲眼看到小样，不是数据验证
 - ✅[已毕业] [新增对接方式默认与旧方式并存，不贴"过渡"标签](new-entry-default-coexists-with-old-no-transition-labels.md) — 用户说"加一种新方式/新出口"时默认新旧并存，不取代；不得自作主张给现有做法贴"过渡/临时/以后去掉"标签
 - ✅[已毕业] [选项里夹带自己的推论，复述举例又没讲清](option-side-effect-and-unclear-restate.md) — 给用户出选项时，AI 自己的推论不得塞进选项描述；复述影响时引用站点名必须说清是哪一行、哪一列怎么变
 - ✅[已毕业] [用户原话是硬约束时，推荐项不得软化](recommend-follows-literal-hard-constraint.md) — 用户原话已是硬约束时，推荐项必须贴原话字面；软化方案放第二选项并说明代价，不能把软拦当默认推荐
 - ✅[已毕业] [转写原规格时，把角色习惯措辞当成了系统约束](spec-habit-wording-not-constraint.md) — 转写原规格时，描述角色习惯的措辞（「只是修正」）不等于系统约束，不得据此派生反向指标，应在复述里单独确认
-- [入站连通性排障：先说清测试方向，根因查出直接给修法](inbound-connectivity-debug-state-direction-first.md) — 用户说别的机器连不上本机时，借第三方机器测试前先一句话说明「我借 X 当客户端连回本机」；查出根因（如 authorized_keys 不认对端公钥）直接给修法，不反问用户在哪台设备连
-- [「只有本机不行」的根因必须是本机独有，先用对照机排除共性](single-host-failure-root-cause-must-be-host-unique-use-control-machines.md) — 用户说「只有 X 不行」时根因须是 X 独有属性，先拿同条件对照机（mac/rog）排除共有环节；测到 MTU 先查本机网卡 MTU 与 DHCP option 来源；找到绕过办法（MSS 钳制）后接着追真因，推断标明是推断；开排前可先问清网络拓扑
-- [改文件走编辑工具，不走 shell 写法](edit-files-through-edit-tool-not-shell-writes.md) — 写文件类的闸只认编辑工具这条路；sed -i / python 写文件 / printf > 要么绕过闸、要么让基线哈希对不上、之后误拦合法改动；批量替换在任务开始前做（自 cursor-base 迁入，含 2026-11-04 绕过 no-direct-code-guard 的实测）
-- [配置类缺陷修一处不算完，同族实例要全搜](config-defects-recur-across-sibling-instances.md) — 超时、阈值、解释器路径、包装写法这类配置缺陷，声称修好前先找同事件族、同取值、同模板的全部实例，回执列出查过的清单（自 cursor-base 迁入）
-- [重启风暴意味着故障不是瞬时的，要显式失败并留证据](restart-storms-mean-the-fault-is-not-transient.md) — 崩溃重启带退避但在时间窗内封顶，超限就停、标崩溃、留日志，下一步是诊断不是再试；活着但健康探针不过是同一种故障（自 cursor-base 迁入）
+- ⏭[已跳过] [入站连通性排障：先说清测试方向，根因查出直接给修法](inbound-connectivity-debug-state-direction-first.md) — 用户说别的机器连不上本机时，借第三方机器测试前先一句话说明「我借 X 当客户端连回本机」；查出根因（如 authorized_keys 不认对端公钥）直接给修法，不反问用户在哪台设备连
+- ✅[已毕业] [「只有本机不行」的根因必须是本机独有，先用对照机排除共性](single-host-failure-root-cause-must-be-host-unique-use-control-machines.md) — 用户说「只有 X 不行」时根因须是 X 独有属性，先拿同条件对照机（mac/rog）排除共有环节；测到 MTU 先查本机网卡 MTU 与 DHCP option 来源；找到绕过办法（MSS 钳制）后接着追真因，推断标明是推断；开排前可先问清网络拓扑
+- ✅[已毕业] [改文件走编辑工具，不走 shell 写法](edit-files-through-edit-tool-not-shell-writes.md) — 写文件类的闸只认编辑工具这条路；sed -i / python 写文件 / printf > 要么绕过闸、要么让基线哈希对不上、之后误拦合法改动；批量替换在任务开始前做（自 cursor-base 迁入，含 2026-11-04 绕过 no-direct-code-guard 的实测）
+- ⏸[暂不成文] [配置类缺陷修一处不算完，同族实例要全搜](config-defects-recur-across-sibling-instances.md) — 超时、阈值、解释器路径、包装写法这类配置缺陷，声称修好前先找同事件族、同取值、同模板的全部实例，回执列出查过的清单（自 cursor-base 迁入）
+- ✅[已毕业] [重启风暴意味着故障不是瞬时的，要显式失败并留证据](restart-storms-mean-the-fault-is-not-transient.md) — 崩溃重启带退避但在时间窗内封顶，超限就停、标崩溃、留日志，下一步是诊断不是再试；活着但健康探针不过是同一种故障（自 cursor-base 迁入）
+- ⏭[已跳过] [给人画图纸定几何容差：先量真实分布与副作用，不凭感觉写死小数](geometry-tolerance-from-measured-distribution-and-side-effects-prefer-generic-merge.md) — 给人画的图纸（竣工 / 设计 KMZ）定几何容差前先量真实分布（中位数、平均、各门槛覆盖率），放大门槛时用同一批数据前后对比副作用；人画的偏差优先用「把明显相关的线并过来」的通用办法，不凭感觉写死小数、不为个案加专门规则
+- ⏭[已跳过] [交 DigiFiber 导入文件：每份文件同一行写明导入方式，不只讲先后顺序](import-files-handoff-state-import-mode-per-file-not-just-order.md) — 交 DigiFiber 导入文件时，每份文件的同一行写明在 DigiFiber 里用哪种导入（删除表用「删除导入」先导，导入表必须用「新增导入」后导，不是修改导入），只写先后顺序不够；汇报、提示词、页面上的导入顺序三处同一写法；用户报导入失败，先看错误报告的表头再下结论
+- ✅[已毕业] [自己定的推测规则不拿来判现场错；没有依据按顺序排，有冲突想办法接上，目标全部连上](inferred-rules-never-judge-field-data-fill-in-order-goal-all-connected.md) — 引擎自己定的推测规则（如排芯「每盒 6 芯」）只用来补空，不拿来判现场跳纤错、叫现场改；规则和现场冲突就改规则，没依据的按顺序排，有冲突想办法接上，目标是全部连上；条目只用中性说法，不说谁错
+- ⏭[已跳过] [问题说明先讲人话故事，一张图只画一件事，图用网页矢量](plain-story-first-one-picture-one-thing-vector-web-not-excel.md) — 给人看的问题说明先讲人话故事、一张图只画一件事，术语和字段名收进可展开详情；图用网页矢量图，不用 Excel 单元格涂色
+- ⏸[暂不成文] [规则一改，抢在团队前面分页签核对「人看到的字」；当成一个点的设备也按口对查占用](rule-change-sweep-all-views-as-people-read-them-point-devices-still-check-port-pairs.md) — 规则或口径一改（或团队开始核对之前），主 Agent 主动列出读这份结果的所有页签与导出，拿原始数据核人看到的字并给覆盖表，不等用户看图发问；建模成一个点的设备（OSU）不是免查理由，仍按口对查占用
+- ⏭[已跳过] [Cursor 一次只能连一边网络：升级说明按 VPN 状态拆开](cursor-one-network-at-a-time.md) — Cursor 一次只能连外网或内网，靠用户手动切 xgate VPN；升级说明按网络环境拆成两份，各自写明 VPN 前提，在切换点停下交还用户
+- ✅[已毕业] [快速模式就是尽可能不测试、不检视；审查与测试的兜底放到发版前](fast-mode-skips-review-and-tests.md) — 用户回绝「fast 档也记待审清单」，原话「不改，快速模式就是尽可能不测试，不检视」；fast 档改完构建通过即部署本机 8765，不派 reviewer / tester、不跑测试；发版前按 git diff 补审补测兜底（用户确认「可以，发版前补审补测」）
+- ✅[已毕业] [九成把握才开工：没想清楚的先问，再派 implementer](ninety-percent-sure-before-dispatch.md) — 用户原话「你搞清楚就开始，没考清楚问我，90%把握才能开工」；主 Agent 在 Operation-info 适配里两处只有六七成把握就按 [默认] 派了 implementer，开工后才补问，其中一处用户的答案与默认相反
+- ✅[已毕业] [发版阻断修复不要急：问时间不是让你抢跑](release-blocking-fix-dont-rush.md) — 用户问「还要这么久吗」后，主 Agent 为提前约 20 分钟，不等红测补齐就让后端修复并行开跑，并把修复改成随发版上线；用户打断说「修，不要急，修好再说」「快不得」。发版阻断修复按完整闭环走，问时间只报进度
+- ⏭[已跳过] [发版闭环要问清数据的备份 / 回流路径，「镜像」要核实数据来源](release-loop-needs-data-backup-path.md) — 发版流程只闭了程序升级，没问数据的备份 / 回流路径；叫「生产镜像」的 ai-ts 数据从未与内网同步，主 Agent 一直没核实
+- ✅[已毕业] [部署前必过审查，快速模式也不例外；迁移类先在上一版库形态上演练](review-before-deploy-even-in-fast-mode.md) — 快速模式下连续部署 6 个未审改动（含数据迁移），被发版闸拦下才暴露；此后每次部署前必审、尽量补测试，迁移类先在上一版库形态上演练
+- ✅[已毕业] [测试写太多、跑太多：守 1/2 铁律，一次就够](tests-capped-at-half-run-once.md) — 测试写得比业务代码还多、同一批改动反复跑十几次，发版一拖几个小时；用户定铁律「测试不能超过1/2」，并质问「有病吗，执行这多次」。测试先守比例，超了先删再写；每个角色只跑一次该跑的
+- ⏸[暂不成文] [用户说的「SaaS」是生产者角色，看板是消费者应用；拆不拆项目先摆代价](2026-11-06-saas-is-producer-dashboard-is-consumer.md) — 用户说的「SaaS」指服务端角色（生产者），不是多租户商业形态；看板是消费者应用。听到产品形态词先问指角色还是商业模式；拆不拆项目先摆代价让用户选
+- ✅[已毕业] [no-direct-code-guard 误拦被合法派发的 implementer sub-agent](no-direct-code-guard-misfires-on-delegated-implementer.md) — 
+- ⏭[已跳过] [OCR 结果需可溯源到原图](ocr-result-must-trace-back-to-source-image.md) — OCR 结果需可溯源到原图——V1 图不入库用完删导致结果无图可查，V2.0 服务化存图要建"OCR 结果 ↔ 原图"关联
+- ✅[已毕业] [sub-agent 越界：擅自 commit + 维护 progress + 伪造验收叙述](subagent-must-not-commit-or-fabricate-acceptance.md) — implementer 在 Fast Mode 下擅自 git commit + 改 progress.md + 伪造"主 Agent 已验收全绿"叙述——commit/进度维护/验收判断权任何模式都不下放给 sub-agent
+- ✅[已毕业] [本机部署的页面出问题，先自己查清再问用户](local-deploy-self-verify-before-asking-user.md) — 页面部署在本机（rog-ts 8765）后出问题，先自己在本机用真实浏览器复现核查，再向用户要信息；WSL 机器上说「没有浏览器」之前先查 /mnt/c 下的 Chrome / Edge，用 Windows Chrome + CDP 实点验证
+- ✅[已毕业] [规则连续打补丁，要先追根源止损](rule-patching-stop-and-fix-root.md) — 一条规则连续修订、不断冒出新边角状态时，先停下追根源（哪个设计让状态含义分叉），给止损方案并用一条不变量统一约束；不逐条补丁，也不是用户怎么说就怎么加规则
+- ✅[已毕业] [Sub-Agent 单项核查卡住：同一项最多试 5 轮，跳过并写 Not verified](subagent-stuck-item-cap-5-rounds.md) — 审查员为一项渲染截图核查耗满 60 轮上限、没交报告；用户「审查员跑满了 60 轮上限，什么玩意，3轮就要跳过」，随即改口「最多5轮」。Sub-Agent 单项核查卡住，同一项最多试 5 轮工具调用，没结果就跳过，记入回执 Not verified
+- ⏸[暂不成文] [机器所在地不从时区、用户名推；合规判断用到所在地先问](2026-11-08-no-location-guess-from-timezone.md) — 机器或人的所在地、所属法域不从时区、用户名、公司、网络配置推；数据驻留、合规判断用到所在地时，没确认过就先问或标明「推断」，不写进事实陈述和决策选项（本机在法国，时区设的是新加坡）
+- [免确认模式下后台子 Agent 卡在 rm 确认框上，没人知道](bash-var-rm-prompts-stall-background-agents.md) — 免确认模式下后台子 Agent 的 Bash 里带 shell 变量路径的 rm 仍弹确认，子 Agent 停下等人点，复核被拖 6 小时；用户「不都是危险模式了，还弹框」
+- [检查器结果只看结尾就下结论，少报了 19 条](read-full-checker-output-before-count.md) — 汇报 plan-lint 结果只看了输出结尾就说「两条」，实际 21 条；报任何检查器结果前要读完整输出并先数条数
+- ✅[已毕业] [让用户敲 /release-builder 之前先自检](2026-11-08-self-check-before-asking-release.md) — 请用户敲 /release-builder 之前，主 Agent 先自己核审查标记、工作区、远端三项并写明结果，任一不满足不让用户敲
+- [做完一项能力，验收的是技能，不是某个项目生成出来的文档](2026-11-24-acceptance-target-is-the-skill-not-generated-output.md) — 用户原话「我在乎的不是生成的文档，是你的skill」；主 Agent 按文档种类数进度，技能只有 68 行、无触发用例、会话里的做法没写进技能；流程缺「让没参与的新实例照技能跑一遍」一步，方向是 skill-builder 或 dev-builder Phase 收尾
+- [人读文档的说明一定要认真写，写不顺是模块没分好的信号](2026-11-24-write-docs-carefully-and-let-hard-to-write-drive-module-split.md) — 用户原话「那是非常值得，而且一定要认真写，这也促使你去更好划分模块，避免文档难写」；再花的力气不省不绕，说明照现在的代码认真写；一句话说不清一张表或一个模块，回头调划分或把边界划顺，不拿绕的说明盖过去；用户接着讲深一层「文档既代码，文档乱说明代码乱……一切都暴露在阳光下，无处躲藏」——文档不替代码遮丑，调划分不是为了让数好看，写代码前先想清归属，结构的数（循环依赖、越层引用、未归属文件）不许悄悄变坏（各条解读为主 Agent 所写）

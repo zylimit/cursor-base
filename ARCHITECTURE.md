@@ -182,6 +182,7 @@ settings.json 同时带三层原生配置（hook 之外的机器执法）：**pe
 - **项目记忆**：`progress-recorder` agent 维护项目根目录的 `progress.md`（决策/约束/完成/待办/风险），Notes 与 Done 合计 >100 或 Decisions >30 即归档到 `progress.archive.md`，Pinned 封顶 15 条。指令 `/record` `/archive` `/recap`。记录类角色（progress-recorder / feedback-observer）可用 fork 形态派发（`subagent_type:"fork"` 继承主对话全文），免主 Agent 转述失真。
 - **反馈进化**：用户修正 AI 行为 → `feedback-observer` 写 `.claude/feedback/` → `evolution-runner`（session 初始化自动派发；skill 已声明 `context: fork` 后台运行不阻塞开场）扫描并生成进化建议 → 用户逐条确认后改进 Skill/规则。
 - **领域口径**：项目根 `domain/`（可选，副产品）记「这个域里事情怎么算」，跟领域走不跟仓库走——采集寄生在 Sub-Agent 回执的 Domain findings 栏（真有发现才提醒），收录派 `domain-recorder`，人机入口 `/domain-rulings`（四象限分诊 / 查现行值 / 待复核 / 看依赖 / 手工收录）。框架本体没有领域，没有 `domain/` 是正常的。细则 `.claude/rules/domain-rulings.md`。
+- **人读文档**：给没参与开发、手上没有 AI 的人看的工程文档（现有数据库设计与人读版需求规格两种）。`.claude/scripts/readable-docs.mjs` 从建表定义与代码里机械取事实、出静态网页；AI 写的说明经命令落盘、按来源切片盖指纹，来源变了自动标「待更新」；`check` 把页面读回来与重新取的事实比，「不一致 0 条」才算同步。需求规格那一份不写说明，只把 Product-Spec.md 逐块换一种排法，切块时拼回原文自检、核对时逐块读回来比，保一个字不少。产物在项目的 `docs/readable/`，入口 `/readable-docs`，契约 `docs/readable-spec/phase1-db-contract.md` 与 `phase2-spec-contract.md`，用法 `docs/guide/16-readable-docs.md`。
 - **角色记忆**：code-reviewer / tester 挂 `memory: project`（Claude Code 原生 agent memory）——跨会话积累本项目高发缺陷模式 / flaky 区，审查测试越用越准；角色自维护，不承载框架规则与项目事实。
 
 > ⚠️ feedback（改进框架）、memory（跨 session 用户偏好）、agent memory（角色战术笔记）、原生 auto memory（机器本地琐碎）是四套系统：用户修正行为必须走 feedback；决策/约束/完成只认 progress.md（auto memory 不豁免三文件同步铁律）。
@@ -205,7 +206,7 @@ project/
     ├── hooks/                            # 21 个注册闸门（.mjs）+ static-check 工具 + lib/
     ├── harness/                          # 核心 harness.mjs + lib/{core,tier}.mjs + profile.json + audit/；引擎在 harness/ext/（可选包，--with-harness 才装，放 module-catalog.json 才启用）
     ├── workflows/                        # Workflow 脚本（code-review-fanout.js）
-    ├── scripts/                          # 质量脚本（doctor / plan-lint / skill-lint / fast-mode（tier set 薄壳）/ fix-platform / gen-manifest / gate-audit / collect-feedback 收下游 feedback / statusline 状态行 / supervisor 进程守护）
+    ├── scripts/                          # 质量脚本（doctor / plan-lint / skill-lint / fast-mode（tier set 薄壳）/ fix-platform / gen-manifest / gate-audit / collect-feedback 收下游 feedback / progress-archive 与 plan-archive 归档搬运 / project-status 现在到哪与活文档体积 / statusline 状态行 / supervisor 进程守护）
     ├── tests/                            # 框架自测（selftest / test-setup / test-routing / 闸回归 / test-supervisor / cases）
     ├── feedback/                         # 已固化铁律 + 索引 + templates
     └── EVOLUTION.md                      # 进化引擎

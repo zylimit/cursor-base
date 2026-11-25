@@ -68,6 +68,7 @@ fi
 # ---- advise 档去重：同一份脏清单一小时内只提醒一次（下游两天 86 次、同一文件例子 62 次）----
 # 去重标记 .claude/.three-file-sync-advised 在框架里由 .claude/.gitignore 挡住；临时仓没装那份，
 # 用 info/exclude 等价挡掉——否则标记本身成了未跟踪的家底改动，签名每轮都变，测的就不是去重。
+has() { case "$1" in *"$2"*) return 0 ;; *) return 1 ;; esac; }
 LOGF=".claude/evidence/gate-block.log"
 tflog() { grep -c 'three-file-sync-gate' "$1/$LOGF" 2>/dev/null || true; }
 dedup_repo() {
@@ -86,16 +87,16 @@ else
   fail "TS1 同一清单第二次应静默不记账（o1=[${o1}] o2=[${o2}] 账本=${n1}/${n2}）"
 fi
 
-echo "── 去重 TS2：清单变了 → 再提醒 ──"
+echo "── 去重 TS2：清单变了但原因类型没变（仍只有 C1）→ 静默、账本不增（见 TS5）──"
 printf 'echo two\n' > "$t/src/two.sh"
 o3=$(run_gate "$t"); n3=$(tflog "$t")
-if advised "$o3" && [ "$n3" = 2 ]; then pass "TS2 多了 src/two.sh → 再提醒、账本 2 条"
-else fail "TS2 清单变了应再提醒（实得：[${o3}] 账本=${n3}）"; fi
+if [ -z "$o3" ] && [ "$n3" = 1 ]; then pass "TS2 多了 src/two.sh 但类型集合仍 {C1} → 零输出、账本仍 1 条"
+else fail "TS2 清单变了类型没变不该再响（实得：[${o3}] 账本=${n3}）"; fi
 
 echo "── 去重 TS3：标记 ts 改老（超 60 分钟）→ 同一清单再提醒 ──"
 sed -i 's/^ts=.*/ts=1000/' "$t/.claude/.three-file-sync-advised"
 o4=$(run_gate "$t"); n4=$(tflog "$t")
-if advised "$o4" && [ "$n4" = 3 ]; then pass "TS3 去重记录过时 → 同一清单再提醒、账本 3 条"
+if advised "$o4" && [ "$n4" = 2 ]; then pass "TS3 去重记录过时 → 同一原因类型再提醒、账本 2 条"
 else fail "TS3 时限到了应再提醒（实得：[${o4}] 账本=${n4}）"; fi
 
 echo "── 去重 TS4：progress.md 动了 → 清记录；再提交 progress、同一清单重现 → 再提醒 ──"
@@ -107,6 +108,79 @@ if [ -z "$o5" ] && [ "$kept" = N ] && advised "$o6"; then
   pass "TS4 progress 跟上时零输出且去重记录清掉；之后同一清单重现照样提醒"
 else
   fail "TS4（o5=[${o5}] 记录还在=${kept} o6=[${o6}]）"
+fi
+
+# ---- advise 去重新契约 TS5-TS9（TODO #121，2026-11-08）：签名只按「原因类型集合」，不按脏文件清单 ----
+# 原因类型 = C1 代码家底未同步 progress / C2a Spec 改了 CHANGELOG 没改 / C2b 反之。
+# 打死的错误实现：(a) 签名仍含脏文件清单——开发中每多碰一个文件就再响一次（下游 lutetia 一天 16 次）；
+#   (b) 签名改成常量——原因类型多了 C2 也一声不吭、欠账沉底；(c) 去重记录只进不清，progress 跟上后同类问题重现被吞；
+#   (d) 满一小时不重提；(e) C2a / C2b 记成同一种码——{C1,C2a} 换成 {C1,C2b} 被当成没变（TS9）。
+#   旧 TS2/TS3 的「清单变了→再提醒」口径已按本契约改写（TS2 现为静默，见 TS5）。
+ts_repo() {
+  dedup_repo "$1"
+  printf '# spec\n' > "$1/Product-Spec.md"; printf '# cl\n' > "$1/Product-Spec-CHANGELOG.md"
+  git -C "$1" add -A >/dev/null 2>&1; git -C "$1" -c commit.gpgsign=false commit -qm spec >/dev/null 2>&1
+}
+echo "── 去重 TS5：同一原因类型（只有 C1）、脏文件清单变了 → 静默且不记账 ──"
+t="$TMP/ts5"; ts_repo "$t"
+printf 'changed\n' >> "$t/src/app.sh"
+o1=$(run_gate "$t"); n1=$(tflog "$t")
+printf 'echo b\n' > "$t/src/b.sh"
+o2=$(run_gate "$t"); n2=$(tflog "$t")
+if advised "$o1" && [ -z "$o2" ] && [ "$n1" = 1 ] && [ "$n2" = 1 ]; then
+  pass "TS5 加脏文件 b.sh 但原因类型仍只有 C1 → 零输出、账本仍 1 条"
+else
+  fail "TS5 原因类型没变不该再响（o1=[${o1}] o2=[${o2}] 账本=${n1}/${n2}）"
+fi
+
+echo "── 去重 TS6：原因类型集合变了（C1 → C1+C2a）→ 再提醒 ──"
+printf 'more\n' >> "$t/Product-Spec.md"
+o3=$(run_gate "$t"); n3=$(tflog "$t")
+if advised "$o3" && has "$o3" 'Product-Spec-CHANGELOG.md' && [ "$n3" = $((n2 + 1)) ]; then
+  pass "TS6 多了 Spec 改而 CHANGELOG 未改（C2a）→ 再提醒、账本 +1 条"
+else
+  fail "TS6 原因类型多了 C2a 应再提醒（实得：[${o3}] 账本=${n3}）"
+fi
+
+echo "── 去重 TS7：C2a 消失（集合变回 C1）→ 再提醒；progress 跟上清记录后同类重现 → 再提醒 ──"
+git -C "$t" checkout -q -- Product-Spec.md
+o4=$(run_gate "$t"); n4=$(tflog "$t")
+o4b=$(run_gate "$t"); n4b=$(tflog "$t")
+printf 'note\n' >> "$t/progress.md"
+o5=$(run_gate "$t"); kept=$([ -e "$t/.claude/.three-file-sync-advised" ] && echo Y || echo N)
+git -C "$t" add progress.md >/dev/null 2>&1; git -C "$t" -c commit.gpgsign=false commit -qm prog >/dev/null 2>&1
+printf 'echo c\n' > "$t/src/c.sh"
+o6=$(run_gate "$t"); n6=$(tflog "$t")
+if advised "$o4" && [ -z "$o4b" ] && [ "$n4" = $((n3 + 1)) ] && [ "$n4b" = "$n4" ] && [ -z "$o5" ] && [ "$kept" = N ] && advised "$o6" && [ "$n6" = $((n4 + 1)) ]; then
+  pass "TS7 集合少了 C2a 再提醒（账本 +1）；progress 跟上时零输出且记录被清；同类 C1 重现再提醒（账本 +1）"
+else
+  fail "TS7（o4=[${o4}] o4b=[${o4b}] 账本=${n4}/${n4b} o5=[${o5}] 记录还在=${kept} o6=[${o6}] 账本=${n6}）"
+fi
+
+echo "── 去重 TS8：同一原因集合、标记 ts 老于 2 小时 → 再提醒 ──"
+t="$TMP/ts8"; ts_repo "$t"
+printf 'changed\n' >> "$t/src/app.sh"
+o1=$(run_gate "$t")
+o2=$(run_gate "$t")   # 同清单同原因，旧实现也静默：把「满一小时」与 TS5 的红因隔开
+old=$(( $(date +%s) * 1000 - 2 * 3600 * 1000 ))
+sed -i "s/^ts=.*/ts=${old}/" "$t/.claude/.three-file-sync-advised"
+o3=$(run_gate "$t"); n3=$(tflog "$t")
+if advised "$o1" && [ -z "$o2" ] && advised "$o3" && [ "$n3" = 2 ]; then
+  pass "TS8 一小时内静默、ts 改成 2 小时前后同一原因集合再提醒、账本 2 条"
+else
+  fail "TS8 满一小时应重提（o1=[${o1}] o2=[${o2}] o3=[${o3}] 账本=${n3}）"
+fi
+
+echo "── 去重 TS9：原因类型从 {C1,C2a} 换成 {C1,C2b}（Spec 还原、CHANGELOG 改脏）→ 再提醒 ──"
+t="$TMP/ts9"; ts_repo "$t"
+printf 'changed\n' >> "$t/src/app.sh"; printf 'more\n' >> "$t/Product-Spec.md"
+o1=$(run_gate "$t"); n1=$(tflog "$t")
+git -C "$t" checkout -q -- Product-Spec.md; printf 'entry\n' >> "$t/Product-Spec-CHANGELOG.md"
+o2=$(run_gate "$t"); n2=$(tflog "$t")
+if advised "$o1" && advised "$o2" && has "$o2" 'Product-Spec.md 未同步' && [ "$n2" = $((n1 + 1)) ]; then
+  pass "TS9 {C1,C2a}→{C1,C2b}（同一小时内）→ 再提醒且出 C2b 文案、账本 +1 条"
+else
+  fail "TS9 C2a 与 C2b 是两种原因，换了应再提醒（o1=[${o1}] o2=[${o2}] 账本=${n1}/${n2}）"
 fi
 
 # ---- 设计详述同步分支（design-detail-sync，档位单列：fast/standard advise、strict block）----

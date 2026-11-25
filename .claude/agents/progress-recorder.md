@@ -18,7 +18,7 @@ maxTurns: 25
 [任务]
     收到主 Agent 派发后，按 mode 使用 progress-recorder skill 执行原子任务：
     - **record / 增量合并任务**：语义抽取传入的对话增量，按区块合并进 progress.md（去重 + 置信度闸门 + 时间戳）
-    - **archive / 快照归档任务**：条目过多（Notes 与 Done 合计 >100，或 Decisions >30，或已关闭的 TODO >20）或显式触发时，回报主 Agent 哪组超线，由主 Agent 跑 `node .claude/scripts/progress-archive.mjs` 搬；脚本不在才手工搬，先写归档、搜到了再删正文
+    - **archive / 快照归档任务**：条目过多（Notes 与 Done 合计 >100，或 Decisions >30，或已关闭的 TODO >20）、某段体积过线或显式触发时，回报主 Agent 哪组超线，由主 Agent 跑 `node .claude/scripts/progress-archive.mjs` 搬；脚本不在才手工搬，先写归档、搜到了再删正文
     具体模板、合并流程、归档规则、置信度判定标准均见 progress-recorder skill。
 
 [Non-goals]

@@ -30,7 +30,7 @@ release-builder skill：问清打包还是发布 / 渠道 / 平台 → 检测依
 
 ### 为什么只能用户亲自敲
 
-`.claude/skills/release-builder/SKILL.md` 的 frontmatter 有 `disable-model-invocation: true`。含义：发布是有副作用的工作流，主 Agent 不能代触发这个 skill——你口头说「发布 / 打包 / 上线」，主 Agent 只会回指 `/release-builder` 请你亲自敲。
+`.claude/skills/release-builder/SKILL.md` 的 frontmatter 有 `disable-model-invocation: true`。含义：发布是有副作用的工作流，主 Agent 不能代触发这个 skill——你口头说「发布 / 打包 / 上线」，主 Agent 只会回指 `/release-builder` 请你亲自敲。回指之前它要先自己核三项、把结果写进回复：`.claude/.needs-review` 是 clean、`git status --short` 为空、远端分支等于本地 HEAD；有一项不满足就先补齐，不让你敲了再被闸拦下。
 
 这是 CLAUDE.md 审批三档里 HIGH 档「发版上线 / 部署必停等用户明确批准」的机器化：与其靠主 Agent 自觉在发布前停下来问，不如让这个入口本身只有人能触发。同样设了 `disable-model-invocation` 的还有 `/branch-finisher`（合并 / 清分支）。
 
@@ -127,7 +127,7 @@ skill [第一性原则]：构建验证只证明「包能起来、语法没错」
 |---|---|---|---|
 | 1 | 容器创建时间戳 + 镜像 tag | 创建时间晚于最后一次提交；tag 是目标版本 | 「Up 时长」可能是重启前旧容器的残留读数，会误导——你看到 Up 3 天，可能是旧容器根本没被替换 |
 | 2 | 健康检查端点 | 返回 200 | 进程起了不等于服务可用 |
-| 3 | live 冒烟 | curl 真实端点，验证**新功能的产物**确实存在 | 只看进程起没起，验不出部署的是不是旧版本 |
+| 3 | live 冒烟 | curl 真实端点，验证**新功能的产物**确实存在；有交互的页面再用真实浏览器把新功能点一遍，不让用户去按 F12 | 只看进程起没起，验不出部署的是不是旧版本 |
 
 三件套之外的收尾：清掉 deployer 留下的临时产物；确认版本号文件（`release.conf` / package.json）已提交。
 

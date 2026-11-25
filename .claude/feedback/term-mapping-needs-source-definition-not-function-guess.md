@@ -4,7 +4,7 @@ description: 建术语对照表时每一行的依据必须是原文的定性句�
 created: 2026-09-11
 updated: 2026-09-11
 occurrences: 1
-graduated: false
+graduated: true  # 2026-11-08 毕业合并四条→.claude/CLAUDE.md [角色]（同上）
 source_skill: N/A
 scope: 建两套命名体系之间的对照/映射表（新旧术语、厂商叫法与通用叫法、代码字段与业务概念）
 exceptions: 原文确实没有定性句、只能靠功能推断时——那就标明这是推断，不要写成断言

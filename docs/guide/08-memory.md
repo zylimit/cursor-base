@@ -29,8 +29,8 @@ progress.md 不放进 `.claude/` 是刻意的：`.claude/` 是框架自己的东
 | 指令 | 谁执行 | 做什么 |
 |---|---|---|
 | `/record` | 派 progress-recorder（record 模式） | 把本轮对话增量按语义抽取，**增量合并**进 progress.md 各段；无有效信号回「无新进度」 |
-| `/archive` | 主 Agent 跑 `progress-archive.mjs`（脚本不在才派 progress-recorder） | 把过多的 Notes / Done / Decisions 原文搬到 progress.archive.md，主文件保持精简 |
-| `/recap-project` | 主 Agent 自己读 | 读 **progress.md + Product-Spec.md + Product-Spec-CHANGELOG.md** 三份恢复处境；三份存在即读，不存在的跳过不报错 |
+| `/archive` | 主 Agent 跑 `progress-archive.mjs` 与 `plan-archive.mjs`（脚本不在才派 progress-recorder 手工搬 progress） | 把过线的 Notes / Done / Decisions / 已关闭的 TODO 原文搬到 progress.archive.md，把做完的 Phase 原文搬到 DEV-PLAN.archive.md，主文件保持精简 |
+| `/recap-project` | 主 Agent 自己读 | 先跑 `project-status.mjs`——第一行报现在到哪，第二行报三份活文档各有多重，报了待归档先归档；再读 **progress.md + Product-Spec.md + Product-Spec-CHANGELOG.md** 三份恢复处境；三份存在即读，不存在的跳过不报错 |
 
 同一轮同时出现 `/record` 与 `/archive` → 先 record 再 archive。
 
@@ -114,19 +114,23 @@ progress-recorder 不是关键词匹配器，它按语义抽取，但写入 Pinn
 
 | 触发 | 阈值 |
 |---|---|
-| 自动 | Notes 与 Done 合计 > 100 条，或 Decisions > 30 条，或已关闭的 TODO > 20 条——每次 record 完 recorder 必查，三组各判各的 |
+| 自动 | Notes 与 Done 合计 > 100 条，或 Decisions > 30 条，或已关闭的 TODO > 20 条——每次 record 完 recorder 必查，三组各判各的；条数没过线而某段体积过线（Done、Notes 各 16KB，Decisions 32KB，已关闭的 TODO 8KB）同样搬 |
 | 手动 | `/archive` |
 
 搬迁规则：
 
 - **搬运由脚本做**：recorder 发现超线只回报，主 Agent 跑 `node .claude/scripts/progress-archive.mjs`（`--check` 只算不写）。recorder 没有 Bash，手工搬一条上千字的条目等于把原文重敲一遍——2026-09-19 两次都撞轮次上限没做完，各花二十多万 token。脚本不在的老安装才退回手工搬。
 - Notes / Done 各保留最新 35 条，Decisions 保留最新 24 条，已关闭（DONE / 完成）的 TODO 保留编号最大的 10 条，其余**原文**搬到 progress.archive.md 对应段（Archived Notes / Archived Done / Archived Decisions / Archived TODO）。保留线压在触发线下面一截，归档完才不会贴着线、下一条记录又触发。
+- **体积线**：留下的条目体积仍超线时，脚本从其中最旧的接着搬，到线下或只剩地板（Done / Notes 10 条、Decisions 12 条、已关闭的 TODO 5 条）为止。体积才是 recap 真正付的账——下游一份 progress.md 的 Done 81 条共 15 万字、平均一条 1850 字，条数线碰不到，一条不搬（2026-11-22 实数）。
+- **条目写法**：脚本认顶格与缩进两种条目，同一段里并存也认（一行是条目形状就算一条独立条目，不看缩进；它下面紧跟的、更深的非条目行是它的续行）；另一份下游 progress.md 全篇四空格缩进，框架自带的旧脚本一条都认不出，那个项目是在本地把脚本改了才归得了档。写的时候一条一行：Done 120 字以内加证据句柄，Decisions 400 字以内三要素齐，TODO 200 字以内加 Context 指针，断点只留当前一条。
 - **先写归档、后删正文**：要搬的条目先追加进归档，逐条在归档里搜到了才从 progress.md 删，有一条搜不到就一条都不删；已在归档里的不重复追加，所以搬到一半被截断可以接着搬。2026-09-19 本仓先删后写、中途撞到轮次上限，丢过三条 Decisions，靠 git 旧版本才找回。
 - Pinned 与未关闭的 TODO（`OPEN` / `部分完成` / `明确不做`）**永不搬**。已关闭的 TODO 搬走后编号不重用：TODO 段末的「归档指针」行记着已归档最大编号，新编号取它与正文现存最大编号里大的那个再加 1。实测 recap 读进去的 81KB 里有 32KB 是早已关闭的 TODO，这是纳入它的原因。
 - Decisions 段末尾留一行指针：搬走的条数、日期区间、「仍在生效的硬约束已在 Pinned」。
 - progress.archive.md **只增不删**；每批条目整体插在对应段最前面（段内最新在上），批内顺序与正文一致。
 
 本仓 2026-09-20 用脚本跑的第一次：Done 52 → 35、Notes 51 → 35、Decisions 31 → 24、已关闭的 TODO 61 → 10，共搬 91 条，progress.md 从 168KB 降到 112KB，recap 要读的四段从约 81KB 降到约 59KB；此前 2026-09-15 首批搬过 119 条 Decisions。这就是「超线归档」在真实项目里的样子。
+
+DEV-PLAN.md 同一个道理：做完的 Phase 超过 20 个或合计超过 64KB，`node .claude/scripts/plan-archive.mjs` 把编号最小的 ✅ Phase 原文搬到 DEV-PLAN.archive.md，原文件「## 已归档 Phase」一节各留一行带 REQ 编号的指针，plan-lint 的覆盖检查认这些指针；没在标题行带 ✅ 的不搬。三份活文档现在各有多重、有没有待归档，`node .claude/scripts/project-status.mjs` 一条命令报出来。
 
 ### 为什么 recap 不读归档
 
@@ -152,7 +156,7 @@ progress-recorder 不是关键词匹配器，它按语义抽取，但写入 Pinn
 在沙箱里（有 progress.md、`src/app.ts` 改了没提交）喂一次 Stop 事件，你会看到：
 
 ```json
-{"systemMessage":"[advise] 三文件同步铁律：检测到未提交的代码/家底改动（如 src/app.ts）但 progress.md 未同步。请把本轮的决策/完成事项/进度/新任务即时写入 progress.md（doc 类主 Agent 直接写），保证随时可 Clear→recap 完整恢复，然后重试停止。"}
+{"systemMessage":"[advise] 三文件同步铁律：检测到未提交的代码/家底改动（如 src/app.ts）但 progress.md 未同步。把本轮的决策、完成、新任务各记一行进 progress.md（一条一行，证据写提交号或文件路径，过程不抄；doc 类主 Agent 直接写），然后重试停复，然后重试停止。"}
 ```
 
 往 progress.md 追加一行后再喂一次：静默，rc=0。
@@ -237,7 +241,7 @@ observer 用 `feedback-writer` skill，按 5 个观察维度判有没有信号�
 
 `check-evolution.mjs`（SessionStart）数的就是索引里两种前缀都不带的行。有待处理的，开场你会看到一句：`📋 项目有 N 条待处理 feedback（共 M 条）。建议派发 evolution-runner 检查是否有进化建议。`
 
-**下游项目的 feedback 怎么回到框架**：项目里的 skills / CLAUDE.md 是清单管的框架副本，往里毕业下次 `setup.sh` 就报 conflict，所以下游的方法类教训只在项目里记、不在项目里毕业。框架仓跑 `bash .claude/scripts/collect-feedback.sh <项目路径…>` 把它们收进来——同名同内容跳过（只补 `origin`）、同名不同内容落 `<名>.from-<项目>.md`、frontmatter 写 `origin: <项目>`、索引自动追加，`--dry-run` 只算不写——再派 evolution-runner 毕业到本仓的 skill。三个下游项目 35 份 feedback 三个月 0 毕业（2026-10-30 实数）就是这条链断着的样子；`setup.sh` 从此只在目标没有 `FEEDBACK-INDEX.md` 时才建，不再每次升级重置成空模板（#87）。
+**下游项目的 feedback 怎么回到框架**：项目里的 skills / CLAUDE.md 是清单管的框架副本，往里毕业下次 `setup.sh` 就报 conflict，所以下游的方法类教训只在项目里记、不在项目里毕业。框架仓跑 `bash .claude/scripts/collect-feedback.sh <项目路径…>` 把它们收进来——同名同内容跳过（只补 `origin`）、同名不同内容落 `<名>.from-<项目>.md`、frontmatter 写 `origin: <项目>`、索引自动追加，`--dry-run` 只算不写——再派 evolution-runner 毕业到本仓的 skill。三个下游项目 35 份 feedback 三个月 0 毕业（2026-10-30 实数）就是这条链断着的样子；`setup.sh` 从此只在目标没有 `FEEDBACK-INDEX.md` 时才建，不再每次升级重置成空模板（#87）。 同一条命令末尾还给每个项目报一行「人读文档」的状态，行首带 `!` 的是文档没跟上开发的项目（核对有不一致、有说明待更新或配置漏了新目录）。
 
 ### evolution-runner：什么时候跑、看三类信号
 

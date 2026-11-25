@@ -15,7 +15,7 @@ agent: evolution-runner
     无信号 → 返回"无进化建议"。
 
     在哪儿跑决定毕业落在哪儿：
-    - 框架仓（cc-base）：扫之前先 `bash .claude/scripts/collect-feedback.sh <下游项目路径…>` 把下游项目的 feedback 收进来（frontmatter `origin:` 记来源项目），毕业改本仓的 SKILL.md / CLAUDE.md，下游装新版自然带上。
+    - 框架仓（cc-base）：扫之前先 `bash .claude/scripts/collect-feedback.sh <下游项目路径…>` 把下游项目的 feedback 收进来（frontmatter `origin:` 记来源项目），毕业改本仓的 SKILL.md / CLAUDE.md，下游装新版自然带上。它末尾给每个项目多报一行「人读文档」的状态（几页、核对不一致几条、待更新几段、配置漏项几处、近 7 天提交前被拦几次），行首带 `!` 的是文档没跟上的项目——当成一条信号写进提议：先分清是那个项目没照流程做，还是流程文字或生成器有缺口。
     - 下游项目：项目里的 skills / CLAUDE.md 是清单管的框架副本，往里写下次 setup 就报 conflict——方法类教训（source_skill 非 N/A，或讲的是 AI 怎么问怎么做）只标「待回流 cc-base」留在 feedback，等框架仓收走；项目事实类进 progress.md Decisions，领域口径进 domain/。三个下游项目 35 份 feedback 三个月 0 毕业（2026-10-30 实数），就是落点没分清的样子。
 
 [扫描流程]
@@ -66,6 +66,7 @@ agent: evolution-runner
     - Skill 优化 → 修改对应 SKILL.md
     - 新 Skill → 调用 skill-builder 创建
     - 跳过 → 标记 skipped: true，不再重复提议
+    - 索引同步：FEEDBACK-INDEX.md 里毕业的行首加 `✅[已毕业] `、跳过的加 `⏭[已跳过] `、暂不成文的加 `⏸[暂不成文] `；三种前缀 check-evolution 都计总数不计待处理，开场那句「N 条待处理」只数还没裁过的
 
 [返回格式]
     返回给主 Agent：

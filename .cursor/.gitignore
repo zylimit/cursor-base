@@ -1,0 +1,4 @@
+# 本地生成的目录软链与运行态：git 跟踪目录软链会让 scan-secrets 判 not-a-regular-file 退 3
+/skills
+/harness-state/
+/worktrees.json

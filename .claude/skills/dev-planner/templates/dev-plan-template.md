@@ -74,6 +74,7 @@ description: DEV-PLAN.md 输出模板。分析 Product Spec 后按此结构填�
 
 - 每完成一个 Phase 走四步走：Code Review → 测试完整性 → 编译验证 → 功能测试
 - 四步走全部通过才算 Phase 完成
+- 人读文档跟着 Task 走：碰了表结构、读写表的代码或模块的文件与接口的 Task，交付时带着说明，`readable-docs.mjs check` 报「不一致 0 条」（项目不出人读文档的删掉这一行）
 - Commit message 格式：`phase-N: 简要描述`
 - 包管理器：[pnpm/npm/yarn]
 ```
@@ -89,7 +90,7 @@ description: DEV-PLAN.md 输出模板。分析 Product Spec 后按此结构填�
 
 ## 写作要点
 
-1. Phase 用功能名命名，不用编号序列——"聊天核心 + SQLite 持久化"比"Phase 2"好认
+1. Phase 用功能名命名，不用编号序列——"聊天核心 + SQLite 持久化"比"Phase 2"好认；标题四十字以内，修订经过、版本号、档位、提交号写进正文不进标题，做完由 dev-builder 在标题后标 `✅（日期，四态结论）`；编号用整数（`## Phase 12:`），写成 `5.x`、`A` 的标题 plan-lint 与归档脚本都认不出
 2. 交付内容动词开头，一条一个可感知交付物；基础设施 Phase 写"XX 表 + CRUD API"，业务 Phase 写用户能做什么
 3. 验证的假设每 Phase 必填、可为「无」；一条假设一 bullet，写清来源（Spec 的 [推断] / [待定] / [默认] 或技术未知）和成立的证据
 4. 关键文件用项目内相对路径 + 用途说明，不列测试和配置文件（除非它是本 Phase 的核心交付物）；被多个 Task 共写的文件额外标唯一 owner Task，避免几个 Task 都以为自己负责收口

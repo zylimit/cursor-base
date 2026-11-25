@@ -4,7 +4,7 @@ description: 数据展示页只放数据源里实际存在的记录，推断/推
 created: 2026-08-05
 updated: 2026-08-05
 occurrences: 1
-graduated: false
+graduated: true  # 2026-11-08 毕业合并四条→.claude/CLAUDE.md [角色]「推断不进交付物、不判现场错、过滤口径由用户定」
 source_skill: N/A
 origin: digifiber-conflation-claude,digifiber-optical-evidence
 ---

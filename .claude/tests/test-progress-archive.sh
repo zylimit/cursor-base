@@ -44,11 +44,11 @@ jf() {  # jf <jsonfile> <点号路径> —— 本仓测试既有的 node -e 单�
 #   "## TODO" 与 "## TODO 归档说明" 不相干；测试工具本身也不能再用前缀，否则 A10 先坑自己）。
 extract_block() { awk -v h="$2" '$0==h{inb=1;next} inb&&/^## /{exit} inb{print}' "$1"; }
 norm() { awk 'NF'; }  # 去空行，契约没定空行格式，比较正文不纠结这个
-# gen_entries <count> <label> <cont_idx> —— count 条 Done/Notes/Decisions 风格条目，位置1(最新)..count(最旧)；cont_idx>0 时该条带两行缩进续行（0=不加）
+# gen_entries <count> <label> <cont_idx> —— count 条 Done/Notes/Decisions 风格条目，位置1(最新)..count(最旧)，日期随位置递减、逐条不同；cont_idx>0 时该条带两行缩进续行（0=不加）
 gen_entries() {
-  local count="$1" label="$2" cont_idx="$3" i d m y
+  local count="$1" label="$2" cont_idx="$3" i k d m y
   for i in $(seq 1 "$count"); do
-    d=$(( (i % 28) + 1 )); m=$(( ((i / 28) % 12) + 1 )); y=$(( 2020 + i / 336 ))
+    k=$(( 1000 - i )); d=$(( (k % 28) + 1 )); m=$(( ((k / 28) % 12) + 1 )); y=$(( 2020 + k / 336 ))
     printf -- '- %04d-%02d-%02d %s-entry-%03d 占位描述文本\n' "$y" "$m" "$d" "$label" "$i"
     if [ "$i" -eq "$cont_idx" ]; then
       printf '  续行第一行：补充说明 %s-entry-%03d\n  续行第二行：再补充一句 %s-entry-%03d\n' "$label" "$i" "$label" "$i"
@@ -422,5 +422,84 @@ A12B_ROOT="$TMP/a12b"; mkdir -p "$A12B_ROOT"; build_pinned "$A12B_ROOT/progress.
 run_pa "$A12B_ROOT"; A12B_HIT=$(grep -cF -- '超封顶' "$PA_OUT" "$PA_ERR" | awk -F: '{s+=$NF} END{print s+0}')
 ok=0; [ "$PA_RC" = "0" ] || ok=1; [ "$A12B_HIT" = "0" ] || ok=1
 chk "$ok" "A12b Pinned 恰 15 条 → 不报（封顶是「超过」才响）" "rc=0；stdout/stderr 无超封顶字样" "rc=$PA_RC 命中=$A12B_HIT"
+# ============================== A13 ==============================
+# P-1（红锁，2026-11-22 活文档契约）：条目是四空格缩进写法（recorder 模板照抄，digifiber-conflation 实况，旧脚本 --check 报「现有 0 条」）。
+# 打死：①只认顶格条目、缩进段一条不搬；②搬的时候把缩进吃掉（归档里的原文必须整行相等，续行也带缩进）。
+eb() { if [ -f "$1" ]; then extract_block "$1" "$2"; fi; }  # 归档可能压根没建，别让 set -e 在这崩
+A13_ROOT="$TMP/a13"; mkdir -p "$A13_ROOT"
+A13_DEC=$(gen_entries 35 dec 30 | sed 's/^/    /')
+build_progress "$A13_ROOT/progress.md" "$(gen_entries 5 "done" 0)" "$(gen_entries 5 notes 0)" "$A13_DEC" "$TODO_SMALL"
+run_pa "$A13_ROOT" --check; A13_LINE=$(grep '^Decisions' "$PA_OUT" | head -1 || true)
+ok=0; grep -Fq '现有 35 条' <<<"$A13_LINE" || ok=1; grep -Fq '搬出 11 条' <<<"$A13_LINE" || ok=1
+chk "$ok" "A13a 缩进写法 Decisions 35 条：--check 报现有 35 条、搬出 11 条（不是「现有 0 条」）" "Decisions 行含「现有 35 条」「搬出 11 条」" "行=[$A13_LINE]"
+run_pa "$A13_ROOT"
+A13_KEPT=$(extract_block "$A13_ROOT/progress.md" '## Decisions' | sed -n '1,24p')
+A13_ARCH=$(eb "$A13_ROOT/progress.archive.md" '## Archived Decisions' | norm)
+A13_WANT=$(printf '%s\n' "$A13_DEC" | sed -n '25,$p' | norm)
+ok=0; [ "$PA_RC" = "0" ] || ok=1; [ "$A13_KEPT" = "$(printf '%s\n' "$A13_DEC" | sed -n '1,24p')" ] || ok=1; [ "$A13_ARCH" = "$A13_WANT" ] || ok=1
+chk "$ok" "A13b 缩进条目搬迁：留最新 24 条，第 25-35 条（含缩进续行）带原缩进整行相等进归档" "rc=0；保留区前 24 行不变；Archived Decisions 恰等于原第 25 行起（缩进一个字符不改）" \
+  "rc=$PA_RC 归档行数=$(printf '%s\n' "$A13_ARCH" | grep -c . || true) 期望=$(printf '%s\n' "$A13_WANT" | grep -c . || true) 相等=$([ "$A13_ARCH" = "$A13_WANT" ] && echo yes || echo no)"
+# ============================== A14 / A15 ==============================
+# P-2 体积线（Decisions 线 32768 字节，地板 12 条）。条数都没过 30 线，只靠体积触发。
+# A14 打死：只看条数不看体积（一条不搬）；A15 打死：超线就一直搬到搬空（留下的不得少于地板 12 条）。
+gen_big() {  # gen_big <count> <pad>：count 条等长 Decisions 条目（日期逐条不同、递减）
+  local i k
+  for i in $(seq 1 "$1"); do k=$(( 1000 - i ))
+    printf -- '- %04d-%02d-%02d dec-entry-%03d %s\n' $(( 2020 + k / 336 )) $(( ((k / 28) % 12) + 1 )) $(( (k % 28) + 1 )) "$i" "$2"; done
+}
+vol_arm() {  # vol_arm <tag> <count> <padlen> <want_keep> <标题>
+  local root="$TMP/$1" pad body kept
+  mkdir -p "$root"; pad=$(head -c "$3" /dev/zero | tr '\0' x); body=$(gen_big "$2" "$pad")
+  build_progress "$root/progress.md" "$(gen_entries 5 "done" 0)" "$(gen_entries 5 notes 0)" "$body" "$TODO_SMALL"
+  run_pa "$root"
+  kept=$(extract_block "$root/progress.md" '## Decisions' | grep -c '^- [0-9]' || true)
+  local g_k g_a
+  g_k=$(extract_block "$root/progress.md" '## Decisions' | sed -n "1,$4p"); g_a=$(eb "$root/progress.archive.md" '## Archived Decisions' | norm)
+  ok=0; [ "$PA_RC" = "0" ] || ok=1; [ "$kept" = "$4" ] || ok=1
+  [ "$g_k" = "$(printf '%s\n' "$body" | sed -n "1,$4p")" ] || ok=1; [ "$g_a" = "$(printf '%s\n' "$body" | sed -n "$(($4 + 1)),\$p")" ] || ok=1
+  chk "$ok" "$5" "rc=0；正文留最新 $4 条（逐行不变），其余 $(($2 - $4)) 条原序进 Archived Decisions" "rc=$PA_RC 正文条数=$kept"
+}
+A14_LINE=$(gen_big 1 "$(head -c 1900 /dev/zero | tr '\0' x)")
+vol_arm a14 20 1900 $(( 32768 / (${#A14_LINE} + 1) )) "A14 Decisions 20 条没过条数线、但体积超 32768：仍搬最旧的，直到体积落到线下（只看条数的实现一条不搬）"
+vol_arm a15 15 5000 12 "A15 Decisions 15 条每条约 5KB：搬到地板 12 条即停，不搬空（地板拦住超线就一直搬的实现）"
+# ============================== A16 / A17 ==============================
+# P-3/P-4（红锁，2026-11-22 下游实测）。A16 打死：按位置切（日期乱序时把较新的搬走、较早的留下）。
+# 夹具：32 条、32 个不同日期、首早末晚（最旧在上）；两条最新在第 2、3 位，两条最旧在第 20、21 位。
+A16_ROOT="$TMP/a16"; mkdir -p "$A16_ROOT"; A16_DEC=""
+for r in 3 32 31 $(seq 4 20) 1 2 $(seq 21 30); do
+  A16_DEC+="- $(date -d "2026-03-01 + $r days" +%F) dec-rank-$(printf %02d "$r") 占位"$'\n'; done
+A16_DEC=${A16_DEC%$'\n'}; A16_OLD=$(grep -E 'dec-rank-0[1-8] ' <<<"$A16_DEC")
+build_progress "$A16_ROOT/progress.md" "$(gen_entries 5 "done" 0)" "$(gen_entries 5 notes 0)" "$A16_DEC" "$TODO_SMALL"
+run_pa "$A16_ROOT"
+A16_KEPT=$(extract_block "$A16_ROOT/progress.md" '## Decisions' | norm | grep -v '^（归档指针：' || true); A16_ARCH=$(eb "$A16_ROOT/progress.archive.md" '## Archived Decisions' | norm)
+ok=0; [ "$PA_RC" = "0" ] || ok=1; [ "$A16_ARCH" = "$A16_OLD" ] || ok=1; [ "$A16_KEPT" = "$(grep -vFx -f <(printf '%s\n' "$A16_OLD") <<<"$A16_DEC")" ] || ok=1
+chk "$ok" "A16 日期乱序的 Decisions 32 条：搬走的是日期最早的 8 条（按位置切会搬走第 2、3 位的最新两条）" \
+  "归档恰为 rank01-08 共 8 条、原相对顺序 3,4,5,6,7,8,1,2；正文留其余 24 条原序" "rc=$PA_RC 归档=[$(tr '\n' ' ' <<<"$A16_ARCH" | grep -o 'rank-[0-9]*' | tr '\n' ' ')]"
+# A17 打死：见 `（归档指针：` 开头就整行替换（手写指针里「仍在生效」的说明从两份文件里消失）。
+A17_ROOT="$TMP/a17"; mkdir -p "$A17_ROOT"
+A17_PTR='（归档指针：2026-11-04 手工搬 10 条到 progress.archive.md；其中仍在生效的两条：甲规则、乙规则，原文见归档）'
+build_progress "$A17_ROOT/progress.md" "$(gen_entries 5 "done" 0)" "$(gen_entries 5 notes 0)" "$(gen_entries 32 dec 0; printf '%s' "$A17_PTR")" "$TODO_SMALL"
+run_pa "$A17_ROOT"; A17_H=$(grep -cFx -- "$A17_PTR" "$A17_ROOT/progress.md" || true); A17_M=$(grep -c '^（归档指针：累计搬出' "$A17_ROOT/progress.md" || true)
+ok=0; [ "$PA_RC" = "0" ] || ok=1; [ "$A17_H" = "1" ] || ok=1; [ "$A17_M" = "1" ] || ok=1
+chk "$ok" "A17 手写指针行（无「累计搬出」）搬完原样还在，另起一行机器指针" "rc=0；手写行整行命中 1 次；「（归档指针：累计搬出」开头行 1 条" "rc=$PA_RC 手写行=$A17_H 机器指针=$A17_M"
+# ============================== A18 ==============================
+# P-1 定稿（OFR-ARIANE Done 段真形状）：顶格新决策后面不隔空行紧跟四空格老决策，每条老决策挂三行更深的非日期行；符合条目形状的行一律是独立条目。
+# 打死：①把紧跟顶格条目的缩进条目当它的子项、整块吞成一条（a/b）；②把已关闭 TODO 下更深缩进的未关闭条目当续行一起搬走（c）。
+A18_ROOT="$TMP/a18"; mkdir -p "$A18_ROOT"; A18_TOP=""; A18_OLD=""; A18_WANT=""
+for i in $(seq 1 10); do A18_TOP+="- $(date -d "2026-11-20 - $i days" +%F) top-$i 新决策"$'\n'; done
+for j in $(seq 1 24); do E=$(printf '    - %s old-%02d 老决策\n      - 依据：x%d\n      - 适用范围：y%d\n      - 取代：z%d' "$(date -d "2026-10-01 - $j days" +%F)" "$j" "$j" "$j" "$j")
+  A18_OLD+="$E"$'\n'; [ "$j" -ge 15 ] && A18_WANT+="$E"$'\n'; done
+build_progress "$A18_ROOT/progress.md" "$(gen_entries 5 "done" 0)" "$(gen_entries 5 notes 0)" "$A18_TOP${A18_OLD%$'\n'}" "$TODO_SMALL"
+run_pa "$A18_ROOT" --check; A18_LINE=$(grep '^Decisions' "$PA_OUT" | head -1 || true)
+ok=0; grep -Fq '现有 34 条' <<<"$A18_LINE" || ok=1
+chk "$ok" "A18a 顶格 10 条不隔空行紧跟缩进老决策 24 条：--check 报现有 34 条（吞块实现只报 10 条）" "Decisions 行含「现有 34 条」" "行=[$A18_LINE]"
+run_pa "$A18_ROOT"; A18_ARCH=$(eb "$A18_ROOT/progress.archive.md" '## Archived Decisions' | norm)
+ok=0; [ "$PA_RC" = "0" ] || ok=1; [ "$A18_ARCH" = "$(printf '%s' "$A18_WANT" | norm)" ] || ok=1
+chk "$ok" "A18b 搬进归档的恰是最旧 10 条缩进老决策，每条连同三行更深非日期行、带原缩进整行相等" "rc=0；归档（去空行）恰等于 old-15..24 各 4 行" "rc=$PA_RC 归档行数=$(printf '%s\n' "$A18_ARCH" | grep -c . || true) 期望=40"
+A18C_ROOT="$TMP/a18c"; mkdir -p "$A18C_ROOT"
+build_progress "$A18C_ROOT/progress.md" "$(gen_entries 5 "done" 0)" "$(gen_entries 5 notes 0)" "$(gen_entries 5 dec 0)" "$(gen_todo_closed 25 | sed '3a\    - [P2][OPEN][#99]  更深缩进的未关闭条目')"
+run_pa "$A18C_ROOT"
+ok=0; [ "$PA_RC" = "0" ] || ok=1; extract_block "$A18C_ROOT/progress.md" '## TODO' | grep -Fq '[OPEN][#99]' || ok=1; ! grep -Fq '[#99]' "$A18C_ROOT/progress.archive.md" || ok=1; grep -Fq '[#3]' "$A18C_ROOT/progress.archive.md" || ok=1
+chk "$ok" "A18c 已关闭 #3 下挂的更深未关闭 #99 留在 TODO 段、不进归档（当续行同搬的实现会搬走它）；#3 本身已搬" "rc=0；正文 TODO 段含 [OPEN][#99]；归档不含 [#99]、含 [#3]" "rc=$PA_RC 正文含99=$(extract_block "$A18C_ROOT/progress.md" '## TODO' | grep -c '#99' || true) 归档含99=$(grep -c '#99' "$A18C_ROOT/progress.archive.md" || true)"
 printf '==== test-progress-archive：PASS=%s FAIL=%s ====\n' "$PASS" "$FAIL"
 [ "$FAIL" = "0" ] || exit 1

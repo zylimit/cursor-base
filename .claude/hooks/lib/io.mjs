@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { isatty } from 'node:tty';
 
 /** 反斜杠→正斜杠。无条件替换，不按 path.sep 分支：Windows 形态的路径会经夹具/事件流到任何平台。 */
 export function toPosix(p) {
@@ -29,14 +30,43 @@ export function readTextFile(file) {
   }
 }
 
-/** 读完 stdin 的原始文本；没有输入或读不了返回空串。 */
+/**
+ * 读完 stdin 的原始文本，一直读到 EOF；没有输入（终端 / 无 stdin）返回空串。
+ *
+ * 为什么不再是一句 readFileSync(0) + catch 全吞（2026-11-08 reviewer 第四轮 P1）：大事件经管道分块到达时，
+ * fd 0 是非阻塞的，读到一半撞上 EAGAIN 会抛错，原写法把它吞成空串——所有 hook 都把「没读完」当「空输入」
+ * 静默放行。reviewer 用 node 异步 spawn 喂 300KB 事件稳定复现；主 Agent 两次「跑完套件后第一条探针 rc 0」
+ * 不可复现的放行也归因于此。现在 readSync 循环累积到返回 0（EOF）；EAGAIN / EWOULDBLOCK（Windows 管道码
+ * 可能不同，两种都认）就用 Atomics.wait 睡 5ms 再试，累计等待封顶 3 秒；超时或别的读错把已读到的部分原样
+ * 返回——残缺文本在解析层会被判坏，由调用方决定降级形态，不在这里伪装成「空」。
+ * 判终端用 isatty(0) 而不碰 process.stdin：访问 process.stdin 会给管道 fd 建流、顺手把它设成非阻塞。
+ */
+const STDIN_WAIT_MAX_MS = 3000;
+const STDIN_RETRY_MS = 5;
 export function readStdinRaw() {
-  try {
-    if (process.stdin.isTTY) return '';
-    return fs.readFileSync(0, 'utf8');
-  } catch (_e) {
-    return '';
+  if (isatty(0)) return '';
+  const chunks = [];
+  const buf = Buffer.alloc(64 * 1024);
+  const sleeper = new Int32Array(new SharedArrayBuffer(4));
+  let waited = 0;
+  for (;;) {
+    let n;
+    try {
+      n = fs.readSync(0, buf, 0, buf.length, null);
+    } catch (e) {
+      const again = e && (e.code === 'EAGAIN' || e.code === 'EWOULDBLOCK');
+      if (again && waited < STDIN_WAIT_MAX_MS) {
+        Atomics.wait(sleeper, 0, 0, STDIN_RETRY_MS);
+        waited += STDIN_RETRY_MS;
+        continue;
+      }
+      // EOF（Windows 管道读到尾会抛 code 'EOF'）、EBADF（根本没有 stdin）、等待超时：返回已读部分
+      break;
+    }
+    if (n === 0) break;
+    chunks.push(Buffer.from(buf.subarray(0, n)));
   }
+  return Buffer.concat(chunks).toString('utf8');
 }
 
 /** 读完 stdin 并解析：空输入 → {}；解析失败或不是对象 → null（不抛，由调用方决定降级形态）。 */

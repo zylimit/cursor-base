@@ -258,5 +258,30 @@ chk "$ok" "D-7h3 两份 harness-large-repo.md 字节完全相同（判定差异�
   "sha256 相同且非空（同一份字节，两条路径）" \
   "rules/=$SHA1 ext/rules/=$SHA2"
 
-printf '==== test-distribution：PASS=%s FAIL=%s ====\n' "$PASS" "$FAIL"
+# ---- D-8 清单没过期：源码树里清单管的每个文件，哈希与清单所记相同，路径无多无少 ----
+# 起因（2026-11-24）：改了技能参考文件、没重出清单就提交推送，提交前检查（有意不比对清单）、全量回归、CI 全放行，
+#   下游从 HEAD 装框架后自检报「清单 1 条 SHA 不符」。警报放这里。
+# 不用 gen-manifest.sh --check 的退出码：它的 diff 对排序敏感（LC_ALL=C 与 en_US.UTF-8 退出码不同），
+#   而清单在谁的语言环境下重出的不一定。口径（哪些文件归清单管、换行归一）仍是 gen-manifest.sh 同一套——
+#   把 .claude 拷进临时目录（跳过它本就排除的大目录）让它在那里重出，两边正文各自 LC_ALL=C sort 后按「路径\t哈希」整行比，不看顺序。
+SKIP=${SKIP:-0}
+if command -v sha256sum >/dev/null 2>&1 && command -v tar >/dev/null 2>&1; then
+  M="$TMP/d8"; mkdir -p "$M"
+  ( cd "$ROOT" && tar -cf - --exclude=.claude/tests --exclude=.claude/research --exclude=.claude/agent-memory \
+      --exclude=.claude/worktrees --exclude=.claude/evidence --exclude=.claude/harness/ext .claude ) | ( cd "$M" && tar -xf - )
+  GRC8=0; bash "$M/.claude/scripts/gen-manifest.sh" >"$TMP/d8.out" 2>&1 || GRC8=$?
+  LC_ALL=C grep -v '^#' "$ROOT/.claude/FRAMEWORK-MANIFEST.txt" | LC_ALL=C sort >"$TMP/d8.have"
+  LC_ALL=C grep -v '^#' "$M/.claude/FRAMEWORK-MANIFEST.txt" | LC_ALL=C sort >"$TMP/d8.want"
+  LC_ALL=C comm -3 "$TMP/d8.have" "$TMP/d8.want" | cut -f1-2 | awk -F'\t' '{print $1 $2}' | LC_ALL=C sort -u >"$TMP/d8.diff"
+  D8N=$(wc -l <"$TMP/d8.diff" | tr -d ' ')
+  D8P=$(LC_ALL=C comm -3 "$TMP/d8.have" "$TMP/d8.want" | awk -F'\t' '{ if ($1=="") print $2; else print $1 }' | LC_ALL=C sort -u | head -5 | tr '\n' ' ')
+  ok=0; [ "$GRC8" = "0" ] && [ -s "$TMP/d8.want" ] && [ "$D8N" = "0" ] || ok=1
+  chk "$ok" "D-8 FRAMEWORK-MANIFEST.txt 与源码树一致（按路径→哈希集合比，不看顺序）" \
+    "重出的清单与入库清单逐行相同（0 处对不上）" \
+    "gen rc=${GRC8} 对不上=${D8N} 行；前几个路径：${D8P:-无}；修法：bash .claude/scripts/gen-manifest.sh 后 git add .claude/FRAMEWORK-MANIFEST.txt"
+else
+  SKIP=$((SKIP + 1)); echo "  [SKIPPED] D-8 清单与源码树一致：缺 sha256sum 或 tar（未执行 != 通过）"
+fi
+
+printf '==== test-distribution：PASS=%s FAIL=%s SKIPPED=%s ====\n' "$PASS" "$FAIL" "$SKIP"
 [ "$FAIL" = "0" ] || exit 1

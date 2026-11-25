@@ -13,6 +13,7 @@ description: 当 DEV-PLAN.md 就绪、用户说要开始写代码或继续开发
     可选（缺了标降级模式继续，不阻塞）：Design-Brief.md、DESIGN.md（有则 token 直接进主题配置，不凭感觉配色）、设计工具 MCP、gh CLI、playwright。
     必需依赖缺失或版本不够，自己判断安装方式直接装；要用户权限或交互认证的才提示用户。
     进已有项目或脚手架先读它自带的 AGENTS.md / CLAUDE.md，按项目的规矩来，不用自己的默认覆盖。
+    人读文档：项目没有 docs/readable-src/config.json 就先跑 `node .claude/scripts/readable-docs.mjs init` 与 `build`（机械的两步，不写说明），文档从这一轮开发起跟着长；用户明说不出的不建（progress.md 的 Pinned 里记着这一条的，不再起头）。已经有配置的跑一次 `init --suggest`，它报的漏项（配置起草之后新出现的建表文件、代码目录）填进 config.json 再开工；用户有意不出的那一项（比如不出人读版需求规格）不填，把那个文件或目录写进 `ignore`，它就不再报。
 
 [第一性原则]
     **修改纪律**：改代码前先评估影响范围（这个改动会牵动哪些现有功能，列出来），改完回归验证。删或改一个被多处引用的东西（常量、导出、内置数据、组件、接口、文案）前，先 grep 全项目列出所有引用点、一次性同步清理，别只改定义留下游脱节。改完跑全套测试（类型检查 + 单测 + e2e），类型检查过不代表单测 / e2e 不挂。改的东西若会被持久化（写进 db、本地存储、缓存、配置文件），要连存量数据一起管——加启动迁移或做兼容，否则老数据变成「代码已删、却顽固显示、还删不掉」的僵尸；删持久化数据的改动配一条迁移测试。CSS 改动重点查 overflow-hidden 裁切弹出层、z-index 层叠、flex-shrink 布局。
@@ -56,10 +57,22 @@ description: 当 DEV-PLAN.md 就绪、用户说要开始写代码或继续开发
         - migration 用 ALTER TABLE，执行前查列或表是否已存在
         - 参数化查询防注入，不裸拼 SQL；频繁查询的字段加索引，不滥加
 
+    [人读文档]
+        - 项目有 docs/readable-src/ 时，Task 碰了建表定义或读写表的代码，或者给一个模块加了文件、接口、跨模块的引用，就带着文档一起交：改完跑 `node .claude/scripts/readable-docs.mjs build`，`pending` 里因这次改动缺的、过期的说明当场补齐（`note put`），`check` 报「不一致 0 条」才算完成。说明由改代码的人写——他最清楚为什么这么改，事后再补只能靠猜
+        - 派单时把这一条写进 Verification；主 Agent 验收亲跑 `check`，不拿回执里的「0 条」当数
+        - 派单之前主 Agent 先跑一次 `check` 与 `pending` 记基线：派单前就有的（升级带来的待更新、存量没写的说明）不算这个 Task 的；验收看两样——`check` 里没有比派单前多出来的，`pending` 的缺口数不比派单前多。没写说明不算不一致，只看 `check` 看不出新加的表忘了写说明
+        - 新加的表进哪个业务分组、新加的文件归哪个模块，改的人在 docs/readable-src/map.json 里就近归位，`status` 写 `proposed`（map.json 的写法见 readable-docs SKILL.md [文件结构]；项目还没有 map.json 的不用新建）；现有的组与模块都不合适的，回执里说一句，留给主 Agent 在 Phase 收尾时定
+        - 说明认真写：读了现在的代码再落笔，改了多少就重写多少，不套话。新加的表或模块一句话说不清它存什么、管什么，是边界没划好的信号——先把边界理顺（拆开，或归到该去的地方）再交，不拿一段绕的说明盖过去；超出这个 Task 范围的写进回执
+        - 先想清楚再写：新加的文件归哪个模块、新加的表进哪个分组、它一句话管什么，动手之前定下来；定不下来是设计还没想清楚，不是文档的事。文档把结构摆在明面上——写到哪算哪的代码，页面上一眼看得出
+        - 结构的数不许悄悄变坏：派单前记的基线带上 `node .claude/scripts/readable-docs.mjs structure` 报的那一行（循环依赖几组、越层引用几处、未归属的文件几个、超过 1000 行的文件几个、项目判断里对不上的几条），写进派单；验收时多出来的，就是这个 Task 把结构弄坏了——修掉，或者在回执里写明为什么只能这样，由主 Agent 记进 Phase 结论。提交的那一刻机器也会比一次，新多出来的当场点名（新的一组循环依赖、已有的环里又多缠了几对文件、新的越层引用……），只提醒不拦——看到这句不许当没看见。文档乱说明代码乱，不在文档上找补
+        - 只对这次新加、改到的表、列、模块负责；存量里没写的说明不在开发 Task 里补——没写的只报数、不算不一致，要一次补齐是用户要时走 /readable-docs 的事
+        - 没碰表结构、也没改模块的文件清单、接口与依赖的改动不用写说明，页面由提交前检查自动重出，见 [Git 工作流]；写法与边界见 readable-docs SKILL.md
+
     [Git 工作流]
         - 原子提交：每完成一个独立功能就 commit，一个 commit 一个逻辑变更，不攒到 Phase 结束
         - commit message 前缀：`phase-N:` / `feat:` / `fix:` / `refactor:` / `chore:`
         - 提交门槛：本次改动涉及的栈编译或语法检查通过才许 commit（前端 tsc --noEmit 零错误，后端 ruff check 或 py_compile 通过），由 pre-commit-check 按栈自动卡
+        - 项目有 docs/readable-src/ 时，pre-commit-check 在提交前自动把人读文档的页面重出一遍；重出后 docs/readable/ 有变化就拦下这次 commit，`git add docs/readable` 之后重提即可。页面是生成物，跟着来源一起入库，不手改
         - push 由 hook 处理，保护分支不自动推
         - 宿主或编排层已把工作树钉在某个分支上时，就在这棵树、这个分支上提交，不另开或切换分支；只有自己管工作树时才自行决定开不开分支
         - 工作目录含多个独立 repo 时，各自 add / commit / push 分开执行、各自验收远程状态，不耦合进同一条命令——细则见 feedback/multi-repo-commit-isolation.md
@@ -71,7 +84,7 @@ description: 当 DEV-PLAN.md 就绪、用户说要开始写代码或继续开发
     提交前对照 design-brief-builder/references/ui-quality-floor.md 的 MUST 项自查：对比度 ≥ 4.5:1、焦点可见、触控目标够大、Brief 里该页的必需状态都做了。
 
 [Phase 执行流程]
-    编码由主 Agent 派 implementer fresh 实例执行，每 Task 一单、跨 Task 默认串行，派单包七字段见 rules/subagent-dispatch.md；主 Agent 只写单 + 验收，不亲手写码。
+    编码由主 Agent 派 implementer fresh 实例执行，每 Task 一单、跨 Task 默认串行，派单包七字段见 rules/subagent-dispatch.md；主 Agent 只写单 + 验收，不亲手写码。派单前先过一遍把握：Task 依赖 Spec 里的 `[默认]` 判断、且做错要返工或写坏数据（导入规则、拒收、存不存）时，把握不到九成先把问题合并成一次提问再派；文案、显示类可先做，回执里说明。
     Plan（读 DEV-PLAN 该 Phase 与 Spec 相关章节的原文，探索现有代码，写出 Task 拆分，每个页面 / 组件 / 功能一个 Task）→ 每个 Task：读派单包 Business Context（为什么做、谁受益、相关规则与例外；Spec 没写的分支按规则与例外推，推不出来的记为「业务假设」进回执，不静默选一个）→ 读该 Task 的交付清单、Spec 功能描述、设计参照的原文 → 编码 → 自检（代码实际值对设计数值、行为对 Spec、业务含义对 Business Context）→ 按 Task 档位走 rules/dev-workflow-details.md [项目开发阶段] 的三条链：LOW 不派 reviewer、主 Agent 对 diff 与运行器输出验收；MEDIUM 派 code-reviewer 一轮 Stage 0 + 1；HIGH 全三 Stage + tester → 只 HIGH 阻断，修完由同一轮复核一次即收口，Medium / Low 记残留不追 → `echo clean > .claude/.needs-review` → commit → 下一个 Task。
     用户强调某个环节是追加要求，不替换基础流程，review 闭环照常走。
     fast 档（`tier status` 报 fast）走短链：不自动派 reviewer / tester、不进四步走；同一份代码全量测试只跑一次，之后修阻断项只补直接对应的用例、复核只看修的那一处；审查与各道闸的过程不念给用户，只报结论与证据句柄；连续开发期用 `tier set fast --sticky --reason "…"` 到撤销为止，不每 8 小时续一次、不每次向用户报告。standard / strict 不受这段影响。
@@ -81,12 +94,14 @@ description: 当 DEV-PLAN.md 就绪、用户说要开始写代码或继续开发
 [Phase 完成度判断]
     所有 Task 完成后过四步走，每步附当场跑出的证据：
     一、Code Review：对照 DEV-PLAN 该 Phase 的交付清单逐项确认，检查有无超出 Phase 范围的改动
-    二、测试完整性：计划的功能都实现、无半成品；派 tester 写测（写测 ≠ 被测作者），测要真覆盖到交互层和故障路径，不止纯函数和顺畅路径。每条「绿」要能证明行为真的对——核对用例前提与生产一致（量纲、单位、输入可达性、断言方向），用假前提或不可达输入把缺陷盖成预期的等于没测；功能声明的错误态、空态、边界要有用例真的走到，不只在实现里留分支；存在但没跑的测试算缺；项目有 docs/design/ 设计详述时跑 `node .claude/scripts/design-trace.mjs`，rc 1 记 CONCERNS、缺口清单进残留，rc 2 / 3 是脚本用错或自身出错，修好再跑、不当缺口记
+    二、测试完整性：计划的功能都实现、无半成品；派 tester 写测（写测 ≠ 被测作者），测要真覆盖到交互层和故障路径，不止纯函数和顺畅路径。每条「绿」要能证明行为真的对——核对用例前提与生产一致（量纲、单位、输入可达性、断言方向），用假前提或不可达输入把缺陷盖成预期的等于没测；功能声明的错误态、空态、边界要有用例真的走到，不只在实现里留分支；存在但没跑的测试算缺；项目有 docs/design/ 设计详述时跑 `node .claude/scripts/design-trace.mjs`，rc 1 记 CONCERNS、缺口清单进残留，rc 2 / 3 是脚本用错或自身出错，修好再跑、不当缺口记；项目有 docs/readable/ 人读文档时跑 `node .claude/scripts/readable-docs.mjs check`，不是「不一致 0 条」先重出、补齐说明到 0 条，补不齐的记 CONCERNS；这个 Phase 新加而还没归位的表与文件在这一步归位（`proposed`）——存量的分组与模块划分不在这里补，那是用户要时走 /readable-docs 的事；`init --suggest` 报的配置漏项补上，整库与整个系统的导读过期了的重写；`structure` 报的那一行与这个 Phase 开工前比一遍，循环依赖、越层引用、未归属的文件、超过 1000 行的文件多出来的写进 Phase 结论与残留，不悄悄带过
     三、编译验证：前端 tsc --noEmit 零错误；后端 ruff check 零错误，无 ruff 则 python3 -m py_compile 全过；混合栈两栈都验，各自附证据
-    四、功能测试：启动 dev server 无错误输出，新功能可用，现有功能未破坏；有 Playwright 测核心交互流程，无则 curl 查 API 返回再提醒用户在浏览器确认 UI
+    四、功能测试：启动 dev server 无错误输出，新功能可用，现有功能未破坏；有交互的页面自己用真实浏览器把核心流程点一遍（Playwright，或本机装着的 Chrome / Edge 走调试端口都算），不把这一步推给用户去按 F12——说本机没有浏览器之前先实查，WSL 下 Windows 那一侧装的也算；真没有浏览器引擎才报「交互验证缺席」，缺席不算通过。纯接口的用 curl 查返回
     中间有任何改动，四步重新来。验证中发现的问题修完用 `fix:` 提交。
     多 Phase / 跨目录的大批量改造收口时，另扫一次重复代码与可提炼逻辑，量化留痕（工具、窗口、克隆数），做或不做都写理由——不等人提醒，也不为了抽象而抽象。
-    收尾四态门：PASS 全通过 / CONCERNS 带残留清单前进 / FAIL 停下修 / WAIVED 必须写明理由与批准人——安全与数据丢失类缺口不许 WAIVED。
+    收尾四态门：PASS 全通过 / CONCERNS 带残留清单前进 / FAIL 停下修 / WAIVED 必须写明理由与批准人——安全与数据丢失类缺口不许 WAIVED。外部服务是拿固定数据或回放顶着验的，结论后面标「回放」、按 CONCERNS 前进；拿到真凭证或真环境，第一件事是把带「回放」的 Phase 重验一遍去标。
+    结论写回 DEV-PLAN 该 Phase 的标题行：`## Phase 3: 导入管线 ✅（2026-11-22，PASS）`，CONCERNS 后面跟残留在哪。标题只留功能名，修订经过、档位、提交号不往里塞——project-status 与 plan-archive 都靠这一行认状态，做完没标 `✅` 的 Phase 归档脚本不搬。
+    交给用户压成三行加几步怎么点：做了什么（对应哪几条需求）、验了什么与四态结论、残留和没验到的；再给三到五步「想看可以这样点」，每步写点哪里、应该看到什么——这是给他看的，不是让他替你测。审查与各道闸的过程不念。
 
 [初始化模式]
     - 项目代码放在以项目名命名的子文件夹（小写字母 + 数字 + 连字符），规划文档留根目录

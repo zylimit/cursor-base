@@ -20,6 +20,7 @@ description: 当需求内容已确认（默认 Product-Spec.md，用户指定的
     - DESIGN.md → token 落地按实际需要折进相关 UI Task 的改动范围，不强行为每个项目单开一个固定的「token Task」
     - 设计工具 MCP 或仓库内已有原型 → 有则 Phase 拆分与关键文件以设计稿 / 原型的实际页面结构为准，不只看 Spec 文字
     - 已有项目代码 → 扫描现有结构、清单与已实现能力作为约束，进迭代模式
+    - docs/readable-src/（人读文档，装了框架的项目默认出）→ 「开发规则」带上人读文档那一行；各 Phase 的验收不另写，四步走第二步已经含 `check`。用户明说不出的项目不带
 
 [文件结构]
     dev-planner/
@@ -93,7 +94,7 @@ description: 当需求内容已确认（默认 Product-Spec.md，用户指定的
 
 [工作流程]
     生成模式：加载已确认的需求内容与可选输入 → 处理待定问题表 → 本次确实要新引入或变更技术栈时 WebSearch 验证选型（已有项目沿用现状、或只是一条配置 / 文案 Task 时跳过这步）→ 依赖图 + 价值排序拆 Phase（完整结果一个 Task 就够时只开一个 Phase，不硬拆多个；不为已有项目一条配置 / 文案 Task 硬问 Phase 数量）→ 粒度校准 → 充足度判断 → 按 templates/dev-plan-template.md 填充（本次计划范围外、Spec 有但没安排 Task 的 REQ 编号连同原因写进「## 范围外（本次不计划）」一节，不强行编 Task 也不能不声明）→ 生成前自检 → 写出 DEV-PLAN.md → 跑 `bash .claude/scripts/plan-lint.sh DEV-PLAN.md <实际需求来源路径>`（路径＝[依赖检测] 判定的那份实际来源，默认来源就是 `Product-Spec.md` 也显式传，不省略第二参数——无参调用只在 DEV-PLAN.md 同目录找 `Product-Spec.md`，来源换了名字或放了别处会漏查覆盖缺口；对计划范围内的 REQ 做需求双向覆盖检查，「## 范围外（本次不计划）」里已声明原因的 REQ 报「范围外（已声明）」不算失败，既没安排 Task 又没声明的 REQ 才 FAIL；需求来源只存在于本次会话、没有文件可传时，lint 跳过覆盖检查，在 DEV-PLAN.md「开工前置」段写明「REQ 覆盖未验证：需求来源无文件，未经 plan-lint 核验」，不把 Phase / Task 结构检查通过说成覆盖检查通过）。
-    迭代模式：读现有 DEV-PLAN + 更新后的 Spec + CHANGELOG 定位变更 → 识别影响哪些 Phase 并向用户说明 → 在原文件上改，已完成的 Phase（标 ✅）保留原有交付记录不重写——但已完成只证明"当时那版行为"，不证明 Spec 改完后新行为也成立；发现的修正需求要落成一个新 Task（可以挂在受影响的已完成 Phase 下，也可以新开 Phase），不能因为 Phase 已标 ✅ 就假装不用处理 → 重新校验依赖 → 动到已写代码的 Phase 只提醒回 dev-builder 同步实现，不自动改码。已完成 Phase 累计超过 20 个时，把最早的 ✅ Phase 整段原文搬到 DEV-PLAN.archive.md，原文件「## 已归档 Phase」一节留一行「Phase N ✅ <标题>（REQ 编号列全）→ DEV-PLAN.archive.md」——REQ 编号留在原文件，plan-lint 的覆盖检查才看得见；未完成与范围外的永不搬；搬完 plan-lint 必须仍过。下游一份 DEV-PLAN 长到 4029 行 / 124 个 Phase（2026-10-30 实数），dev-builder 虽只读当前 Phase，定位与 lint 都在为历史买单。
+    迭代模式：读现有 DEV-PLAN + 更新后的 Spec + CHANGELOG 定位变更 → 识别影响哪些 Phase 并向用户说明 → 在原文件上改，已完成的 Phase（标 ✅）保留原有交付记录不重写——但已完成只证明"当时那版行为"，不证明 Spec 改完后新行为也成立；发现的修正需求要落成一个新 Task（可以挂在受影响的已完成 Phase 下，也可以新开 Phase），不能因为 Phase 已标 ✅ 就假装不用处理 → 重新校验依赖 → 动到已写代码的 Phase 只提醒回 dev-builder 同步实现，不自动改码。已完成的 Phase 攒多了（超过 20 个，或合计超过 64KB）跑 `node .claude/scripts/plan-archive.mjs`，不手工搬：它把编号最小的 ✅ Phase 整段原文搬到 DEV-PLAN.archive.md，在原文件「## 已归档 Phase」一节各留一行带 REQ 编号的指针——编号留在原文件，plan-lint 的覆盖检查才看得见；没带 ✅ 的与范围外的永不搬；搬完 plan-lint 必须仍过。下游一份 DEV-PLAN 长到 4029 行 / 124 个 Phase（2026-10-30 实数），dev-builder 虽只读当前 Phase，定位与 lint 都在为历史买单；手工搬的写法立了三周，到 2026-11-22 那份已是 643KB / 133 个 Phase，一次没搬过。
 
 [初始化]
     执行 [依赖检测]，按有无 DEV-PLAN.md 与 Spec 是否变更判定进生成模式还是迭代模式。

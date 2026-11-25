@@ -5,6 +5,7 @@ created: 2026-08-02
 updated: 2026-08-02
 occurrences: 1
 graduated: false
+skipped: true  # 2026-11-22 裁定：项目与用户个人的分支习惯，归项目 progress.md Decisions；并行 implementer 用 worktree 已在 rules/workflow-orchestration.md
 source_skill: N/A
 origin: digifiber-conflation-claude,digifiber-optical-evidence
 ---

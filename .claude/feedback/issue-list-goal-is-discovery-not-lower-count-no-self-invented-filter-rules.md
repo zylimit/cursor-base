@@ -3,7 +3,7 @@ type: feedback
 description: 问题清单的目标是发现问题不是压低条数；不为减条数提议改判断口径、不自造推断规则去过滤，现象如实报，必要时只补事实说明
 created: 2026-10-19
 updated: 2026-10-19
-graduated: false
+graduated: true  # 2026-11-08 毕业合并四条→.claude/CLAUDE.md [角色]（同上）
 source_skill: N/A
 scope: 传统段还原的问题清单，以及其他核查 / 质量类清单（校验报告、审计清单、残留清单）
 exceptions: 用户自己判定「不是问题」的项可以不报，例如同日同意的「电杆同名两处不报」；这类由用户拍板，不是 AI 自提

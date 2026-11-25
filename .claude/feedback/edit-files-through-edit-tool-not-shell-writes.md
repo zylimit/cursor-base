@@ -3,7 +3,7 @@ type: feedback
 description: 改文件走编辑工具，不用 sed -i / python 写文件 / printf > 这类 shell 写法；写文件类的闸（路径闸、基线哈希闸）只认编辑工具这条路，shell 写法要么绕过闸、要么让闸之后误拦合法改动
 created: 2026-11-04
 updated: 2026-11-04
-graduated: false
+graduated: true  # 2026-11-08 毕业→rules/subagent-dispatch.md [派单包七字段] 末句（受保护路径走编辑工具，shell 写法按绕闸）；闸对 shell 写法的覆盖面另记 TODO 实测
 origin: cursor-base（docs/feedback/edit-owned-files-through-the-tracked-write-path，2026-09-16）
 source_skill: N/A
 scope: 所有会话里对受闸保护路径（no-direct-code-guard 管的业务路径、Cursor 侧任务 owned 范围内的文件）的写入；shell 写法含 sed -i、python3 heredoc 写文件、awk 重定向、tee、> 与 >>

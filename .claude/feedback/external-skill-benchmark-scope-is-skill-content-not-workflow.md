@@ -3,7 +3,7 @@ type: feedback
 description: 用户拿一个外部 skill 仓问「对我们的 skill 有什么启发」时，问的是 SKILL.md 正文层面的写法与内容借鉴；不把范围扩到调用方式、子 Agent 接线、CLAUDE.md 调度段这些流程层
 created: 2026-09-18
 updated: 2026-09-18
-graduated: false
+graduated: false  # 2026-10-29 裁定暂不成文（非未处理）：「用户划了范围就守范围」已由 CLAUDE.md 铁律 7 与同族已毕业条 repository-refresh-follow-explicit-scope.md 覆盖；本条代价仅是两项流程建议在入库前撤回，无返工或空转记录，不够资格进规则。再撞一次且有实际代价再议
 source_skill: N/A（对照调研会话，非某个 Skill 执行中）
 scope: 主 Agent 对照外部仓库 / 参考项目给本框架提借鉴建议时；对象词是「skill」就按 skill 正文与其 references 取范围
 exceptions: 对照中查出的实锤缺陷（如 #69 deployer 预加载失效）照样如实报一次并挂 TODO，但不混进借鉴清单、不据此推流程改造；用户明说要看流程或接线时不受本条限

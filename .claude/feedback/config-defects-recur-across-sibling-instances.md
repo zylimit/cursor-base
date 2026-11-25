@@ -3,7 +3,7 @@ type: feedback
 description: 配置类缺陷（超时、阈值、解释器路径、包装写法）修一处不算完，要把同族的每个实例都搜一遍再说修好，回执列出查过的全部实例
 created: 2026-11-04
 updated: 2026-11-04
-graduated: false
+graduated: false  # 2026-11-22 裁定暂不成文（非未处理）：原文没给 hook 名与提交，无实证。再撞一次且有代价再议
 origin: cursor-base（docs/feedback/config-defects-recur-across-sibling-instances，2026-08-07）
 source_skill: N/A
 scope: 缺陷形态属于配置的情形：超时值、阈值、解释器路径、包装模式；同族指同一事件族、同一取值、同一模板

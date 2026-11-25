@@ -3,7 +3,7 @@ type: feedback
 description: 用户说「只有 X 不行」时根因必须是 X 独有的属性，先拿同条件对照机排除共性；测到 MTU 先查本机网卡 MTU 与来源；找到绕过办法后接着追真因，推断标明是推断
 created: 2026-10-21
 updated: 2026-10-21
-graduated: false
+graduated: true  # 2026-11-22 毕业→skills/bug-fixer/SKILL.md [调试标准] 假设行
 source_skill: N/A
 scope: 主 Agent 做入站连通性 / 网络排障（SSH、Tailscale、WireGuard、MTU、中继）时的归因方式；非项目代码
 exceptions: 用户没给出对照信息、也没有可用对照机时，可先给带「推断」标记的假设并说明要补哪项对照；与 inbound-connectivity-debug-state-direction-first 互补，不冲突

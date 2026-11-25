@@ -4,6 +4,7 @@ description: 排查「别的机器连不上本机」时，动手前先一句话�
 created: 2026-10-21
 updated: 2026-10-21
 graduated: false
+skipped: true  # 2026-11-22 裁定：针对用户自己的 Tailscale / mosh 环境排障，没有返工代价，不进框架
 source_skill: N/A
 scope: 主 Agent 做运维排障（SSH / mosh / 端口等入站连通性）时的沟通方式；非项目代码
 exceptions: none

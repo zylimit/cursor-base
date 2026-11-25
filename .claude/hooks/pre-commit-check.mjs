@@ -10,12 +10,14 @@
 //     逐文件循环编译（一次塞完整列表会撞命令行长度上限），且**只有输出含 SyntaxError 才拦**，
 //     其余非零（stub、文件没了、环境坏）一律降级跳过。
 //   - 大仓四态门：catalog 存在才启用，契约外退出码 = 引擎崩了，放行就是假绿
+//   - 人读文档：有 docs/readable-src/config.json 才启用，提交前重出，页面没暂存就拦；重出自己失败只报不拦（lib/readable-refresh.mjs）
 //   - 档位（profile.json）：off 静默放行；advise（fast 档）照跑照报但不 exit 2；block 走原逻辑
 import fs from 'node:fs';
 import path from 'node:path';
 import { projectDir, readStdinJson, git, run, say, errText, gateModeOf } from './lib/io.mjs';
 import { gateLog } from './lib/gatelog.mjs';
 import { harnessEnabled, harnessExtInstalled, harnessExtMissingNotice, harnessRun, rcInContract, errHead } from './lib/harness.mjs';
+import { refreshReadableDocs } from './lib/readable-refresh.mjs';
 
 const TSCONFIG_MAX_DEPTH = 3;
 
@@ -67,6 +69,11 @@ async function main() {
   if (!/git\s+commit/.test(cmd)) return;
 
   const root = projectDir();
+
+  // ---------- 人读文档：提交前重出（2026-11-23 加，契约 docs/readable-spec/phase1-db-contract.md I 节第 1 条）----------
+  // 放在下面「没暂存 ACM 文件就放行」之前：`git commit -a`、只删了文件的提交，那一刻暂存区里都没有 ACM 文件，
+  // 放在后面这两种提交就悄悄不重出了。没有配置的项目这一行什么都不做、什么都不说。
+  if (refreshReadableDocs(root, mode)) process.exitCode = 2;
 
   // 本次提交涉及的文件（新增/复制/修改）
   const staged = git(['diff', '--cached', '--name-only', '--diff-filter=ACM'], { cwd: root });

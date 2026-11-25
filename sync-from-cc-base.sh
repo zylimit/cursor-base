@@ -4,7 +4,7 @@
 #   路径缺省取 $CC_BASE_DIR，再缺省 ../cc-base。
 # 流程：校验 cc-base 仓 → 要求工作树干净 → 核对 .gitignore 白名单段（拷贝之前，失败时一个文件都不动）→ 以 HEAD 的文件清单为准、从 HEAD 取内容（可执行位随 tar 保留）→
 #   排除本仓自有文件 → 删掉「上次清单里有、这次没有」的旧文件 → 记清单与版本 →
-#   settings.json 转 string form → 重新生成 .cursor/agents/。
+#   settings.json 转 string form → 重新生成 .cursor/agents/ 与 .cursor/rules/cc-base-claude.mdc → 确保 .cursor/skills 软链。
 # 取内容走 HEAD 而不是工作树：同步的是 cc-base「提交过的样子」，工作树里没提交的半成品不该进来；
 #   所以默认要求干净，--allow-dirty 放行时脏改动不会被同步，只是提示一声。
 # 清单也取 HEAD 的树（git ls-tree），不取 index：--allow-dirty 下 index 里暂存的新文件 HEAD 里没有，取了 tar 会找不到。
@@ -46,7 +46,7 @@ CC=$(cd "$CC" && pwd)
 [ -e "$CC/.git" ] || die "$CC 不是 git 仓（没有 .git）；同步要从 HEAD 取内容，需要提交历史"
 command -v git >/dev/null 2>&1 || die "缺少必需命令：git"
 command -v tar >/dev/null 2>&1 || die "缺少必需命令：tar"
-command -v node >/dev/null 2>&1 || die "缺少必需命令：node（hook-form.mjs 与 gen-agents.mjs 都要它）"
+command -v node >/dev/null 2>&1 || die "缺少必需命令：node（hook-form.mjs、gen-agents.mjs 与 gen-rules.mjs 都要它）"
 
 dirty=$(git -C "$CC" status --porcelain) || die "git -C $CC status 失败"
 if [ -n "$dirty" ]; then
@@ -137,12 +137,18 @@ ver=$(git -C "$CC" log -1 --format='%h %cd' --date=short HEAD) || die "读 cc-ba
 printf 'cc-base %s\n' "$ver" >"$HERE/.cursor/cc-base-version.txt" \
   || die "无法写 .cursor/cc-base-version.txt"
 
-node "$HERE/.claude/scripts/hook-form.mjs" --to string || die "hook-form.mjs --to string 失败"
-form=$(node "$HERE/.claude/scripts/hook-form.mjs" --check)
+CLAUDE_PROJECT_DIR="$HERE" node "$HERE/.claude/scripts/hook-form.mjs" --to string --file "$HERE/.claude/settings.json" || die "hook-form.mjs --to string 失败"
+form=$(CLAUDE_PROJECT_DIR="$HERE" node "$HERE/.claude/scripts/hook-form.mjs" --check --file "$HERE/.claude/settings.json")
 [ "$form" = "string" ] || die "转完 settings.json 形态是 ${form:-未知}，要 string"
-gen=$(node "$HERE/.cursor/scripts/gen-agents.mjs") || die "gen-agents.mjs 失败"
+gen=$(CLAUDE_PROJECT_DIR="$HERE" node "$HERE/.cursor/scripts/gen-agents.mjs") || die "gen-agents.mjs 失败"
 agents=$(find "$HERE/.cursor/agents" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
+rules_gen=$(CLAUDE_PROJECT_DIR="$HERE" node "$HERE/.cursor/scripts/gen-rules.mjs") || die "gen-rules.mjs 失败"
+[ -s "$HERE/.cursor/rules/cc-base-claude.mdc" ] || die ".cursor/rules/cc-base-claude.mdc 未生成或为空"
+if [ ! -d "$HERE/.cursor/skills" ] || [ -L "$HERE/.cursor/skills" ]; then
+  ln -sfn ../.claude/skills "$HERE/.cursor/skills" || die "无法创建 .cursor/skills 软链"
+fi
 
 printf 'sync: 复制 %s / 删除 %s / cc-base %s / 形态 %s / 生成 agents %s\n' "$copied" "$deleted" "$ver" "$form" "$agents"
 printf 'sync: %s\n' "$gen"
-printf 'sync: 下一步跑 bash .claude/tests/cases/run-all.sh，通过后再提交\n'
+printf 'sync: %s\n' "$rules_gen"
+printf 'sync: 下一步跑 bash .claude/tests/cases/run-all.sh 与 bash .cursor/tests/test-adapter.sh，通过后再提交\n'

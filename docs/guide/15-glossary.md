@@ -5,7 +5,7 @@
 ## A
 
 - **agent memory**：code-reviewer / tester 挂 `memory: project` 的角色战术笔记（高发缺陷模式 / flaky 区），角色自维护；单文件封顶 5KB、每角色 50KB，超了搬 `docs/agent-notes/`。不承载框架规则也不承载项目事实。（08、13）
-- **archive / 归档**：progress.md 的 Done / Notes 合计超 100 条、Decisions 超 30 条时把最老条目搬进 `progress.archive.md`，原地留一行指针；`archive` 子命令默认 dry-run，`--apply` 才动，Pinned 与 TODO 永不归档。（08、11）
+- **archive / 归档**：progress.md 的 Done / Notes 合计超 100 条、Decisions 超 30 条，或某段体积过线时把最老条目搬进 `progress.archive.md`，原地留一行指针；DEV-PLAN.md 做完的 Phase 攒多了由 `plan-archive.mjs` 搬进 `DEV-PLAN.archive.md`；`archive` 子命令默认 dry-run，`--apply` 才动，Pinned 与 TODO 永不归档。（08、11）
 
 ## B
 

@@ -11,6 +11,7 @@ description: 当用户敲 /record，或说"记一下"、"把这轮的决定记�
     - 派 progress-recorder（fork 派发），mode 传 record，带项目根路径与 delta
     - 没有可记的东西（本轮没有决策 / 约束 / 完成 / 新任务）→ 直说「这轮没有要记的」，不为了记而派
     - 回执回来后核一眼 progress.md 的实际改动，回用户一句记了哪几条、进了哪个区块
+    - 再跑 `node .claude/scripts/progress-archive.mjs --check`，报了待搬就接着按 /archive 搬完，不留到下次——下游一份 progress.md 攒着 18 条待搬没人跑（2026-11-22 实数）
 
 [边界]
     模板、置信度判定、去重规则都在 .claude/skills/progress-recorder/SKILL.md，本 skill 不复述。同轮同时要 /record 与 /archive → 先 record 再 archive。

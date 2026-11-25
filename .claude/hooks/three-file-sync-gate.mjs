@@ -18,9 +18,11 @@
 // 档位（profile.json）：off 静默放行；advise（fast 档）照判照记账但出 systemMessage 不 block；
 //   block（standard/strict）走原逻辑。
 // advise 档去重（只管 C1/C2 这一边，设计详述分支不去重）：.three-file-sync-advised 记上次提醒的签名
-//   与时间，签名 = 判进 C1/C2 的脏文件清单（代码家底 + Spec + CHANGELOG）排序后哈希。同一签名一小时内
-//   再 Stop 静默（不出 systemMessage、不写账本）；清单变了、progress.md 动了（C1/C2 无理由即清掉记录）、
-//   满时限都再提醒一次。由来：下游两天 86 次提醒、同一文件例子 62 次，没一次被理会。整体要拦停时不去重，
+//   与时间，签名 = 本轮命中的原因类型集合（C1 代码家底未同步 progress / C2a Spec 改了 CHANGELOG 没改 /
+//   C2b CHANGELOG 改了 Spec 没改）排序后哈希，不含脏文件清单。同一集合一小时内再 Stop 静默（不出
+//   systemMessage、不写账本）；集合变了、progress.md 动了（C1/C2 无理由即清掉记录）、满时限都再提醒一次。
+//   为什么不按文件清单：开发中每改一个文件清单就变，去重形同虚设——gate-audit 2026-11-08：五个下游仓
+//   噪音第一名，下游 lutetia 一天 16 次 11 种内容，同一类欠账反复念没人理。整体要拦停时不去重，
 //   拦停文案原样。口径与 stop-gate 共用 lib/advise-dedup.mjs。
 // fail-closed：闸自身出错（含 git status 跑不成）绝不静默放行，一律拦停——树没被看过就不能
 //   当成「树是干净的」。不读 stdin：判定只来自工作树，喂什么都不影响结论。
@@ -86,8 +88,6 @@ runFailClosed(async () => {
   let changelogDirty = false;
   let firstCode = '';
   const changed = new Set();
-  // 判进 C1/C2 的脏文件（代码家底 + Spec + CHANGELOG）：advise 去重的签名就从它算
-  const c12Files = [];
 
   // 剥掉仓根到项目目录的前缀（剥不掉的跳过不分类，-- . 限定后理论上不该有），再把 kind
   // 映射回本闸的四个标志。前缀剥法与分类表都在 io.mjs，precompact-gate 用的是同一份。
@@ -97,11 +97,10 @@ runFailClosed(async () => {
     changed.add(rel);
     switch (classifyChange(rel)) {
       case 'progress': progDirty = true; break;
-      case 'spec': specDirty = true; c12Files.push(rel); break;
-      case 'changelog': changelogDirty = true; c12Files.push(rel); break;
+      case 'spec': specDirty = true; break;
+      case 'changelog': changelogDirty = true; break;
       case 'code':
         codeDirty = true;
-        c12Files.push(rel);
         if (!firstCode) firstCode = rel;
         break;
       default: break;
@@ -120,17 +119,22 @@ runFailClosed(async () => {
   for (const p of st.paths) take(p);
 
   const reasons = [];
+  // 与 reasons 同步记原因类型码（C1 / C2a / C2b），advise 去重的签名从它算，不靠解析文案
+  const kinds = [];
 
   if (c12 && codeDirty && !progDirty) {
-    reasons.push(`三文件同步铁律：检测到未提交的代码/家底改动（如 ${firstCode}）但 progress.md 未同步。请把本轮的决策/完成事项/进度/新任务即时写入 progress.md（doc 类主 Agent 直接写），保证随时可 Clear→recap 完整恢复，然后重试停止。`);
+    kinds.push('C1');
+    reasons.push(`三文件同步铁律：检测到未提交的代码/家底改动（如 ${firstCode}）但 progress.md 未同步。把本轮的决策、完成、新任务各记一行进 progress.md（一条一行，证据写提交号或文件路径，过程不抄；doc 类主 Agent 直接写），然后重试停止。`);
   }
 
   // 成对校验只在两份都存在时进行，缺一不强造、不拦停。
   if (c12 && fs.existsSync(path.join(root, 'Product-Spec.md')) && fs.existsSync(path.join(root, 'Product-Spec-CHANGELOG.md'))) {
     if (specDirty && !changelogDirty) {
+      kinds.push('C2a');
       reasons.push('Product-Spec.md 有未提交改动但 Product-Spec-CHANGELOG.md 未同步，需求变更可能漏记 CHANGELOG。请在 Product-Spec-CHANGELOG.md 补本次需求变更记录后重试停止。');
     }
     if (changelogDirty && !specDirty) {
+      kinds.push('C2b');
       reasons.push('Product-Spec-CHANGELOG.md 有未提交改动但 Product-Spec.md 未同步，需求变更须成对更新两份文件。请同步 Product-Spec.md 后重试停止。');
     }
   }
@@ -155,7 +159,7 @@ runFailClosed(async () => {
   const advisedFile = path.join(root, '.claude', '.three-file-sync-advised');
   if (mode === 'advise' && reasons.length === 0) clearAdvised(advisedFile);
   if (mode === 'advise' && reasons.length > 0 && !blocking) {
-    const sig = listSig(c12Files);
+    const sig = listSig(kinds);
     if (recentlyAdvised(advisedFile, sig)) reasons.length = 0;
     else recordAdvised(advisedFile, sig);
   }

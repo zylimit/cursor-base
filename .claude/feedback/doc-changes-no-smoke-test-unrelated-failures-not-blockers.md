@@ -4,7 +4,7 @@ description: 纯文档改动不跑冒烟测试；hook 自动报的门禁失败�
 created: 2026-09-11
 updated: 2026-09-11
 occurrences: 1
-graduated: false
+graduated: true  # 2026-11-22 毕业（前半句）→.claude/CLAUDE.md 铁律 10「闸或 lint 报红先判是不是本次改动造成的」；「纯文档改动不跑冒烟」已由 [审批三档] LOW 行覆盖，不另写
 source_skill: N/A
 scope: 只动 .md / 文档目录的改动；以及任何阶段——用户已圈定当前该做什么时，AI 自己撞见的旁支问题
 exceptions: 文档改动若会被机器闸真正拦住交付（如 pre-commit-check 硬拦提交），仍要处理，但处理的是「让这次交付过去」，不是「把既有债清干净」

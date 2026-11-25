@@ -35,6 +35,7 @@
 - [13 定制与扩展：改主控、加 skill、加 hook、进化引擎](13-customize.md)
 - [14 故障排查](14-troubleshooting.md)
 - [15 术语表](15-glossary.md)
+- [16 人读文档：给接手的人看的工程文档](16-readable-docs.md)
 
 ## 约定
 

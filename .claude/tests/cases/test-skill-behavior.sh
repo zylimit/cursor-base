@@ -36,10 +36,11 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ---- 临时文件统一清理（多 LOG 场景）----
 CLEANUP_FILES=""
+CLEANUP_DIRS=""
 # shellcheck disable=SC2329,SC2317  # trap 注册的退出钩子：脚本以显式 exit "$var" 收尾时 shellcheck 认不出 trap 间接调用，是工具已知误判，非真未调用（SC2329 是 0.10+ 的编号，SC2317 是 0.9 系列同一条判定的旧编号）
 # shellcheck disable=SC2086  # $CLEANUP_FILES 是空格分隔的多个临时文件路径，故意不加引号借词分割逐个传给 rm -f
 # shellcheck disable=SC2015  # 不是伪装 if-else：末尾 || true 恒吞掉 rm -f 的非零退出（防 set -e 误杀），C 恒为 true 不是条件性分支（0.11 起该形状不再报，0.9/0.8 仍报）
-cleanup() { [ -n "$CLEANUP_FILES" ] && rm -f $CLEANUP_FILES 2>/dev/null || true; }
+cleanup() { [ -n "$CLEANUP_FILES" ] && rm -f $CLEANUP_FILES 2>/dev/null || true; [ -n "$CLEANUP_DIRS" ] && rm -rf $CLEANUP_DIRS 2>/dev/null || true; }
 trap cleanup EXIT
 mktemp_log() {
     local f
@@ -72,10 +73,13 @@ TIMEOUT="${CASE_TIMEOUT:-300}"
 ROUTE_PAIRS=(
     "我想做个 todo 应用|product-spec-builder"
     "这个功能坏了，一跑就报错，帮我修一下|bug-fixer"
+    "这个项目下个月要交给另一个团队，他们没参与过开发，给他们出一套能看懂的数据库设计和架构文档|readable-docs|proj"
 )
+# 第三段写 proj 的对：技能一触发就往当前目录写文件（readable-docs 会跑 init、build），不许在仓库根跑——
+# 改在临时目录里装好框架的合成小项目上跑，跑完整个删掉（做法同 handover-docs-triggers-readable-docs.sh）。
 
 echo "########## test-skill-behavior：headless 路由真触发（opt-in）##########"
-echo "项目根（加载 CLAUDE.md）：$ROOT"
+echo "项目根（加载 CLAUDE.md）：$ROOT（标 proj 的对在临时项目里跑，不碰仓库根）"
 echo "路由对数：${#ROUTE_PAIRS[@]}"
 echo "超时（每对）：${TIMEOUT}s"
 echo ""
@@ -92,12 +96,26 @@ ENV_PROBED=0
 for pair in "${ROUTE_PAIRS[@]}"; do
     IDX=$((IDX+1))
     PROMPT="${pair%%|*}"
-    SKILL="${pair##*|}"
+    REST="${pair#*|}"
+    SKILL="${REST%%|*}"
+    RUNDIR="$ROOT"
+    case "$REST" in
+        *'|proj')
+            RUNDIR=$(mktemp -d) || { echo "FAIL: mktemp -d 失败"; exit 1; }
+            CLEANUP_DIRS="$CLEANUP_DIRS $RUNDIR"
+            mkdir -p "$RUNDIR/sql" "$RUNDIR/app"
+            printf '# 示例系统 需求规格\n\n## 功能需求\n- [REQ-A-001] 记录订单 [确认]\n' >"$RUNDIR/Product-Spec.md"
+            printf 'CREATE TABLE orders (id int PRIMARY KEY, status text);\n' >"$RUNDIR/sql/schema.sql"
+            for i in 1 2 3 4; do printf 'def f%s():\n    return %s\n' "$i" "$i" >"$RUNDIR/app/m$i.py"; done
+            git -C "$RUNDIR" init -q
+            bash "$ROOT/setup.sh" "$RUNDIR" >/dev/null 2>&1 || { echo "FAIL: setup.sh 装不进临时项目"; exit 1; }
+            ;;
+    esac
     LOG=$(mktemp_log)
 
     echo ">>> [$IDX/${#ROUTE_PAIRS[@]}] 路由：$PROMPT → $SKILL"
     echo "  运行 claude -p（最长 ${TIMEOUT}s）…"
-    ( cd "$ROOT" && timeout "$TIMEOUT" claude -p "$PROMPT" \
+    ( cd "$RUNDIR" && timeout "$TIMEOUT" claude -p "$PROMPT" \
         --dangerously-skip-permissions \
         --verbose \
         --output-format stream-json \

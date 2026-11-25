@@ -19,6 +19,10 @@
 #   引号开头的值原样不剥。
 # --dry-run：一个字节不写。做法是把本仓 feedback 目录拷进临时目录、真逻辑照跑一遍再丢掉，
 #   所以多个下游里重名文件的计划和真跑时一致，不会因为「还没写」而把第二个也报成 new。
+# 人读文档状态：统计行之前给每个项目多报一行（--dry-run 同样报），看下游的文档跟没跟上。
+#   数取自 <项目>/.claude/scripts/ 里项目自己装的 project-status.mjs 与 readable-docs.mjs（不用本仓的），
+#   由同目录 collect-feedback-docs.mjs 取（解析 JSON、60 秒超时，不依赖 timeout 命令）；只读，不写下游任何东西。
+#   核对不一致 / 待更新 / 配置漏项有一个非 0，行首是 `! `；跑不成写「取不到（原因）」，不影响收取与退出码。
 # 退出码：0 成功；1 路径或环境不对（路径不存在 / 不是目录 / 没有 .claude/feedback/）；2 选项用错。
 set -u
 
@@ -206,6 +210,12 @@ collect_one() {
 
 for s in "${SRCS[@]}"; do
   collect_one "$s"
+done
+
+# 状态行不可失败：node 缺了或帮手崩了也只是少一行，收取早已完成
+for s in "${SRCS[@]}"; do
+  node "$(dirname "$0")/collect-feedback-docs.mjs" "$s" 2>/dev/null \
+    || printf '  人读文档  %s：取不到（帮手脚本没跑起来）\n' "$(basename "$s")"
 done
 
 [ "$DRY" = "1" ] && printf 'collect-feedback: dry-run，未写入任何文件\n'
