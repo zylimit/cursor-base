@@ -81,6 +81,20 @@ export function readStdinJson() {
   }
 }
 
+/**
+ * 从事件对象提取子 Agent 标识；主会话或坏输入返回空串。
+ * 依次认 agent_id、轨迹路径 …/subagents/<id>.jsonl、Cursor IDE 远端回调的 parent_tool_call_id。
+ * 只读 ev 自身字段，不读外层环境变量，防止单测喂裸 JSON 或主会话继承环境时被外层干扰。
+ */
+export function subagentIdOf(ev) {
+  if (!ev || typeof ev !== 'object') return '';
+  if (ev.agent_id) return String(ev.agent_id);
+  const m = /(?:^|\/)subagents\/([^/]+?)(?:\.jsonl)?$/.exec(toPosix(String(ev.transcript_path || '')));
+  if (m) return m[1];
+  if (ev.parent_tool_call_id) return String(ev.parent_tool_call_id);
+  return '';
+}
+
 /** 项目根：CLAUDE_PROJECT_DIR → git 顶层 → cwd。 */
 export function projectDir() {
   const env = process.env.CLAUDE_PROJECT_DIR;

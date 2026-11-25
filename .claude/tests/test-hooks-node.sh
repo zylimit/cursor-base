@@ -276,6 +276,12 @@ run_hook no-direct-code-guard "$SB" \
 chk "$([ "$RC" -eq 0 ] && silent && echo 0 || echo 1)" \
     "ND 同一份写入带 agent_id（事件来自子 Agent 内）→ rc 0 零输出（闸守的是主 Agent 不亲自编码，写 src/ 正是 implementer 的活）" \
     "rc=0 无输出" "rc=$RC out=[$(show "$OUT")] err=[$(show "$ERRT")]"
+run_hook no-direct-code-guard "$SB" '{"parent_tool_call_id":"tc1","tool_input":{"file_path":"src/app.ts"}}'; NDR1=$RC; NDS1=$(silent && echo Y || echo N)
+run_hook no-direct-code-guard "$SB" '{"transcript_path":"/t/p1/subagents/s1.jsonl","tool_input":{"file_path":"src/app.ts"}}'; NDR2=$RC; NDS2=$(silent && echo Y || echo N)
+run_hook no-direct-code-guard "$SB" '{"transcript_path":"/t/p1/p1.jsonl","tool_input":{"file_path":"src/app.ts"}}'
+chk "$([ "$NDR1" -eq 0 ] && [ "$NDS1" = Y ] && [ "$NDR2" -eq 0 ] && [ "$NDS2" = Y ] && [ "$RC" -eq 2 ] && [ -n "$ERRT" ] && [ -z "$OUT" ] && echo 0 || echo 1)" \
+    "ND-2 无 agent_id 但带 parent_tool_call_id 或 /subagents/s1.jsonl → rc 0 零输出；主会话 transcript_path 仍 rc 2 拦截" \
+    "子会话两条 rc=0 静默，主会话轨迹 rc=2 且 stderr 非空" "p=$NDR1/$NDS1 sub=$NDR2/$NDS2 main=$RC err=[$(show "$ERRT")]"
 
 SB=$(newsb nt-basic)
 run_hook notify "$SB" '{"message":"NOTIFY-PROBE done"}'

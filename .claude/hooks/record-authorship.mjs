@@ -4,8 +4,8 @@
 //   verdict 于是永远走「账本为空 → authorshipEnforced:false」——规则只存在于文字里。
 //   Claude Code 的 hook 输入在 sub-agent 内触发时带 agent_type / agent_id，这正是账本缺的那一半。
 // 谁算作者：agent_type 优先（角色名才是评审侧 review lens --agent <id> 用得上的同一把钥匙），
-//   缺则退 agent_id，两者都无 = 主 Agent 自己在写，记 main。agentType 字段原样传 agent_type
-//   （空串由引擎归一为 null），agentId 才是匹配键。
+//   缺则退 subagentIdOf（agent_id / subagents 轨迹路径 / parent_tool_call_id），都无 = 主 Agent
+//   自己在写，记 main。agentType 字段原样传 agent_type（空串由引擎归一为 null），agentId 才是匹配键。
 // 启用条件与降级：catalog 存在才跑——大仓治理默认关闭，无 catalog 时立刻退出，不写任何文件、
 //   不调引擎（可判定的降级，非假绿）。
 // 档位（profile.json）：三档全 on——fast 档同样记账。作者账本一断，review 的「评审者不是作者」
@@ -14,7 +14,7 @@
 //   只往 stderr 写一行说明；引擎调用套 10 秒超时，一次卡死不许拖住每一次 Edit。
 import fs from 'node:fs';
 import path from 'node:path';
-import { projectDir, readStdinJson, toPosix, say, fastOff, runFailOpen } from './lib/io.mjs';
+import { projectDir, readStdinJson, subagentIdOf, toPosix, say, fastOff, runFailOpen } from './lib/io.mjs';
 import { harnessEnabled, harnessRun } from './lib/harness.mjs';
 
 const RECORD_TIMEOUT_MS = 10000;
@@ -58,7 +58,7 @@ runFailOpen(async () => {
   if (!filePath) return;
 
   const agentType = ev && ev.agent_type ? String(ev.agent_type) : '';
-  const author = agentType || (ev && ev.agent_id ? String(ev.agent_id) : '') || 'main';
+  const author = agentType || subagentIdOf(ev) || 'main';
 
   const rel = repoRel(root, filePath);
   if (rel === null) return;

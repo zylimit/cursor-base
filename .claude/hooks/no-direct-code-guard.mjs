@@ -1,6 +1,6 @@
 // PreToolUse(Edit|Write)：检测主 Agent 是否直接写业务源码，是则警告并 exit 2 拦下。
 // 档位（profile.json）：off 静默放行；advise（fast 档）只警告不拦（exit 0）；block 走原逻辑。
-import { readStdinJson, toPosix, say, gateModeOf, runFailOpen } from './lib/io.mjs';
+import { readStdinJson, subagentIdOf, toPosix, say, gateModeOf, runFailOpen } from './lib/io.mjs';
 import { gateLog } from './lib/gatelog.mjs';
 
 // 框架文件放行（.claude/ / CLAUDE.md / Product-Spec / DEV-PLAN / progress / feedback / agents / skills / hooks / *.md）
@@ -13,10 +13,11 @@ runFailOpen(async () => {
   if (mode === 'off') return;
 
   const ev = readStdinJson();
-  // 子 Agent 里的写入一律放行：settings 里的 hook 在子 Agent 内同样触发，事件多带 agent_id /
-  // agent_type（官方 hooks 文档明写）。这个闸守的是「主 Agent 不亲自编码」，implementer 写
-  // src/ 本就是它的活——2026-09-15 实测 implementer 写 src/app.ts 被本闸 rc=2 拦下。
-  if (ev && ev.agent_id) return;
+  // 子 Agent 里的写入一律放行：settings 里的 hook 在子 Agent 内同样触发，Claude Code 事件带
+  // agent_id，Cursor IDE 远端 RPC 回调不传 agent_id 但带 parent_tool_call_id 与 subagents/ 轨迹路径。
+  // 这个闸守的是「主 Agent 不亲自编码」，implementer 写 src/ 本就是它的活——2026-09-15 实测
+  // implementer 写 src/app.ts 被本闸 rc=2 拦下。
+  if (subagentIdOf(ev)) return;
 
   const input = ev ? (ev.tool_input || {}) : {};
   // 反斜杠先归一：Windows 侧事件里是 src\app.ts，不归一这条闸在那边等于不存在
