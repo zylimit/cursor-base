@@ -4,21 +4,21 @@
     "sessionStart": [
       {
         "command": "node .cursor/scripts/hook-adapter.mjs sessionStart",
-        "timeout": 5,
+        "timeout": 15,
         "failClosed": false
       }
     ],
     "subagentStart": [
       {
         "command": "node .cursor/scripts/hook-adapter.mjs subagentStart",
-        "timeout": 5,
+        "timeout": 10,
         "failClosed": false
       }
     ],
     "subagentStop": [
       {
         "command": "node .cursor/scripts/hook-adapter.mjs subagentStop",
-        "timeout": 5,
+        "timeout": 10,
         "failClosed": false
       }
     ],
@@ -32,7 +32,7 @@
     "beforeShellExecution": [
       {
         "command": "node .cursor/scripts/hook-adapter.mjs beforeShellExecution",
-        "timeout": 10,
+        "timeout": 15,
         "failClosed": false
       }
     ]

@@ -1,2 +1,0 @@
-{"type":"tool_use","name":"Skill","input":{"skill":"OTHER-skill"}}
-{"type":"tool_use","name":"Read","input":{"skill":"product-spec-builder","note":"文本/别的事件里只是提到了 product-spec-builder 这个名字，并非真调它"}}

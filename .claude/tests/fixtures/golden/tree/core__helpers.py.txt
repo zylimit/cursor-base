@@ -1,2 +1,0 @@
-def format_id(raw):
-    return raw.strip().lower()

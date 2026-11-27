@@ -1,68 +1,103 @@
-# cursor-base
+# cursor-base (v3.0.0 — Zero-Copy Link Edition)
 
-cc-base 的 Cursor 发行版。cc-base 是一套给 Claude Code 用的产品开发框架——SiteMaster 人设、从需求到发布的全流程 Skill、主 Agent 只派单不编码的 Sub-Agent 模型、hook 闸门与档位。Cursor（IDE 与 `cursor-agent` CLI）原生会读 `.claude/` 下的 CLAUDE.md、skills、agents 和 settings.json 的 hooks，所以本仓不另写一套，就是 cc-base 原件加一层很薄的适配：
+`cc-base` 的全平台零拷贝软链（Zero-Copy Link）Cursor 发行版，全面支持 **Windows PowerShell + WSL + Linux + macOS**。
 
-```
+自 v3.0.0 起，`cursor-base` 彻底告别拷贝 500+ 个 `.claude/` 文件与手工运行 `sync-from-cc-base.sh` 的旧模式：上游 `.claude/`（`cc-base`）作为唯一规则/技能/角色/钩子真相源，`.cursor/` 仅持有 9 个轻量级适配文件 + 2 份无损合并配置（`hooks.json` / `cli.json`）+ 跨平台 OS 目录软链（`.cursor/skills`）+ 自动自愈生成物（`cc-base-claude.mdc` 与 `.cursor/agents/*.md`），且做到**下游项目根目录零文件侵入**（原根级宿主说明已迁入 `.cursor/rules/cc-base-cursor-host.mdc`）。
+
+## 目录结构
+
+```text
 cursor-base/
-├── .claude/                 # cc-base 原件（CLAUDE.md / rules / skills / agents / hooks / scripts / tests …）
-│   └── settings.json        # 已转成 Cursor 认的 string form（hook 命令是单字符串）
-├── .cursor/
-│   ├── agents/              # 从 .claude/agents 生成：model: inherit、同时禁 Write+Edit 带 readonly: true、正文开头多三句
-│   ├── rules/               # 从 .claude/CLAUDE.md 生成：cc-base-claude.mdc（alwaysApply: true 强注入主控规则）
-│   ├── skills               # 本地相对软链 -> ../.claude/skills（setup/sync 建链，经 .cursor/.gitignore 不入库）
-│   ├── .gitignore           # 忽略本地目录软链 /skills 与运行态（防 git 跟踪目录软链让 scan-secrets 退 3）
-│   ├── agents-models.json   # 要给某个角色钉模型就写这里，gen-agents 读它（没有就全部 inherit）
-│   ├── scripts/             # gen-agents.mjs、gen-rules.mjs、hook-adapter.mjs、cursor-hook-preload.mjs
-│   ├── hooks.json           # 原生互补 hooks（beforeReadFile / beforeShellExecution / sessionStart / subagentStart / subagentStop，与 settings.json 零重复）
-│   ├── tests/               # 适配层自测（不装进目标项目）
-│   ├── cc-base-files.txt    # 上次同步的 cc-base 清单（同步脚本写，据此删 cc-base 已没有的文件）
-│   ├── cc-base-version.txt  # 上次同步的 cc-base 提交与日期
-│   └── cli.json             # Cursor CLI 侧权限：密钥文件读写一律 deny
-├── AGENTS.md                # Cursor 每次请求都读：指向 .claude/CLAUDE.md，只写宿主差异
-├── setup.sh / setup.ps1     # cc-base 原件的安装器（支持 --hook-form string）
-├── setup-cursor.sh          # 装到目标项目：setup.sh --hook-form string + 铺 .cursor/（含 skills 软链）与 AGENTS.md
-├── sync-from-cc-base.sh     # 从 cc-base 仓同步原件，转 string form，重生成 agents / rules 并确保 skills 软链
-├── docs/                    # cc-base 原件
-├── progress.md              # 本仓的项目记忆
-└── README.md
+├── setup.ps1                         # 纯 7-bit ASCII 无 BOM PowerShell 安装入口 -> scripts/cursor-base.mjs
+├── setup.sh                          # POSIX sh 安装入口 -> scripts/cursor-base.mjs
+├── setup-cursor.sh                   # 向后兼容入口（薄壳转发至 setup.sh）
+├── cc-base-contract.json             # 对上游 cc-base (.claude/) 的能力契约声明
+├── package.json                      # Node >= 20 ESM 工程脚本定义（零 npm 依赖）
+├── scripts/
+│   ├── cursor-base.mjs               # 事务安装/升级/v2迁移/卸载/自检/清单/离线合包 CLI 内核
+│   └── lib/
+│       ├── path-guard.mjs            # Windows 保留名/系统目录/越界路径前置护栏
+│       ├── link-manager.mjs          # Windows NTFS Junction + POSIX 相对软链幂等管理与安全拆链
+│       ├── cc-dep.mjs                # 三层解耦 cc-base 寻源联装 (--hook-form string) 与 --bundle-cc 合包
+│       ├── config-merge.mjs          # hooks.json / cli.json 无损合并及 .claude/settings.json string form 转换
+│       └── manifest.mjs              # LF-SHA256 清单校验与开发者路径/密钥反泄漏扫描
+└── .cursor/                          # 注入下游项目的轻量级适配壳
+    ├── .gitattributes / .gitignore   # 忽略本地 OS 软链 skills、生成物与运行态 .runtime/
+    ├── FRAMEWORK-MANIFEST.json       # 受管适配文件的 LF-SHA256 清单（seeded: [] 零根文件侵入）
+    ├── hooks.json                    # 五事件正交互补钩子（与 .claude/settings.json 零重复）
+    ├── cli.json                      # Cursor CLI 权限护栏（密钥读写一律 deny）
+    ├── rules/
+    │   └── cc-base-cursor-host.mdc   # 宿主适配协议（alwaysApply: true，承接原根级 AGENTS.md）
+    └── scripts/
+        ├── hook-adapter.mjs          # 5 事件适配器（含 sessionStart 毫秒级指纹自愈 + beforeShellExecution 双壳地板）
+        ├── cursor-hook-preload.mjs   # 窄作用域 NODE_OPTIONS 子代理 agent_id 身份桥接
+        ├── ps-floor.mjs              # Bash + PowerShell + CMD 跨平台危险命令与密钥外泄硬地板
+        ├── gen-rules.mjs             # .claude/CLAUDE.md -> .cursor/rules/cc-base-claude.mdc 生成器
+        ├── gen-agents.mjs            # .claude/agents/*.md -> .cursor/agents/*.md 生成与联合指纹计算
+        └── doctor.mjs                # 双模式（源仓 / 下游项目）完整性与形态健康自检
 ```
 
-## 要求
+## 环境要求
 
-- Node.js 22 或更新（hook 与脚本都是 .mjs，单运行时）
-- Git
-- Cursor IDE，或 Cursor CLI（`curl https://cursor.com/install -fsS | bash`，命令名 `cursor-agent`；安装脚本会把 `~/.local/bin/agent` 也指向它，机器上有别的工具占着这个名字的话装完改回去）
-- Cursor 的「Include Third-Party Plugins, Skills, and Other Configs」保持默认开启（用于加载 `.claude/settings.json` 的主干 hooks；即使关闭，`.cursor/rules`、`.cursor/skills`、`.cursor/agents` 与 `.cursor/hooks.json` 仍原生生效，开启时 `.cursor/skills` 按 `realpath` 自动去重零重复）
+- **Node.js >= 20.0.0**（零第三方 npm 依赖，单运行时）
+- **Git**
+- **Cursor IDE** 或 **Cursor CLI**（`cursor-agent`）
+- Cursor 设置中「Include Third-Party Plugins, Skills, and Other Configs」保持默认开启（即使关闭，`.cursor/rules`、`.cursor/skills` 联接、`.cursor/agents` 与 `.cursor/hooks.json` 仍 100% 原生生效；开启时 Cursor 按 `realpath` 自动去重零重复）
 
-## 装到一个项目
+## 一键安装与三层 `cc-base` 自动联装
+
+### Linux / macOS / WSL / Git Bash
 
 ```sh
-git clone https://github.com/zylimit/cursor-base.git
-cd cursor-base
-./setup-cursor.sh /path/to/your-project
+./setup.sh /path/to/your-project
+# 或指定上游 cc-base 路径并同步升级底座：
+./setup.sh /path/to/your-project --with-cc --cc-base /path/to/cc-base
 ```
 
-装完进项目目录敲 `cursor-agent`（或在 IDE 里打开），开场应看到 SiteMaster 横幅和「🔒 CC框架核心铁律」。没看到横幅先跑 `bash .claude/scripts/doctor.sh`，再核对 `node .claude/scripts/hook-form.mjs --check` 打印的是 `string`。
+### Windows PowerShell
 
-同一个项目也能继续用 Claude Code（或叠加 Antigravity `agy-base`）：string form 的 hook 两个宿主都认，`.claude/` 原件一个字没改。
+```powershell
+pwsh -File .\setup.ps1 D:\work\your-project
+# 或指定上游 cc-base 路径：
+pwsh -File .\setup.ps1 -Target D:\work\your-project -WithCc -CcBase D:\work\cc-base
+```
 
-**拉框架更新或重装之后，退出 Cursor 重开一个新会话。** Cursor 的会话只用进程启动那一刻读到的 hook 列表，配置文件后来改了也不重新加载，`--resume` 接回的旧会话同样不行。从 `v2.1.1-legacy` 升上来时这一条最要紧：旧会话里还挂着 `node .cursor/runtime/harness.mjs` 且 fail closed，那个文件一删，每次工具调用都报 `Cannot find module .cursor/runtime/harness.mjs` 被拦，会话里的 AI 自己也修不了（修复动作走同一条工具通道）。重开新会话即恢复，不用改任何文件。
+安装器内置**三层解耦 `cc-base` 寻源策略**：
+1. **Tier 1（复用已有底座）**：目标项目已有合规 `.claude/` 时直接零拷贝复用（传 `--with-cc` 则同步升级 `.claude/`）。
+2. **Tier 2（一步自动联装）**：目标缺 `.claude/` 且未设 `--no-auto-cc` 时，按 `--cc-base <dir>` → `.bundled-cc-base` → `$CC_BASE_DIR` → `../cc-base` 顺序自动调用上游 `cc-base` 安装器并默认传 `--hook-form string`，一步装齐 `.claude/` + `.cursor/`。
+3. **Tier 3（先装壳后自愈）**：无可用源或显式传 `--no-auto-cc` 时先装入 `.cursor/` 适配壳并正常退出（exit `0`）；后续装好 `cc-base` 后打开新 Cursor 会话即由 `sessionStart` 毫秒级自动补齐软链、生成物与 `string` form 转换。
 
-## Cursor 下跟 Claude Code 的差异
+> **重要提示**：升级框架或重装后，请**退出并重开新 Cursor 会话**（Cursor 仅在会话启动时读取一次 hook 注册表，`--resume` 旧会话不会重新加载新路径）。
 
-全在 AGENTS.md，装进目标项目后那份就在项目根。要点：hook 必须是 string form；Notification / PostCompact / UserPromptExpansion 三个事件 Cursor 没有；`.cursor/hooks.json` + `hook-adapter.mjs` + `cursor-hook-preload.mjs` 正交补齐 `beforeReadFile`（`failClosed: true` 密钥读取硬护栏）、`beforeShellExecution`（发布类命令弹 `ask` 确认）与子代理 `preToolUse`/`postToolUse` 缺 `agent_id` 的身份桥接；子代理模型走 `.cursor/agents/` 的 `inherit`（仅同时禁 `Write` 与 `Edit` 时输出 `readonly: true`），要钉模型写 `.cursor/agents-models.json`。
-
-## 跟 cc-base 同步
+## 常用运维与离线合包命令
 
 ```sh
-./sync-from-cc-base.sh /path/to/cc-base
-bash .claude/tests/cases/run-all.sh
-bash .cursor/tests/test-adapter.sh
-git add -A && git commit
+# 预览安装计划（零磁盘写入）
+node scripts/cursor-base.mjs install /path/to/your-project --dry-run
+
+# 下游项目健康自检（校验 string form、skills 软链枚举数、生成物与 SHA256 清单）
+node /path/to/your-project/.cursor/scripts/doctor.mjs
+
+# 升级适配层（用户手工改过的文件保留原件并旁落 *.cursor-new；旧版 v2 根级 AGENTS.md 自动归档至 .cursor/.runtime/）
+node scripts/cursor-base.mjs upgrade /path/to/your-project
+
+# 安全卸载（仅摘除 .cursor/skills 联接与受管生成物，100% 不触碰 .claude/）
+node scripts/cursor-base.mjs uninstall /path/to/your-project
+
+# 源仓全量打包门禁自检
+node scripts/cursor-base.mjs pack-check
+
+# 构建含离线 .bundled-cc-base 的单包发行制品
+node scripts/cursor-base.mjs release v3.0.0 --bundle-cc /path/to/cc-base --out /tmp/cursor-base-v3.0.0.tar.gz
 ```
 
-同步按 cc-base HEAD 的清单覆盖原件，显式绑定 `CLAUDE_PROJECT_DIR` 转 string form，重写 `.cursor/agents/` 与 `.cursor/rules/cc-base-claude.mdc`，确保本地 `.cursor/skills -> ../.claude/skills` 软链（经 `.cursor/.gitignore` 排除不进 git 索引，防目录软链让 `scan-secrets` 报 `not-a-regular-file` 退 3）并写两份同步记录；不碰本仓的 README.md、progress.md、progress.archive.md、.gitignore、AGENTS.md、`.cursor/.gitignore`、`.cursor/cli.json`、`.cursor/hooks.json`、`.cursor/agents-models.json`、`.cursor/scripts/`（`gen-agents.mjs`、`gen-rules.mjs`、`hook-adapter.mjs`、`cursor-hook-preload.mjs`）、`.cursor/skills`、`.cursor/tests/` 和两个适配脚本。
+## 多端零冲突共存
 
-## 旧版本
+同一代码仓库可同时安装 `cc-base`（Claude Code）+ `cursor-base`（Cursor）+ `cac-base-link`（CodeAgent CLI）+ `agy-base`（Antigravity）：
+- `cursor-base` 将 `.claude/settings.json` 保持为 `string` form（Claude Code / Antigravity / CodeAgent 均完全兼容），且绝不修改 `.cac/settings.json`；
+- 根目录零文件侵入（`seeded: []`），各宿主规则在各自隐藏目录内正交生效。
 
-2.1.1 之前的 cursor-base 是一套独立的治理引擎（TypeScript harness、assurance profile、hash 链账本），2026-11-04 起停止维护，完整保留在 tag `v2.1.1-legacy`。
+## 历史版本
+
+- `v2.2.0-bundled-backup`：v3.0.0 纯软链化之前的最后一版全量内嵌 `.claude/` 快照。
+- `v2.1.1-legacy`：早期独立 TypeScript harness 治理引擎归档快照。

@@ -1,6 +1,0 @@
-{"type":"assistant","message":{"content":[{"type":"text","text":"我直接动手写代码。"}]}}
-{"type":"tool_use","name":"Edit","input":{"file_path":"src/app.tsx"}}
-{"type":"tool_use","name":"Bash","input":{"command":"npm init -y"}}
-{"type":"tool_use","name":"Skill","input":{"skill":"product-spec-builder"}}
-{"type":"tool_result","tool_use_id":"t1","content":"skill loaded"}
-{"type":"assistant","message":{"content":[{"type":"text","text":"补一下需求文档。"}]}}

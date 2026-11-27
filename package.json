@@ -1,0 +1,19 @@
+{
+  "name": "cursor-base",
+  "version": "3.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zero-copy single-source-of-truth Cursor edition linking cc-base (.claude/) to Cursor (.cursor/) across Windows PowerShell, WSL, Linux, and macOS.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "install:target": "node scripts/cursor-base.mjs install",
+    "doctor": "node .cursor/scripts/doctor.mjs --source-check",
+    "manifest": "node scripts/cursor-base.mjs manifest --write",
+    "manifest:check": "node scripts/cursor-base.mjs manifest --check",
+    "pack-check": "node scripts/cursor-base.mjs pack-check",
+    "test": "node .cursor/tests/run-all.mjs --level high",
+    "test:all": "node .cursor/tests/run-all.mjs --level all"
+  }
+}

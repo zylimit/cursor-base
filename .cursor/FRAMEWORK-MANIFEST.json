@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "engine": "cursor-base",
+  "seeded": [],
+  "files": [
+    {
+      "path": ".cursor/.gitattributes",
+      "sha256": "ce14d607cb27b28823c55f3b5735b3896819c1ba02bd8da33aa729cf3300f3f7",
+      "bytes": 91
+    },
+    {
+      "path": ".cursor/.gitignore",
+      "sha256": "23856e5d1f35a57c27a18d03d88b0e7efe6243483d2ec37efd604a1edba342ba",
+      "bytes": 291
+    },
+    {
+      "path": ".cursor/rules/cc-base-cursor-host.mdc",
+      "sha256": "0429693d5bc487801541283ce67e3e38babe3717b05675c62e9a6029ee33048b",
+      "bytes": 7141
+    },
+    {
+      "path": ".cursor/scripts/cursor-hook-preload.mjs",
+      "sha256": "ccc7f682abcf10de4f36877913f319ed615f0094adbf414c54026815afba25f8",
+      "bytes": 8958
+    },
+    {
+      "path": ".cursor/scripts/doctor.mjs",
+      "sha256": "01ead2bdaa6953c5e6c6cb301a756efeee1c7a37e4ae5db081f4d0cbdd899da0",
+      "bytes": 24218
+    },
+    {
+      "path": ".cursor/scripts/gen-agents.mjs",
+      "sha256": "97fdd4d0da30efe1e95e4cc783849b8f7fe03a30e6e83740cd29db834b551462",
+      "bytes": 11615
+    },
+    {
+      "path": ".cursor/scripts/gen-rules.mjs",
+      "sha256": "3b0cfa8ada78f293e0720ae6fdbef50982a7bb00f9b7a54574a3ed8af4cf98fa",
+      "bytes": 4152
+    },
+    {
+      "path": ".cursor/scripts/hook-adapter.mjs",
+      "sha256": "0ecd2437e138a88859f7495308131b5f9aeef10936b488b0a6afa2cc35fcd4be",
+      "bytes": 28187
+    },
+    {
+      "path": ".cursor/scripts/ps-floor.mjs",
+      "sha256": "7dd4a86711fc9c44424198131089f34174e1bb5ab672e49c7a5c2c42340fe8e8",
+      "bytes": 48811
+    }
+  ]
+}

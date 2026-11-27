@@ -1,4 +1,12 @@
-# 本地生成的目录软链与运行态：git 跟踪目录软链会让 scan-secrets 判 not-a-regular-file 退 3
+# 本地生成的 OS 目录联接、生成物与运行态：严禁入库（防 git 跟踪目录软链触发密钥扫描器异常或产生跨仓漂移）
 /skills
+/skills/
+/agents/
+/rules/cc-base-claude.mdc
+/.runtime/
 /harness-state/
 /worktrees.json
+*.bak
+*.bak-*
+*.cursor-new
+*.framework-new

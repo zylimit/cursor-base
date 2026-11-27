@@ -1,29 +1,94 @@
-// cursor-hook-preload.mjs — Cursor 子代理身份桥接预加载模块（由 sessionStart 经 NODE_OPTIONS --import 注入）。
+// cursor-hook-preload.mjs — Cursor 子代理身份桥接与多宿主目录待审豁免预加载模块（由 sessionStart 经 NODE_OPTIONS --import 注入）。
 //
-// 精确作用面：仅当入口脚本归一化后匹配 /.claude/hooks/(no-direct-code-guard|record-authorship).mjs 时启用；
+// 精确作用面：仅当入口脚本归一化后匹配 /.claude/hooks/(no-direct-code-guard|record-authorship|mark-review-needed).mjs 时启用：
+//   1. no-direct-code-guard / record-authorship：存在活跃子代理时按 conversation_id 补齐 agent_id 与 agent_type；
+//   2. mark-review-needed：不依赖活跃子代理列表，当 tool_input.file_path 落在项目根级 .cursor/、.cac/、.agents/ 或 .claude/ 下时，
+//      将其改写为空串 "" 以免四端共存的宿主治理文件污染 .claude/.needs-review；
 // 其余任何 Node 进程（含 harness.mjs）零副作用立即返回。
 import fs from 'node:fs';
 import path from 'node:path';
 import { syncBuiltinESMExports } from 'node:module';
 
-const TARGET_HOOK_RE = /\/\.claude\/hooks\/(no-direct-code-guard|record-authorship)\.mjs$/;
+const TARGET_HOOK_RE = /\/\.claude\/hooks\/(no-direct-code-guard|record-authorship|mark-review-needed)\.mjs$/;
+const HOST_SCAFFOLD_REL_RE = /^(\.cursor|\.cac|\.agents|\.claude)(\/|$)/;
 const SUBAGENT_TTL_MS = 30 * 60 * 1000;
 const STDIN_WAIT_MAX_MS = 3000;
 const STDIN_RETRY_MS = 5;
 
-function resolveRoot(entryPosix) {
+function resolveRoot(entryPosix, evObj = null) {
   const claudeDir = (process.env.CLAUDE_PROJECT_DIR || '').trim();
   const cursorDir = (process.env.CURSOR_PROJECT_DIR || '').trim();
   const envRoot = claudeDir || cursorDir;
   if (envRoot) return path.resolve(envRoot);
 
+  if (evObj && typeof evObj === 'object') {
+    const ws0 = Array.isArray(evObj.workspace_roots) && typeof evObj.workspace_roots[0] === 'string'
+      ? evObj.workspace_roots[0].trim()
+      : '';
+    if (ws0) return path.resolve(ws0);
+    if (typeof evObj.cwd === 'string' && evObj.cwd.trim()) {
+      const evCwd = path.resolve(evObj.cwd.trim());
+      try {
+        if (fs.statSync(path.join(evCwd, '.claude')).isDirectory() || fs.statSync(path.join(evCwd, '.cursor')).isDirectory()) {
+          return evCwd;
+        }
+      } catch (_e) { /* ignore */ }
+    }
+  }
+
   const cwd = process.cwd();
   try {
-    if (fs.statSync(path.join(cwd, '.claude', 'evidence', '.cursor-subagents')).isDirectory()) {
+    if (fs.statSync(path.join(cwd, '.claude')).isDirectory() || fs.statSync(path.join(cwd, '.cursor')).isDirectory()) {
       return cwd;
     }
   } catch (_e) { /* 目录不存在时继续回退 */ }
   return path.resolve(path.dirname(entryPosix), '..', '..');
+}
+
+function realish(p) {
+  const abs = path.resolve(String(p));
+  let cur = abs;
+  const tail = [];
+  for (;;) {
+    try {
+      const real = fs.realpathSync.native ? fs.realpathSync.native(cur) : fs.realpathSync(cur);
+      return tail.length ? path.join(real, ...tail) : real;
+    } catch (_e) {
+      const parent = path.dirname(cur);
+      if (parent === cur) return abs;
+      tail.unshift(path.basename(cur));
+      cur = parent;
+    }
+  }
+}
+
+function isHostScaffoldFilePath(rawFilePath, root) {
+  if (typeof rawFilePath !== 'string' || !rawFilePath.trim()) return false;
+  const rootAbs = path.resolve(root);
+  const rootPosix = rootAbs.replace(/\\/g, '/').replace(/\/+$/, '');
+  const raw = rawFilePath.replace(/\\/g, '/');
+  const isAbs = path.isAbsolute(rawFilePath) || raw.startsWith('/') || /^[A-Za-z]:\//.test(raw);
+  const litAbs = isAbs ? raw : `${rootPosix}/${raw}`;
+
+  let rel = '';
+  const sameOrChild = process.platform === 'win32'
+    ? (litAbs.toLowerCase() === rootPosix.toLowerCase() || litAbs.toLowerCase().startsWith(`${rootPosix.toLowerCase()}/`))
+    : (litAbs === rootPosix || litAbs.startsWith(`${rootPosix}/`));
+
+  if (sameOrChild) {
+    rel = litAbs.slice(rootPosix.length + 1);
+  } else {
+    const candidateAbs = isAbs ? rawFilePath : path.join(rootAbs, rawFilePath);
+    const relId = path.relative(realish(rootAbs), realish(candidateAbs));
+    if (!relId || relId === '..' || relId.startsWith('../') || relId.startsWith(`..${path.sep}`) || path.isAbsolute(relId)) {
+      return false;
+    }
+    rel = relId.replace(/\\/g, '/');
+  }
+
+  const folded = path.posix.normalize(rel);
+  if (!folded || folded === '.' || folded === '..' || folded.startsWith('../')) return false;
+  return HOST_SCAFFOLD_REL_RE.test(folded);
 }
 
 function loadActiveSubagents(root) {
@@ -74,7 +139,7 @@ function readAllStdinBuffer(origReadSync) {
   return Buffer.concat(chunks);
 }
 
-function transformStdinBuffer(rawBuf, activeList) {
+function transformSubagentStdinBuffer(rawBuf, activeList) {
   if (rawBuf.length === 0) return rawBuf;
   try {
     const parsed = JSON.parse(rawBuf.toString('utf8'));
@@ -97,15 +162,43 @@ function transformStdinBuffer(rawBuf, activeList) {
   }
 }
 
+function transformMarkReviewStdinBuffer(rawBuf, entryPosix) {
+  if (rawBuf.length === 0) return rawBuf;
+  try {
+    const parsed = JSON.parse(rawBuf.toString('utf8'));
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return rawBuf;
+    }
+    const ti = parsed.tool_input;
+    if (!ti || typeof ti !== 'object' || Array.isArray(ti) || typeof ti.file_path !== 'string') {
+      return rawBuf;
+    }
+    const root = resolveRoot(entryPosix, parsed);
+    if (!isHostScaffoldFilePath(ti.file_path, root)) {
+      return rawBuf;
+    }
+    parsed.tool_input = { ...ti, file_path: '' };
+    return Buffer.from(JSON.stringify(parsed), 'utf8');
+  } catch (_e) {
+    return rawBuf;
+  }
+}
+
 function installPreload() {
   const rawArg1 = process.argv[1];
   if (typeof rawArg1 !== 'string' || !rawArg1) return;
   const entryPosix = path.resolve(rawArg1).replace(/\\/g, '/');
-  if (!TARGET_HOOK_RE.test(entryPosix)) return;
+  const m = TARGET_HOOK_RE.exec(entryPosix);
+  if (!m) return;
 
-  const root = resolveRoot(entryPosix);
-  const activeList = loadActiveSubagents(root);
-  if (activeList.length === 0) return;
+  const hookName = m[1];
+  const isMarkReview = hookName === 'mark-review-needed';
+  let activeList = [];
+  if (!isMarkReview) {
+    const root = resolveRoot(entryPosix);
+    activeList = loadActiveSubagents(root);
+    if (activeList.length === 0) return;
+  }
 
   const origReadSync = fs.readSync;
   let cachedBuf = null;
@@ -125,7 +218,10 @@ function installPreload() {
       len = typeof length === 'number' ? length : (buffer.byteLength - offset);
     }
     if (cachedBuf === null) {
-      cachedBuf = transformStdinBuffer(readAllStdinBuffer(origReadSync), activeList);
+      const rawStdin = readAllStdinBuffer(origReadSync);
+      cachedBuf = isMarkReview
+        ? transformMarkReviewStdinBuffer(rawStdin, entryPosix)
+        : transformSubagentStdinBuffer(rawStdin, activeList);
       cachedOffset = 0;
     }
     if (len <= 0 || cachedOffset >= cachedBuf.length) return 0;

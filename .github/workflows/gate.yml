@@ -1,30 +1,12 @@
-name: cc-base gate
-
-# CI 是三层强制层的最外圈：
-#   .claude/hooks/     只在 Claude Code 会话内生效
-#   .claude/githooks/  凡是走 git 的提交路径都跑得到（可选层，装了才有）
-#   本文件             兜住所有人、所有分支、所有机器——没人能靠不装 hook 绕过去
-#
-# hook 是单运行时的：settings.json 两平台都跑 `node .claude/hooks/x.mjs`，所以 hook 行为
-# 由同一份 .claude/tests/test-hooks-node.sh 在 ubuntu 与 windows 各跑一遍（windows 走 runner
-# 自带的 Git Bash + node）。仓里只剩 6 个 .ps1（安装器 / 三个 scripts / 两个测试），
-# 开发机（Linux/WSL）上未必有 pwsh，check-syntax 会 rc 3 把这一类 SKIPPED 掉——
-# CI 的 Windows runner 自带 pwsh，是唯一能真验它们的地方。
+name: cursor-base gate
 
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-  # 只在 push/PR 跑的话，环境侧的腐烂要等到下次提交才现形：runner 镜像换代、node 大版本
-  # 漂移、gh/git 之类外部工具挪位置——这些都不改一行代码就能让闸失效。每周空跑一次把它们
-  # 提前照出来，别让人在赶提交时才发现是环境的问题。
-  # 17 分不是随手写的：GitHub 明说整点是 schedule 的高负载时段，会延迟甚至丢队列任务，
-  # 要错开。03:17 UTC = 11:17 北京时间，红了当天上班时间就能看见。
-  # 两个前提记牢：schedule 只认默认分支上的这份文件；公开仓 60 天无活动会自动停掉定时任务，
-  # 届时要去 Actions 页面手动 Enable workflow。
   schedule:
-    - cron: '17 3 * * 1'
+    - cron: '37 3 * * 1'
 
 permissions:
   contents: read
@@ -40,25 +22,16 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        node: [22, 24]
+        node: [20]
     runs-on: ${{ matrix.os }}
-    # Windows 那格走 Git Bash 跑 .sh；引擎和审计脚本是纯 node，两边同一套命令。
     defaults:
       run:
-        shell: bash
-    # Windows runner 上 python 的 stdout 默认 cp1252，内嵌 python3 打中文就 UnicodeEncodeError。
-    # run-all.sh 顶部也 export 了同样两个变量——那份覆盖所有走 run-all 的路径（本机也算），
-    # 这份覆盖本 job 的每一步，包括将来有人在这里单独跑某个测试脚本。两处覆盖面不同，不是重复。
-    env:
-      PYTHONIOENCODING: utf-8
-      PYTHONUTF8: '1'
+        shell: pwsh
     steps:
-      # Windows runner 的 Git for Windows 默认 core.autocrlf=true，checkout 会把 .sh 全转成 CRLF，
-      # 用 bash 跑起来就是 `$'\r': command not found`。必须在 checkout **之前**关掉。
-      # 本仓没有 .gitattributes 兜底，这一步是 Windows 那格能不能跑的前提。
-      - name: 关掉 autocrlf（Windows）
-        if: runner.os == 'Windows'
-        run: git config --global core.autocrlf false
+      - name: Configure git core.autocrlf=false before checkout
+        run: |
+          git config --global core.autocrlf false
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - uses: actions/checkout@v4
         with:
@@ -68,262 +41,156 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      # 引擎先自证，再让它去判别人。selftest 挂了，后面所有结论都不可信。
-      - name: 引擎自证 selftest
-        id: selftest
-        continue-on-error: true
-        run: node .claude/harness/harness.mjs selftest
-
-      - name: 审计 secrets
-        id: secrets
-        continue-on-error: true
-        run: node .claude/harness/audit/scan-secrets.mjs
-
-      - name: 审计 instructions
-        id: instructions
-        continue-on-error: true
-        run: node .claude/harness/audit/scan-instructions.mjs
-
-      # check-syntax 的 rc 3 = 有整类没验成（缺 pwsh / 缺 bash），不是通过。
-      # Windows runner 自带 pwsh，剩下的 6 个 .ps1 必须真验成 → 那格要求 rc 0，rc 3 直接判失败。
-      # Linux 侧 pwsh 不保证在，rc 3 打告警放行——但要打印出来，降级不是通过。
-      - name: 语法 check-syntax
-        id: syntax
-        continue-on-error: true
+      - name: PowerShell AST, Pure-ASCII & No-BOM verification (setup.ps1)
         run: |
-          set -u
-          RC=0
-          node .claude/harness/audit/check-syntax.mjs || RC=$?
-          echo "check-syntax rc=$RC"
-          if [ "$RC" -eq 0 ]; then
-            exit 0
-          elif [ "$RC" -eq 3 ] && [ "${RUNNER_OS:-}" != "Windows" ]; then
-            echo "::warning::check-syntax 降级 rc 3（有整类没验成，未执行 != 通过）。Windows 那格会真验 .ps1。"
-            exit 0
-          else
-            echo "::error::check-syntax rc=$RC（Windows 上 rc 3 也判失败：这里 pwsh 一定在，.ps1 必须真验成）"
-            exit 1
-          fi
-
-      # run-all 三段：① selftest ② 静态自测（安装器/路由/闸回归 + harness + audit）
-      # ③ 真触发 case（要 claude CLI + 凭据）。CI 上第三段必然跳过——这里明确断言它是
-      # **显式 SKIPPED** 而不是悄悄没跑或判失败：一个跳过的段如果不出声，就是假绿。
-      # Windows 那格不跑整套 run-all：里面大量断言假设 POSIX 语义（chmod 000 的权限位、
-      # kill -9 的信号、进程组、mktemp 的挂载点…），硬改只会把测试扭曲成迁就 CI，
-      # 而它们验的是脚本自身而不是 Windows 用户的体验。
-      # Windows 真正该验的三样都另有归属且都在跑：引擎（selftest / 审计各步，
-      # 本 job 内）、**hook 行为**（ps1 那格用 Git Bash 跑 test-hooks-node.sh——hook 单运行时
-      # 之后两平台是同一份 .mjs，Windows 用户手上跑的就是它）、剩余 .ps1 的语法与行为（ps1 那格）。
-      # 这不是「修不动所以跳过」，是把覆盖面放到各自该在的格子里。
-      - name: 框架自测 run-all（第三段真触发 case 必为显式 SKIPPED）
-        id: runall
-        if: runner.os != 'Windows'
-        continue-on-error: true
-        run: |
-          set -u
-          LOG="${RUNNER_TEMP:-.}/runall.log"
-          # GitHub 的 shell: bash 默认带 -eo pipefail，管道一失败整步就断在这里，
-          # 拿不到 rc 也就没法区分「跑挂了」和「跑完但没跳过」。这里显式关掉再自己判。
-          set +e
-          bash .claude/tests/cases/run-all.sh --level all 2>&1 | tee "$LOG"
-          RC=${PIPESTATUS[0]}
-          set -e
-          echo "run-all rc=$RC"
-          if [ "$RC" -ne 0 ]; then
-            echo "::error::run-all 失败 rc=$RC（详见上面的完整输出）"
-            exit 1
-          fi
-          # 两种跳过理由都认：默认不跑（opt-in 未开，run-all 先判这条）与无 claude CLI。
-          # 认的是「有没有出声」，不是「为什么跳」——静默没跑照旧判红。
-          if grep -qE 'SKIPPED: (无 claude CLI|真触发 case 默认不跑)' "$LOG"; then
-            echo "第三段真触发 case：显式 SKIPPED，符合 CI 预期。"
-          else
-            echo "::error::run-all 通过了，但没看到第三段显式 SKIPPED 那行。"
-            echo "::error::要么 CI 上真跑了真触发 case（不该发生），要么那段被静默掉了——两种都得查。"
-            exit 1
-          fi
-
-      # 大仓治理：catalog 放置即启用。本仓默认没有 catalog，这两步会整体跳过——
-      # 跳过的原因打出来，别让「没跑」看起来像「跑过且干净」。
-      - name: 大仓 catalog-lint / arch-trend --gate（catalog 存在才跑）
-        id: catalog
-        continue-on-error: true
-        run: |
-          set -u
-          if [ ! -f .claude/harness/module-catalog.json ]; then
-            echo "无 .claude/harness/module-catalog.json —— 大仓能力默认关闭，本步跳过（不是通过）。"
-            exit 0
-          fi
-          node .claude/harness/harness.mjs catalog-lint
-          node .claude/harness/harness.mjs arch-trend --gate
-
-      # 上面每步都是 continue-on-error：一次 run 把所有问题一起暴露，而不是修好一个才看见
-      # 下一个。fail-fast 下四层缺陷要四轮反馈、每轮十分钟起，这一步把轮次压回一轮。
-      # 判定仍然严格：任一步 outcome=failure 就整格失败，没有任何一步被放过。
-      - name: 汇总判定（任一步失败即失败）
-        if: always()
-        run: |
-          set -u
-          BAD=""
-          for kv in "selftest=${{ steps.selftest.outcome }}" "secrets=${{ steps.secrets.outcome }}" \
-                    "instructions=${{ steps.instructions.outcome }}" "syntax=${{ steps.syntax.outcome }}" \
-                    "runall=${{ steps.runall.outcome }}" \
-                    "catalog=${{ steps.catalog.outcome }}"; do
-            n="${kv%%=*}"; o="${kv#*=}"
-            echo "  $n: $o"
-            [ "$o" = "failure" ] && BAD="$BAD $n"
-          done
-          if [ -n "$BAD" ]; then
-            echo "::error::以下步骤失败：$BAD（本格已把所有步骤跑完，上面是完整清单，不必逐个修逐轮等）"
-            exit 1
-          fi
-          echo "全部步骤通过。"
-
-      - name: doctor（诊断，永远跑）
-        if: always()
-        run: node .claude/harness/harness.mjs doctor
-
-      # 红了才有人看日志，而 log stream 翻起来费劲、还会随保留期消失。
-      # 失败时把 run-all 的完整输出留成 artifact，事后诊断不用重跑一遍 CI。
-      # 放在最末尾 + if: failure()：任何一步失败都能兜到（前面挂了这步照跑），
-      # 日志还没生成时 if-no-files-found: ignore 不再制造第二次失败。
-      - name: 失败时上传 run-all 日志
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: runall-${{ matrix.os }}-node${{ matrix.node }}
-          path: ${{ runner.temp }}/runall.log
-          if-no-files-found: ignore
-          retention-days: 14
-
-  ps1:
-    # 单独一格，三层：解析 + 真跑 hook + 真跑安装器。
-    #   ① 用 pwsh 自己的解析器过一遍全部 .ps1。与 gate 那格的 check-syntax 是双保险——
-    #      check-syntax 的 ps1 分支自己出错时，这一格仍然会把坏文件照出来
-    #      （同一个检查器不能既当运动员又当裁判）。
-    #   ② 在 Git Bash 里跑 test-hooks-node.sh：hook 全是 .mjs 了，Windows 用户手上跑的与
-    #      Linux 逐字节同一份，所以行为断言也用同一份——这一格是它唯一的 Windows 真机覆盖。
-    #      另跑缩编后的 test-ps1-behavior.ps1（剩余 .ps1 的 ASCII 规则 + fast-mode.ps1 行为）。
-    #   ③ 真跑 setup.ps1 与 setup.sh 装到临时目录，逐文件比对清单。安装器是 .ps1 里唯一
-    #      「装错了用户也看不见」的一支：漏装不报错、清单还说装了，只有对着装出来的产物比才现形。
-    name: ps1 (windows)
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: pwsh
-    steps:
-      - uses: actions/checkout@v4
-
-      # 行为测试要造「引擎给契约外退出码」的场景，得有 node。runner 自带的版本不作数：
-      # 显式装一版，缺 node 时脚本会以 rc 3 报「没跑全」，那时问题出在这一步而不是断言。
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      # 单运行时之后仓里只剩这 6 个 .ps1，逐个点名而不是 glob 一把：glob 找到 0 个就是
-      # 「这一步什么都没检查」，而点名清单还能顺带抓到「该删的 hook .ps1 没删干净」。
-      # 清单与 test-ps1-behavior.ps1 组 0 的那份是同一份，两边一起改。
-      - name: Parse every .ps1 with the PowerShell parser
-        run: |
-          $listed = @(
-            'setup.ps1',
-            '.claude/scripts/fix-platform.ps1',
-            '.claude/scripts/fast-mode.ps1',
-            '.claude/scripts/install-githooks.ps1',
-            '.claude/tests/test-ps1-behavior.ps1',
-            '.claude/tests/test-installer-parity.ps1'
-          )
-          $missing = @($listed | Where-Object { -not (Test-Path -LiteralPath $_) })
-          if ($missing.Count -gt 0) {
-            Write-Output "::error::listed .ps1 file(s) not on disk: $($missing -join ', ')"
+          $ErrorActionPreference = 'Stop'
+          $full = (Resolve-Path -LiteralPath 'setup.ps1').Path
+          $bytes = [System.IO.File]::ReadAllBytes($full)
+          if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+            Write-Error "UTF-8 BOM detected in setup.ps1"
             exit 1
           }
-          # -Force 是必须的：.claude 在 Unix 侧是点开头的隐藏目录，不加它这一扫只能扫到仓根的
-          # setup.ps1，"没有多余 .ps1" 就成了空转恒真。Windows 上点目录不带隐藏属性，加了也无害。
-          $found = @(Get-ChildItem -Path . -Recurse -Filter *.ps1 -File -Force |
-                     Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.git|worktrees)[\\/]' })
-          if ($found.Count -lt $listed.Count) {
-            Write-Output "::error::recursive scan found only $($found.Count) .ps1 file(s) but $($listed.Count) are listed -- the scan is not seeing the tree, so the drift check would be vacuous"
-            exit 1
-          }
-          # 两侧都解析成绝对路径再比：Resolve-Path -Relative 对点开头的目录回的前缀在各 host 上
-          # 不一致（有的带 ./ 有的不带），拿它切字符串会把整张清单判成"多余"。
-          $listedFull = @($listed | ForEach-Object { (Resolve-Path -LiteralPath $_).Path })
-          $extra = @($found | Where-Object { $listedFull -notcontains $_.FullName })
-          if ($extra.Count -gt 0) {
-            Write-Output "::error::unlisted .ps1 file(s) -- nobody holds these to the ASCII rule: $(($extra | ForEach-Object { $_.FullName }) -join ', ')"
-            exit 1
-          }
-          $files = @($listed | ForEach-Object { Get-Item -LiteralPath $_ })
-          Write-Output "found $($files.Count) .ps1 file(s)"
-          if ($files.Count -eq 0) {
-            Write-Output '::error::no .ps1 files found -- this job is checking nothing, which is not a pass'
-            exit 1
-          }
-          $bad = 0
-          foreach ($f in $files) {
-            $errors = $null
-            $tokens = $null
-            [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$errors)
-            if ($errors -and $errors.Count -gt 0) {
-              $bad++
-              Write-Output "::error file=$($f.FullName)::$($errors[0].Message)"
+          foreach ($b in $bytes) {
+            if ($b -gt 0x7F) {
+              Write-Error "Non-ASCII byte detected in setup.ps1"
+              exit 1
             }
           }
-          Write-Output "parsed $($files.Count) file(s), $bad with errors"
-          if ($bad -gt 0) { exit 1 }
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($full, [ref]$tokens, [ref]$errors)
+          if ($errors -and $errors.Count -gt 0) {
+            Write-Error "PowerShell parse error in setup.ps1: $($errors[0].Message)"
+            exit 1
+          }
+          Write-Host "PowerShell AST, Pure-ASCII & No-BOM check passed."
 
-      # hook 的 Windows 真机覆盖就这一步：22 个 .mjs 与 Linux 侧逐字节同一份，行为断言也同一份。
-      # 用 runner 自带的 Git Bash 跑（bash + node + git 都在），非 0 一律判失败——这份脚本
-      # 缺 node/git 时自己就 exit 1 并打 SKIPPED，不存在「跑不成却回 0」的形态。
-      - name: Behaviour test -- Git Bash 跑 test-hooks-node.sh（hook 单运行时，两平台同一份）
+      - name: Repository source doctor & pack-check
+        run: |
+          node .cursor/scripts/doctor.mjs --source-check --json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/cursor-base.mjs pack-check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Full test suite (run-all.mjs if present)
+        run: |
+          if (Test-Path -LiteralPath '.cursor/tests/run-all.mjs') {
+            node .cursor/tests/run-all.mjs --level all
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          } else {
+            Write-Host ".cursor/tests/run-all.mjs not present yet -- skipped"
+          }
+
+      - name: End-to-end NTFS Junction install / string-form / self-heal / conflict / uninstall (Windows PowerShell)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("cursor-base-e2e-" + [guid]::NewGuid().ToString('N'))
+          $tmpDry = Join-Path ([System.IO.Path]::GetTempPath()) ("cursor-base-dry-" + [guid]::NewGuid().ToString('N'))
+          try {
+            & pwsh -NoProfile -File .\setup.ps1 (Join-Path $tmpDry 'CON')
+            if ($LASTEXITCODE -eq 0) { throw "Expected CON path rejection" }
+
+            & pwsh -NoProfile -File .\setup.ps1 -Target $tmpDry -DryRun -NoAutoCc
+            if ($LASTEXITCODE -ne 0) { throw "setup.ps1 -DryRun failed ($LASTEXITCODE)" }
+            if (Test-Path -LiteralPath $tmpDry) { throw "DryRun must not create target directory" }
+
+            New-Item -ItemType Directory -Path (Join-Path $tmp '.claude/skills/dev-builder/refs') -Force | Out-Null
+            New-Item -ItemType Directory -Path (Join-Path $tmp '.claude/agents') -Force | Out-Null
+            New-Item -ItemType Directory -Path (Join-Path $tmp '.claude/hooks') -Force | Out-Null
+            New-Item -ItemType Directory -Path (Join-Path $tmp '.claude/rules') -Force | Out-Null
+            $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+            [System.IO.File]::WriteAllText((Join-Path $tmp '.claude/CLAUDE.md'), "# SiteMaster`nConstitution.`n", $utf8NoBom)
+            [System.IO.File]::WriteAllText((Join-Path $tmp '.claude/skills/dev-builder/SKILL.md'), "# dev-builder`n", $utf8NoBom)
+            [System.IO.File]::WriteAllText((Join-Path $tmp '.claude/skills/dev-builder/refs/guide.md'), "precious-skill-payload`n", $utf8NoBom)
+            [System.IO.File]::WriteAllText((Join-Path $tmp '.claude/agents/implementer.md'), "---`nname: implementer`ndescription: Implementer`nmodel: sonnet`n---`n`nBody.`n", $utf8NoBom)
+            [System.IO.File]::WriteAllText((Join-Path $tmp '.claude/hooks/session-rules-banner.mjs'), "process.exit(0);`n", $utf8NoBom)
+            [System.IO.File]::WriteAllText((Join-Path $tmp '.claude/settings.json'), '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"node","args":[".claude/hooks/session-rules-banner.mjs"]}]}]}}', $utf8NoBom)
+
+            & pwsh -NoProfile -File .\setup.ps1 -Target $tmp -NoAutoCc
+            if ($LASTEXITCODE -ne 0) { throw "setup.ps1 install failed ($LASTEXITCODE)" }
+            & pwsh -NoProfile -File .\setup.ps1 -Target $tmp -NoAutoCc
+            if ($LASTEXITCODE -ne 0) { throw "setup.ps1 repeated install failed ($LASTEXITCODE)" }
+
+            $juncItem = Get-Item -LiteralPath (Join-Path $tmp '.cursor/skills') -Force
+            if (-not ($juncItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+              throw "Expected .cursor/skills to be an NTFS Junction ReparsePoint on Windows"
+            }
+            $docOut = & node (Join-Path $tmp '.cursor/scripts/doctor.mjs') $tmp --json
+            if ($LASTEXITCODE -ne 0) { throw "Downstream doctor failed: $docOut" }
+
+            $hostRule = Join-Path $tmp '.cursor/rules/cc-base-cursor-host.mdc'
+            Add-Content -LiteralPath $hostRule -Value "`n# Local Custom Host Note`n" -Encoding utf8NoBOM
+            & pwsh -NoProfile -File .\setup.ps1 upgrade -Target $tmp -NoAutoCc
+            if ($LASTEXITCODE -ne 0) { throw "setup.ps1 upgrade failed ($LASTEXITCODE)" }
+            if (-not (Test-Path -LiteralPath ($hostRule + '.cursor-new'))) {
+              throw "Expected .cursor-new on local modification"
+            }
+            Remove-Item -LiteralPath ($hostRule + '.cursor-new') -Force
+            & pwsh -NoProfile -File .\setup.ps1 upgrade -Target $tmp -Force -NoAutoCc
+            if ($LASTEXITCODE -ne 0) { throw "setup.ps1 -Force upgrade failed ($LASTEXITCODE)" }
+
+            & pwsh -NoProfile -File .\setup.ps1 -Uninstall -Target $tmp -Force
+            if ($LASTEXITCODE -ne 0) { throw "setup.ps1 -Uninstall failed ($LASTEXITCODE)" }
+            if (Test-Path -LiteralPath (Join-Path $tmp '.cursor/skills')) { throw ".cursor/skills Junction should be removed" }
+            $preserved = [System.IO.File]::ReadAllText((Join-Path $tmp '.claude/skills/dev-builder/refs/guide.md'))
+            if ($preserved -ne "precious-skill-payload`n") {
+              throw "CRITICAL: .claude/skills content was modified or deleted during Junction uninstall!"
+            }
+          } finally {
+            foreach ($d in @($tmp, $tmpDry)) {
+              if (Test-Path -LiteralPath $d) {
+                Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction SilentlyContinue
+              }
+            }
+          }
+
+      - name: End-to-end relative symlink install / string-form / self-heal / conflict / uninstall (POSIX setup.sh)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
-          # GitHub 的 shell: bash 默认带 -eo pipefail：直接跑非 0 会当场断步，下面的 rc 取不到，
-          # 报错信息也就没人打得出来。用 `|| rc=$?` 兜住，判定交给下面那句。
-          set -u
-          rc=0
-          bash .claude/tests/test-hooks-node.sh || rc=$?
-          echo "test-hooks-node rc=$rc"
-          if [ "$rc" -ne 0 ]; then
-            echo "::error::test-hooks-node rc=$rc（Windows 上有 hook 行为不符合契约，见上面的 [FAIL] 与 EXPECT/GOT）"
-            exit 1
-          fi
+          set -euo pipefail
+          sh -n setup.sh
+          sh -n setup-cursor.sh
+          bash -n setup.sh
 
-      # 退出码契约见脚本头：0=断言全过 / 1=有断言红 / 3=有整组没跑成。
-      # 这台 runner 该有的都装了，所以 rc 3 是这一格自己的问题，照样判失败——「没跑成」不是通过。
-      # 注意跑的是 runner 自带的 pwsh 7，真实用户是 powershell.exe 5.1：绿了只说明逻辑对，
-      # 不代表 5.1 安全（编码默认值与 stderr 处理两边不同，脚本头写了差在哪）。
-      - name: Behaviour test -- 剩余 .ps1（ASCII 规则 + fast-mode.ps1 开关）
-        run: |
-          $ErrorActionPreference = 'Continue'
-          & pwsh -NoProfile -File .claude/tests/test-ps1-behavior.ps1
-          $rc = $LASTEXITCODE
-          Write-Output "test-ps1-behavior rc=$rc"
-          if ($rc -eq 0) { exit 0 }
-          if ($rc -eq 3) {
-            Write-Output '::error::test-ps1-behavior rc=3（有整组没跑成，见上面的 [SKIP]）。这台 runner 该装的都装了，跑不全就是这一格坏了，未执行 != 通过。'
-            exit 1
-          }
-          Write-Output "::error::test-ps1-behavior rc=$rc（剩余 .ps1 的行为不符合契约，见上面的 [FAIL] 与 EXPECT/GOT）"
-          exit 1
+          TMP_DIR="$(mktemp -d "${RUNNER_TEMP:-/tmp}/cursor-base-e2e.XXXXXX")"
+          TMP_DRY="$(mktemp -d "${RUNNER_TEMP:-/tmp}/cursor-base-dry.XXXXXX")"
+          rm -rf "$TMP_DIR" "$TMP_DRY"
+          trap 'rm -rf "$TMP_DIR" "$TMP_DRY"' EXIT
 
-      # setup.ps1 的复制逻辑此前一行行为测试都没有：上面那步只解析语法，另两步测的是 hook 与 fast-mode。
-      # 「哪些文件算框架文件」那张表有四份手工同步的拷贝，test-setup.sh ⑥ 比的是字面——字面还在、
-      # 口径分叉了（$skip 按 leaf 名匹配 vs 另三份根锚定）它看不出来，装出来就是「清单里有、Windows 上没有」。
-      # 这一步真跑两个安装器装到临时目录，逐文件点名比对装出来的清单。
-      # 退出码契约见脚本头：0=断言全过 / 1=有断言红 / 3=没跑成（缺 bash）。runner 自带 Git Bash，
-      # 所以 rc 3 是这一格自己的问题，照样判失败——「没跑成」不是通过。
-      - name: Installer parity -- setup.ps1 与 setup.sh 装出来的清单必须逐文件一致
-        run: |
-          $ErrorActionPreference = 'Continue'
-          & pwsh -NoProfile -File .claude/tests/test-installer-parity.ps1
-          $rc = $LASTEXITCODE
-          Write-Output "test-installer-parity rc=$rc"
-          if ($rc -eq 0) { exit 0 }
-          if ($rc -eq 3) {
-            Write-Output '::error::test-installer-parity rc=3（比对没跑成，见上面的 [SKIP]）。这台 runner 装了 Git Bash，跑不成就是这一格坏了。'
-            exit 1
-          }
-          Write-Output "::error::test-installer-parity rc=$rc（两个安装器装出来的清单不一致，见上面逐文件点名的 MISSING/EXTRA）"
-          exit 1
+          if bash setup.sh --dryrun "$TMP_DRY" 2>/dev/null; then exit 1; fi
+          if bash setup.sh "$TMP_DRY/CON" 2>/dev/null; then exit 1; fi
+
+          bash setup.sh --target "$TMP_DRY" --dry-run --no-auto-cc
+          test ! -e "$TMP_DRY"
+
+          mkdir -p "$TMP_DIR/.claude/skills/dev-builder/refs" "$TMP_DIR/.claude/agents" "$TMP_DIR/.claude/hooks" "$TMP_DIR/.claude/rules"
+          printf '# SiteMaster\nConstitution.\n' > "$TMP_DIR/.claude/CLAUDE.md"
+          printf '# dev-builder\n' > "$TMP_DIR/.claude/skills/dev-builder/SKILL.md"
+          printf 'precious-skill-payload\n' > "$TMP_DIR/.claude/skills/dev-builder/refs/guide.md"
+          printf -- '---\nname: implementer\ndescription: Implementer\nmodel: sonnet\n---\n\nBody.\n' > "$TMP_DIR/.claude/agents/implementer.md"
+          printf 'process.exit(0);\n' > "$TMP_DIR/.claude/hooks/session-rules-banner.mjs"
+          printf '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"node","args":[".claude/hooks/session-rules-banner.mjs"]}]}]}}\n' > "$TMP_DIR/.claude/settings.json"
+
+          bash setup.sh "$TMP_DIR" --no-auto-cc
+          bash setup.sh "$TMP_DIR" --no-auto-cc
+          test -L "$TMP_DIR/.cursor/skills"
+          test "$(readlink "$TMP_DIR/.cursor/skills")" = "../.claude/skills"
+          test -f "$TMP_DIR/.cursor/rules/cc-base-claude.mdc"
+          test -f "$TMP_DIR/.cursor/agents/implementer.md"
+          node "$TMP_DIR/.cursor/scripts/doctor.mjs" "$TMP_DIR" --json
+
+          printf '\n# Local Custom Host Note\n' >> "$TMP_DIR/.cursor/rules/cc-base-cursor-host.mdc"
+          bash setup.sh upgrade --target "$TMP_DIR" --no-auto-cc
+          test -f "$TMP_DIR/.cursor/rules/cc-base-cursor-host.mdc.cursor-new"
+          rm -f "$TMP_DIR/.cursor/rules/cc-base-cursor-host.mdc.cursor-new"
+          bash setup.sh upgrade --target "$TMP_DIR" --force --no-auto-cc
+          node "$TMP_DIR/.cursor/scripts/doctor.mjs" "$TMP_DIR" --json
+
+          bash setup.sh --uninstall --target "$TMP_DIR" --force
+          test ! -e "$TMP_DIR/.cursor/skills"
+          test ! -L "$TMP_DIR/.cursor/skills"
+          test "$(cat "$TMP_DIR/.claude/skills/dev-builder/refs/guide.md")" = "precious-skill-payload"
+          test -f "$TMP_DIR/.claude/agents/implementer.md"

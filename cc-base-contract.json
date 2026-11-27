@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "upstream": "cc-base",
+  "claudeDir": ".claude",
+  "defaultHookForm": "string",
+  "requiredFiles": [
+    "CLAUDE.md",
+    "settings.json"
+  ],
+  "requiredDirs": [
+    "rules",
+    "skills",
+    "agents",
+    "hooks"
+  ],
+  "minSkills": 15,
+  "requiredAgents": [
+    "code-reviewer",
+    "deployer",
+    "domain-recorder",
+    "evolution-runner",
+    "feedback-observer",
+    "implementer",
+    "progress-recorder",
+    "tester"
+  ],
+  "requiredHooks": [
+    "session-rules-banner.mjs",
+    "no-direct-code-guard.mjs",
+    "record-authorship.mjs",
+    "pre-commit-check.mjs",
+    "dangerous-pkill-guard.mjs",
+    "secret-exfil-guard.mjs",
+    "tdd-gate.mjs",
+    "mark-review-needed.mjs",
+    "stop-gate.mjs",
+    "three-file-sync-gate.mjs",
+    "subagent-acceptance-reminder.mjs"
+  ]
+}

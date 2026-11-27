@@ -1,0 +1,39 @@
+---
+description: cursor-base 宿主适配协议（五事件正交互补、string form、子代理身份桥接、缺失事件自觉守则与 Link v3.0.0 零根文件架构）
+globs:
+alwaysApply: true
+---
+
+# cursor-base — Cursor 宿主适配协议（v3.0.0 Zero-Copy Link）
+
+本项目使用 `cursor-base` v3.0.0 纯软链（Zero-Copy Link）架构接入 `cc-base` 产品开发治理框架：
+- **单一真相源**：`.claude/`（由 `cc-base` 提供）持有全部主控宪法、规则细则、技能 `SKILL.md`、子代理定义与治理钩子。
+- **根目录零文件侵入**：项目根不投放框架 `AGENTS.md`；主控规则由自动生成的 `.cursor/rules/cc-base-claude.mdc`（`alwaysApply: true`）在每轮对话全文强注入，本文件只承载 Cursor 宿主与 Claude Code 的差异协议。若 `.cursor/rules/cc-base-claude.mdc` 尚未生成或被截断，**先完整读 `.claude/CLAUDE.md`，再按它办事**。
+
+## 1. Cursor 里原生生效与自动自愈的部件
+
+- **`.cursor/rules/cc-base-claude.mdc`**：由 `.cursor/scripts/gen-rules.mjs` 从 `.claude/CLAUDE.md` 生成的 `alwaysApply: true` 主控规则（人设、路由、十条铁律、审批三档），`sessionStart` 按联合指纹毫秒级核对并自动刷新零漂移，弱模型或关闭第三方 `.claude/` 导入时同样稳定生效。
+- **`.cursor/skills -> .claude/skills`**：跨平台 OS 目录联接（Windows 免管理员 NTFS Junction / POSIX 相对软链 `../.claude/skills`，经 `.cursor/.gitignore` 排除不入库，防目录软链触发密钥扫描器异常）；斜杠 `/技能名` 可调，`disable-model-invocation: true` 的（`release-builder` / `branch-finisher`）只许用户亲自触发。开启第三方 `.claude/` 导入时 Cursor 按 `realpath` 自动去重零重复。
+- **`.cursor/agents/*.md`**：由 `.cursor/scripts/gen-agents.mjs` 从 `.claude/agents/*.md` 自动生成并由 `sessionStart` 按指纹自愈；`Task` 工具派发（fresh 上下文、可并行、子代理只许再嵌套一层），`.cursor/agents/` 优先级高于 `.claude/agents/`。
+- **`.claude/settings.json` 与 `.cursor/hooks.json` 五事件正交互补**：
+  - `.claude/settings.json`（必须是 `string` form）：负责 `SessionStart` / `UserPromptSubmit` / `PreToolUse` / `PostToolUse` / `Stop` / `SubagentStop` / `PreCompact` 主干治理闸门；exit `2` 拦截生效，`hookSpecificOutput.additionalContext` 注入生效，`Stop` 的 `decision: "block"` 转为追问。
+  - `.cursor/hooks.json`（`.cursor/scripts/hook-adapter.mjs` + `cursor-hook-preload.mjs` + `ps-floor.mjs`）：只补 `.claude/settings.json` 覆盖不到的 5 个原生缺口，与主干闸门零重复执行——`sessionStart`（毫秒级自愈 `.cursor/skills` 软链、`cc-base-claude.mdc`、`agents/*.md`、`.claude/settings.json` string form，并注入子代理 `NODE_OPTIONS` 与未追踪父仓 `GIT_CEILING_DIRECTORIES`）、`subagentStart` + `subagentStop`（维护活跃子代理原子状态表）、`beforeReadFile`（`failClosed: true` 多跳悬空软链与敏感文件读取硬拦截）、`beforeShellExecution`（前置 `ps-floor.mjs` Bash + PowerShell 双壳危险命令与密钥外泄硬拦截 `deny` + exit `2`，并对 HIGH 档发布命令弹原生 `ask` 确认）。
+
+## 2. Cursor 与 Claude Code 的关键差异（必守）
+
+- **hook 注册必须是 `string` form**：`"command": "node .claude/hooks/<name>.mjs"`，不带 `args` 键。Cursor 忽略 `exec` form 的 `args`（会导致 `node` 空读 stdin 不跑任何闸门），而 Claude Code / Antigravity / CodeAgent 均完全兼容 `string` form。安装器与 `sessionStart` 会自动确保 `.claude/settings.json` 保持 `string` form。
+- **工具名映射**：`Bash` → `Shell`、`Edit` → `Write`，派发子代理工具名为 `Task`（`tool_input` 含 `description` / `prompt` / `subagent_type`，与 `Agent|Task` matcher 双向兼容）。
+- **三个事件 Cursor 没有**：`Notification`（`notify.mjs`）、`PostCompact`（`postcompact-reinject.mjs`）、`UserPromptExpansion`（`release-gate.mjs`）。
+  - **发布前置自觉核查**：`release-gate.mjs` 在 Cursor 下不会由斜杠展开自动触发——用户敲 `/release-builder` 时，**主 Agent 必须自己先读 `.claude/.needs-review` 确认是 `clean`**、待审清单清零且全量测试报绿后才进发布流程。
+  - **压缩前后自觉动作**：`preCompact` 在 Cursor 下只能观察不能阻断，上下文压缩前先把关键决策写入 `progress.md`；压缩后没有自动回注，先执行 `/recap-project` 再继续。
+- **子代理工具事件缺 `agent_id` 的身份桥接**：Cursor 在子代理触发 `preToolUse` / `postToolUse` 时 stdin 不带 `agent_id`。本层通过 `subagentStart` / `subagentStop` 维护 `.claude/evidence/.cursor-subagents/` 原子状态表，并由 `sessionStart` 返回 `env.NODE_OPTIONS` 挂载窄作用域 `cursor-hook-preload.mjs`（仅当入口脚本匹配 `/.claude/hooks/(no-direct-code-guard|record-authorship)\.mjs$` 时按 `conversation_id` 自动补齐 `agent_id` 与 `agent_type`，其余任何 Node 进程零副作用）。
+- **`cursor-agent -p`（print 模式）触发边界**：print 模式下只触发 `sessionStart` 与工具类事件，`UserPromptSubmit` / `Stop` / `SubagentStop` 在脚本化 `-p` 调用中不触发。
+- **纯文本 stdout 不进上下文**：hook 注入提示必须输出嵌套 JSON。
+- **子代理模型与生成规则**：cc-base 的 `model: sonnet / opus` 在无 Claude 配额账号下无法启动，故 `.cursor/agents/*.md` 默认统一生成 `model: inherit` 跟主 Agent 走；如需为特定角色钉模型，在 `.cursor/agents-models.json` 写 `{"code-reviewer": "auto"}`。生成版把 `skills:`、`disallowedTools:`、`memory: project` 内联进正文开头，且仅在同时禁用 `Write` 与 `Edit` 时在 frontmatter 输出 `readonly: true`（内置 `code-reviewer` 需写 `agent-memory` 故不设 `readonly: true`）。切勿手改生成物；若需定制专属角色，复制改名即可（生成器只清理注释源名等于自身文件名的失源文件）。
+- **严禁借 Shell 重定向绕闸写业务代码**：用 `> file`、`tee`、`sed -i`、`Set-Content` 写源码虽不经 `Edit`/`Write` 工具，但属于违纪绕闸——写业务代码一律派 `implementer`。
+
+## 3. 安装、升级、自检与卸载（v3.0.0）
+
+- **一键安装 / 升级**（Windows PowerShell：`pwsh -File .\setup.ps1 <target>`；Linux / macOS / WSL：`./setup.sh <target>`；或 `node scripts/cursor-base.mjs install <target>`）：自动按三层策略寻源联装 `cc-base`（默认 `--hook-form string`）、建好 `.cursor/skills` 联接、无损合并 `hooks.json` 与 `cli.json`、生成 `cc-base-claude.mdc` 与 `agents/*.md`。拉取框架更新或重装后，请**退出并重开新 Cursor 会话**以加载最新 hooks。
+- **健康自检**：`node .cursor/scripts/doctor.mjs`（支持 `--json` 与源仓 `--source-check`）。
+- **安全卸载**：`node scripts/cursor-base.mjs uninstall <target>`（仅摘除 `.cursor/skills` 联接与 `.cursor/` 受管生成物，**100% 不触碰 `.claude/`**）。
