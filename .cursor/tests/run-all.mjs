@@ -203,6 +203,29 @@ function parseTapCases(tapOutput) {
   return cases;
 }
 
+function extractTapFailureSnippet(stdout, stderr) {
+  const out = [];
+  const lines = String(stdout || '').replace(/\r\n/g, '\n').split('\n');
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (/^\s*not ok\b/.test(line)) {
+      out.push(line);
+      if (i + 1 < lines.length && /^\s*---\s*$/.test(lines[i + 1])) {
+        i += 1;
+        while (i < lines.length) {
+          out.push(lines[i]);
+          if (/^\s*\.\.\.\s*$/.test(lines[i])) break;
+          i += 1;
+        }
+      }
+    }
+  }
+  const errText = String(stderr || '').replace(/\r\n/g, '\n').trim();
+  if (errText) out.push(errText);
+  if (out.length > 0) return out.slice(0, 100).join('\n');
+  return [stdout || '', stderr || ''].filter(Boolean).join('\n').slice(0, 2500);
+}
+
 function findPowerShellBin() {
   const candidates = process.platform === 'win32'
     ? ['pwsh', 'powershell', 'powershell.exe']
@@ -349,6 +372,9 @@ function runSetupPs1StaticContract(repoRoot, psTestPath) {
     }
     if (!/\$arg\.StartsWith\('-'\)[\s\S]{0,80}Exit-Usage/.test(setupText)) {
       throw new Error('setup.ps1 missing unknown -* option Exit-Usage guard');
+    }
+    if (!setupText.includes('GetCommandLineArgs') || !setupText.includes('-ccontains')) {
+      throw new Error('setup.ps1 missing raw double-dash CLI interception guard (GetCommandLineArgs + -ccontains)');
     }
     if (!/ValidateSet\('',\s*'string',\s*'exec'\)/.test(setupText)) {
       throw new Error('setup.ps1 missing ValidateSet for $HookForm');
@@ -623,13 +649,7 @@ function main() {
     );
 
     if (!okFile) {
-      const diag = [r.stdout || '', r.stderr || ''].filter(Boolean).join('\n');
-      const relevant = diag
-        .replace(/\r\n/g, '\n')
-        .split('\n')
-        .filter((l) => /^(?:\s*not ok\b|\s*#\s|\s*Error:|\s*AssertionError|\s*actual:|\s*expected:|\s*operator:|\s*at\s)/.test(l))
-        .slice(0, 60);
-      const dump = relevant.length > 0 ? relevant.join('\n') : diag.slice(0, 2500);
+      const dump = extractTapFailureSnippet(r.stdout, r.stderr);
       if (dump.trim()) {
         process.stderr.write(`--- failure output: ${item.name} (exit ${r.status}) ---\n${dump}\n`);
       }

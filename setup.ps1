@@ -49,6 +49,56 @@ $AllowedForwardFlags = @(
   '--write', '--check', '--leak', '--print', '--json', '--strict-syntax', '-h', '--help'
 )
 
+# PowerShell 7 -File binds --dryrun case-insensitively to switch -DryRun before $ExtraArgs.
+# Inspect raw OS CLI argv so any unknown double-dash option (e.g. --dryrun) exits 2 with zero writes.
+$rawCli = [Environment]::GetCommandLineArgs()
+$rawStartIdx = -1
+$sawFileFlag = $false
+$selfName = ([string]$PSCommandPath -split '[\\/]')[-1]
+for ($idx = 1; $idx -lt $rawCli.Length; $idx++) {
+  if ($rawCli[$idx] -imatch '^[-/](?:f|file)$' -and ($idx + 1) -lt $rawCli.Length) {
+    $sawFileFlag = $true
+    $fileArgName = ([string]$rawCli[$idx + 1] -split '[\\/]')[-1]
+    if (-not $selfName -or ($fileArgName -ieq $selfName)) {
+      $rawStartIdx = $idx + 2
+    }
+    break
+  }
+}
+if (-not $sawFileFlag -and $rawStartIdx -lt 0 -and $selfName) {
+  for ($idx = 1; $idx -lt $rawCli.Length; $idx++) {
+    if ($rawCli[$idx] -imatch '^[-/](?:c|command|e|ec|encodedcommand)$') {
+      break
+    }
+    $candName = ([string]$rawCli[$idx] -split '[\\/]')[-1]
+    if ($candName -and ($candName -ieq $selfName)) {
+      $rawStartIdx = $idx + 1
+      break
+    }
+  }
+}
+if ($rawStartIdx -ge 0 -and $rawStartIdx -lt $rawCli.Length) {
+  for ($ri = $rawStartIdx; $ri -lt $rawCli.Length; $ri++) {
+    $ra = [string]$rawCli[$ri]
+    if ($ra -eq '--') { break }
+    if (
+      ($ra -imatch '^-(?:Target|CcBase|BundleCc|Out|HookForm)$') -or
+      ($ra -ceq '--target') -or ($ra -ceq '--cc-base') -or ($ra -ceq '--bundle-cc') -or ($ra -ceq '--out') -or ($ra -ceq '--hook-form')
+    ) {
+      if (($ri + 1) -lt $rawCli.Length -and -not ([string]$rawCli[$ri + 1]).StartsWith('-')) {
+        $ri++
+      }
+      continue
+    }
+    if ($ra.StartsWith('--')) {
+      $isExactAllowed = ($AllowedForwardFlags -ccontains $ra) -or ($ra -cmatch '^--(target|cc-base|bundle-cc|out|hook-form)=')
+      if (-not $isExactAllowed) {
+        Exit-Usage "unknown option: $ra"
+      }
+    }
+  }
+}
+
 $forwardArgs = New-Object System.Collections.Generic.List[string]
 $resolvedCmd = ''
 $resolvedTarget = $Target

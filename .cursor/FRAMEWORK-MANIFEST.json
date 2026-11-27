@@ -20,13 +20,13 @@
     },
     {
       "path": ".cursor/scripts/cursor-hook-preload.mjs",
-      "sha256": "ccc7f682abcf10de4f36877913f319ed615f0094adbf414c54026815afba25f8",
-      "bytes": 8958
+      "sha256": "43eea512e8c3d94002996c0a18a2e35af502e5784c49507de7efe623c6ab0278",
+      "bytes": 9707
     },
     {
       "path": ".cursor/scripts/doctor.mjs",
-      "sha256": "01ead2bdaa6953c5e6c6cb301a756efeee1c7a37e4ae5db081f4d0cbdd899da0",
-      "bytes": 24218
+      "sha256": "89ece1debdf7545395e451c3f79e26401a7b648d7ac2a7339dcfd4b9a4f39166",
+      "bytes": 24820
     },
     {
       "path": ".cursor/scripts/gen-agents.mjs",
@@ -40,8 +40,8 @@
     },
     {
       "path": ".cursor/scripts/hook-adapter.mjs",
-      "sha256": "0ecd2437e138a88859f7495308131b5f9aeef10936b488b0a6afa2cc35fcd4be",
-      "bytes": 28187
+      "sha256": "749dee192c8adb8a0b0f830f65eb61390f95d67d1b482074e69e31be91beb2bc",
+      "bytes": 28335
     },
     {
       "path": ".cursor/scripts/ps-floor.mjs",

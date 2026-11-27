@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { syncBuiltinESMExports } from 'node:module';
 
-const TARGET_HOOK_RE = /\/\.claude\/hooks\/(no-direct-code-guard|record-authorship|mark-review-needed)\.mjs$/;
+const TARGET_HOOK_RE = /\/\.claude\/hooks\/(no-direct-code-guard|record-authorship|mark-review-needed)\.mjs$/i;
 const HOST_SCAFFOLD_REL_RE = /^(\.cursor|\.cac|\.agents|\.claude)(\/|$)/;
 const SUBAGENT_TTL_MS = 30 * 60 * 1000;
 const STDIN_WAIT_MAX_MS = 3000;
@@ -91,7 +91,7 @@ function isHostScaffoldFilePath(rawFilePath, root) {
   return HOST_SCAFFOLD_REL_RE.test(folded);
 }
 
-function loadActiveSubagents(root) {
+function loadActiveSubagents(root, readFileSyncImpl = fs.readFileSync) {
   const stateDir = path.join(root, '.claude', 'evidence', '.cursor-subagents');
   let names;
   try {
@@ -104,7 +104,7 @@ function loadActiveSubagents(root) {
   for (const name of names) {
     if (!name.endsWith('.json')) continue;
     try {
-      const v = JSON.parse(fs.readFileSync(path.join(stateDir, name), 'utf8'));
+      const v = JSON.parse(readFileSyncImpl.call(fs, path.join(stateDir, name), 'utf8'));
       if (v && typeof v === 'object' && !Array.isArray(v)
         && typeof v.subagent_id === 'string' && v.subagent_id.trim() !== ''
         && typeof v.ts === 'number' && (now - v.ts) <= SUBAGENT_TTL_MS) {
@@ -191,18 +191,30 @@ function installPreload() {
   const m = TARGET_HOOK_RE.exec(entryPosix);
   if (!m) return;
 
-  const hookName = m[1];
+  const origReadSync = fs.readSync;
+  const origReadFileSync = fs.readFileSync;
+  const hookName = m[1].toLowerCase();
   const isMarkReview = hookName === 'mark-review-needed';
   let activeList = [];
   if (!isMarkReview) {
     const root = resolveRoot(entryPosix);
-    activeList = loadActiveSubagents(root);
+    activeList = loadActiveSubagents(root, origReadFileSync);
     if (activeList.length === 0) return;
   }
 
-  const origReadSync = fs.readSync;
   let cachedBuf = null;
   let cachedOffset = 0;
+
+  function ensureTransformedStdin() {
+    if (cachedBuf === null) {
+      const rawStdin = readAllStdinBuffer(origReadSync);
+      cachedBuf = isMarkReview
+        ? transformMarkReviewStdinBuffer(rawStdin, entryPosix)
+        : transformSubagentStdinBuffer(rawStdin, activeList);
+      cachedOffset = 0;
+    }
+    return cachedBuf;
+  }
 
   fs.readSync = function wrappedReadSync(fd, buffer, offsetOrOpts, length, position) {
     if (fd !== 0) {
@@ -217,19 +229,30 @@ function installPreload() {
       offset = offsetOrOpts;
       len = typeof length === 'number' ? length : (buffer.byteLength - offset);
     }
-    if (cachedBuf === null) {
-      const rawStdin = readAllStdinBuffer(origReadSync);
-      cachedBuf = isMarkReview
-        ? transformMarkReviewStdinBuffer(rawStdin, entryPosix)
-        : transformSubagentStdinBuffer(rawStdin, activeList);
-      cachedOffset = 0;
-    }
-    if (len <= 0 || cachedOffset >= cachedBuf.length) return 0;
-    const toCopy = Math.min(len, cachedBuf.length - cachedOffset);
-    cachedBuf.copy(buffer, offset, cachedOffset, cachedOffset + toCopy);
+    const full = ensureTransformedStdin();
+    if (len <= 0 || cachedOffset >= full.length) return 0;
+    const toCopy = Math.min(len, full.length - cachedOffset);
+    full.copy(buffer, offset, cachedOffset, cachedOffset + toCopy);
     cachedOffset += toCopy;
     return toCopy;
   };
+
+  fs.readFileSync = function wrappedReadFileSync(pathOrFd, options) {
+    if (pathOrFd !== 0) {
+      return origReadFileSync.call(this, pathOrFd, options);
+    }
+    const full = ensureTransformedStdin();
+    const outBuf = Buffer.from(full.subarray(cachedOffset));
+    cachedOffset = full.length;
+    if (typeof options === 'string') {
+      return outBuf.toString(options);
+    }
+    if (options && typeof options === 'object' && options.encoding) {
+      return outBuf.toString(options.encoding);
+    }
+    return outBuf;
+  };
+
   syncBuiltinESMExports();
 }
 

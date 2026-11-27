@@ -77,8 +77,7 @@ export function unlinkSymlinkOrJunctionSafe(absLink) {
     try {
       fs.rmdirSync(absLink);
       return true;
-    } catch (e) {
-      if (e && e.code === 'ENOENT') return false;
+    } catch {
       try {
         fs.unlinkSync(absLink);
         return true;

@@ -169,6 +169,36 @@ function whichCmd(exe) {
   return null;
 }
 
+function probeCliVersion(binPath) {
+  if (!binPath || String(binPath).includes('"')) return '';
+  try {
+    const vr = (process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(binPath))
+      ? spawnSync(
+          process.env.ComSpec || 'cmd.exe',
+          ['/d', '/s', '/c', `""${binPath}" --version"`],
+          {
+            shell: false,
+            windowsHide: true,
+            windowsVerbatimArguments: true,
+            encoding: 'utf8',
+            timeout: 5000,
+          },
+        )
+      : spawnSync(binPath, ['--version'], {
+          shell: false,
+          windowsHide: true,
+          encoding: 'utf8',
+          timeout: 5000,
+        });
+    if (!vr.error && vr.stdout) {
+      return String(vr.stdout).trim().split(/\r?\n/)[0] || '';
+    }
+  } catch {
+    // Best-effort version probe
+  }
+  return '';
+}
+
 function parseDoctorArgs(argv) {
   let jsonMode = false;
   let sourceCheck = false;
@@ -602,16 +632,7 @@ export function runDoctor(rawTarget, { jsonMode = false, sourceCheck = false } =
 
   const cursorCliBin = whichCmd('cursor-agent');
   if (cursorCliBin) {
-    let ver = '';
-    const vr = spawnSync(cursorCliBin, ['--version'], {
-      shell: false,
-      windowsHide: true,
-      encoding: 'utf8',
-      timeout: 5000,
-    });
-    if (!vr.error && vr.stdout) {
-      ver = String(vr.stdout).trim().split(/\r?\n/)[0] || '';
-    }
+    const ver = probeCliVersion(cursorCliBin);
     ok(`cursor-agent CLI 可用${ver ? `（${ver}）` : ''}`);
   } else {
     note('未检测到 cursor-agent CLI（仅使用 Cursor IDE 时可忽略，仅提示不判红）');

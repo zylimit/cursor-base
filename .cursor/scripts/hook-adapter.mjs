@@ -92,13 +92,22 @@ function detachLinkOnly(absLink) {
     try {
       fs.rmdirSync(absLink);
       return;
-    } catch (e) {
-      if (e && e.code === 'ENOENT') return;
-      fs.unlinkSync(absLink);
-      return;
+    } catch {
+      try {
+        fs.unlinkSync(absLink);
+        return;
+      } catch (e2) {
+        if (e2 && e2.code === 'ENOENT') return;
+        throw e2;
+      }
     }
   }
-  fs.unlinkSync(absLink);
+  try {
+    fs.unlinkSync(absLink);
+  } catch (e) {
+    if (e && e.code === 'ENOENT') return;
+    throw e;
+  }
 }
 
 function createOsDirLink(absLink, absTarget) {
